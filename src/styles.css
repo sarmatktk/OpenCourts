@@ -128,6 +128,7 @@
 .dark .rain-score .confidence-high,.dark .popover-rain .confidence-high{color:#c4df71}
 .dark .rain-score .confidence-moderate,.dark .popover-rain .confidence-moderate{color:#e5b665}
 .dark .rain-score .confidence-low,.dark .popover-rain .confidence-low{color:#e48d86}
+
 @media(max-width:620px){.search-wrap{width:100%;margin-top:18px}.search-wrap .searchbox{margin:0}.place-suggestions{top:calc(100% + 6px);max-height:50vh}}
 .search-spinner{display:inline-block;flex:none;animation:search-spin .8s linear infinite}
 @keyframes search-spin{to{transform:rotate(360deg)}}

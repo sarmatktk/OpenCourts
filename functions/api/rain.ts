@@ -60,9 +60,11 @@ async function sample(points: CourtPoint[], hours: 1 | 3 | 6): Promise<(number |
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    const body: any = await request.json();
-    const points: CourtPoint[] = Array.isArray(body.courts) ? body.courts.slice(0, 50) : [];
-    if (!points.length || points.some(point => typeof point.id !== 'string' || !Number.isFinite(point.lat) || !Number.isFinite(point.lon) || Math.abs(point.lat) > 90 || Math.abs(point.lon) > 180)) {
+    let body: any;
+    try { body = await request.json(); }
+    catch { return Response.json({ error: 'A list of court coordinates is required.' }, { status: 400 }); }
+    const points: CourtPoint[] = Array.isArray(body?.courts) ? body.courts.slice(0, 50) : [];
+    if (!points.length || points.some(point => !point || typeof point !== 'object' || typeof point.id !== 'string' || !Number.isFinite(point.lat) || !Number.isFinite(point.lon) || Math.abs(point.lat) > 90 || Math.abs(point.lon) > 180)) {
       return Response.json({ error: 'Valid court coordinates are required.' }, { status: 400 });
     }
     const periods = await Promise.allSettled([sample(points, 1), sample(points, 3), sample(points, 6)]);

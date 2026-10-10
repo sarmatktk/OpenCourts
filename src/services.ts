@@ -31,7 +31,11 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
 }
 export function distinguishCourtNames(courts: Court[]): Court[] {
   const groups = new Map<string, Court[]>();
-  for (const court of courts) groups.set(court.name, [...(groups.get(court.name) ?? []), court]);
+  for (const court of courts) {
+    const group = groups.get(court.name);
+    if (group) group.push(court);
+    else groups.set(court.name, [court]);
+  }
   const rank = new Map<string, number>();
   for (const group of groups.values()) {
     [...group].sort((a, b) => a.lat - b.lat || a.lon - b.lon).forEach((court, index) => rank.set(court.id, index + 1));
@@ -49,14 +53,28 @@ export function distinguishCourtNames(courts: Court[]): Court[] {
 export function isLikelyMembersClub(court: Court, tags: Record<string, string | undefined> = {}): boolean {
   return court.access === 'restricted' || /\b(tennis|racquet|country|athletic)\s+clubs?\b|\bclub\s+(tennis|courts?)\b/i.test(court.name) || Boolean(tags.membership) || tags.fee === 'yes';
 }
+async function readApiJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  if (!response.headers.get('content-type')?.includes('application/json')) throw new Error(fallbackMessage);
+  try { return await response.json() as T; }
+  catch { throw new Error(fallbackMessage); }
+}
 export async function findPlace(query: string, signal?: AbortSignal): Promise<Place> {
   const key = `opencourts-place-${query.trim().toLowerCase()}`;
-  try { const saved = sessionStorage.getItem(key); if (saved) return JSON.parse(saved); } catch { /* storage can be disabled */ }
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved) {
+      const place = JSON.parse(saved) as Place;
+      if (place && Number.isFinite(place.lat) && Number.isFinite(place.lon) && Math.abs(place.lat) <= 90 && Math.abs(place.lon) <= 180) return place;
+    }
+  } catch { /* storage can be disabled or contain stale data */ }
   const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query);
   const res = await fetch(url, { signal }); if (!res.ok) throw new Error(res.status === 429 ? 'Location search is busy. Please wait a moment and try again.' : 'Location search is unavailable. Try a city and state or ZIP code.');
-  const data = await res.json(); const match = data.result;
+  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
+  const match = data.result;
   if (!match) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
-  const place = { label: match.display_name, lat: Number(match.lat), lon: Number(match.lon) };
+  const lat = Number(match.lat); const lon = Number(match.lon);
+  if (!match.display_name || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
+  const place = { label: match.display_name, lat, lon };
   try { sessionStorage.setItem(key, JSON.stringify(place)); } catch { /* storage can be disabled */ }
   return place;
 }
@@ -64,28 +82,61 @@ export async function getPlaceSuggestions(query: string, signal?: AbortSignal): 
   const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query);
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error('Place suggestions are temporarily unavailable.');
-  const data = await res.json();
+  const data = await readApiJson<{ suggestions?: PlaceSuggestion[] }>(res, 'Place suggestions are temporarily unavailable.');
   return Array.isArray(data.suggestions) ? data.suggestions : [];
 }
-function enrichNearbyCourtDetails(courts: Court[], elements: any[], locality: string): Court[] {
-  const roads = elements.filter(item => item.tags?.highway && item.tags?.name);
-  const places = elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
+const DETAIL_GRID_SIZE = 0.01;
+type NearbyFeature = { feature: any; lat: number; lon: number };
+type NearbyGrid = Map<string, NearbyFeature[]>;
+
+function makeNearbyGrid(features: any[]): NearbyGrid {
+  const grid: NearbyGrid = new Map();
+  for (const feature of features) {
+    const lat = feature.lat ?? feature.center?.lat;
+    const lon = feature.lon ?? feature.center?.lon;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const key = `${Math.floor(lat / DETAIL_GRID_SIZE)}:${Math.floor(lon / DETAIL_GRID_SIZE)}`;
+    const bucket = grid.get(key);
+    const point = { feature, lat, lon };
+    if (bucket) bucket.push(point);
+    else grid.set(key, [point]);
+  }
+  return grid;
+}
+
+function nearestFeature(origin: { lat: number; lon: number }, grid: NearbyGrid, maxMiles: number): { feature: any; distance: number } | undefined {
+  const latCell = Math.floor(origin.lat / DETAIL_GRID_SIZE);
+  const lonCell = Math.floor(origin.lon / DETAIL_GRID_SIZE);
+  const latCells = Math.ceil(maxMiles / (68.7 * DETAIL_GRID_SIZE)) + 1;
+  const lonMilesPerDegree = 68.7 * Math.max(0.05, Math.abs(Math.cos(origin.lat * Math.PI / 180)));
+  const lonCells = Math.ceil(maxMiles / (lonMilesPerDegree * DETAIL_GRID_SIZE)) + 1;
+  let nearest: { feature: any; distance: number } | undefined;
+  for (let y = latCell - latCells; y <= latCell + latCells; y++) {
+    for (let x = lonCell - lonCells; x <= lonCell + lonCells; x++) {
+      for (const point of grid.get(`${y}:${x}`) ?? []) {
+        const distance = milesBetween(origin, point);
+        if (distance <= maxMiles && (!nearest || distance < nearest.distance)) nearest = { feature: point.feature, distance };
+      }
+    }
+  }
+  return nearest;
+}
+
+export function enrichNearbyCourtDetails(courts: Court[], elements: any[], locality: string): Court[] {
+  const roads = makeNearbyGrid(elements.filter(item => item.tags?.highway && item.tags?.name));
+  const places = makeNearbyGrid(elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school')));
   return distinguishCourtNames(courts.map(court => {
-    const nearestRoad = roads.map(road => ({ road, lat: road.lat ?? road.center?.lat, lon: road.lon ?? road.center?.lon }))
-      .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon))
-      .map(item => ({ ...item, distance: milesBetween(court, item) })).sort((a, b) => a.distance - b.distance)[0];
+    const nearestRoad = nearestFeature(court, roads, 0.12);
     let address = court.address;
     let addressApprox = court.addressApprox;
-    if (!address && nearestRoad?.road.tags?.name && nearestRoad.distance <= 0.12) {
-      address = `Near ${nearestRoad.road.tags.name}${locality ? `, ${locality}` : ''}`;
+    if (!address && nearestRoad?.feature.tags?.name) {
+      address = `Near ${nearestRoad.feature.tags.name}${locality ? `, ${locality}` : ''}`;
       addressApprox = true;
     }
-    const nearestPlace = places.map(place => ({ place, lat: place.lat ?? place.center?.lat, lon: place.lon ?? place.center?.lon }))
-      .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon))
-      .map(item => ({ ...item, distance: milesBetween(court, item) })).filter(item => item.distance <= 0.35).sort((a, b) => a.distance - b.distance)[0];
+    const nearestPlace = nearestFeature(court, places, 0.35);
     const genericName = /^tennis courts?(?:\s+(?:at|near)\s+.*)?$/i.test(court.name);
     let name = court.name;
-    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${nearestPlace.place.tags.name}`;
+    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${nearestPlace.feature.tags.name || nearestPlace.feature.tags['name:en']}`;
     else if (genericName && address) name = `Tennis courts near ${address.replace(/^Near\s+/i, '').split(',')[0]}`;
     return { ...court, name, address, addressApprox };
   }));
@@ -112,15 +163,20 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
       return courts;
     }
   } catch { /* storage can be disabled */ }
-  const res = await fetch(`/api/courts?lat=${lat}&lon=${lon}`, { signal });
+  const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal });
   if (!res.ok) {
-    const failure = await res.json().catch(() => ({}));
+    const failure = await res.json().catch(() => ({} as Record<string, unknown>));
     const diagnostic = typeof failure.diagnostic === 'string' && failure.diagnostic ? ` (${failure.diagnostic})` : '';
-    throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : `${failure.error || 'Court data is temporarily unavailable. Please try again.'}${diagnostic}`);
+    if (diagnostic) console.warn('[OpenCourts] Court lookup failed', diagnostic);
+    throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : typeof failure.error === 'string' ? failure.error : 'Court data is temporarily unavailable. Please try again.');
   }
-  const data = await res.json(); const elements = data.elements ?? []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
+  const data = await readApiJson<{ elements?: any[] }>(res, 'Court data could not be read. Please try again.');
+  const elements = Array.isArray(data.elements) ? data.elements : []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
   const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
-  const courts = distinguishCourtNames(elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || '')).map((element: any) => normalizeCourt(element, roads, locality, places)).filter((court: Court) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, elements.find((item: any) => `osm-${item.type}-${item.id}` === court.id)?.tags)));
+  const courtElements = elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || ''));
+  const courts = distinguishCourtNames(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
+    .filter(({ element, court }: { element: any; court: Court }) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, element.tags))
+    .map(({ court }: { court: Court }) => court));
   try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
   refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
   return courts;
@@ -147,26 +203,14 @@ export async function getRainAssessments(
       signal,
     });
 
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      throw new Error(
-        'The rain endpoint did not return JSON. Confirm that the latest /api/rain Cloudflare Function is deployed.',
-      );
-    }
-
-    const data = await res.json();
+    const data = await readApiJson<{ error?: string; diagnostic?: string; assessments?: RainAssessment[] }>(res, 'Recent rain data is temporarily unavailable. Please try again.');
     if (!res.ok) {
-      throw new Error(
-        [
-          data.error || 'Recent radar rainfall is temporarily unavailable.',
-          data.diagnostic ? `Local diagnostic: ${data.diagnostic}` : '',
-        ]
-          .filter(Boolean)
-          .join(' '),
-      );
+      if (data.diagnostic) console.warn('[OpenCourts] Recent rain request failed', data.diagnostic);
+      throw new Error(data.error || 'Recent rain data is temporarily unavailable. Please try again.');
     }
 
-    assessments.push(...(data.assessments ?? []));
+    if (!Array.isArray(data.assessments)) throw new Error('Recent rain data could not be read. Please try again.');
+    assessments.push(...data.assessments);
   }
 
   return assessments;
@@ -211,8 +255,9 @@ export function assessRainfall(rain1h: number | null, rain3h: number | null, rai
   return { rain1h, rain3h, rain6h, score, confidence, summary };
 }
 export async function getWeather(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherData> {
-  const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`, { signal }); if (!res.ok) throw new Error('Weather forecast unavailable');
-  const data = await res.json(); return { periods: data.periods ?? [], outlook: data.outlook ?? [], timeZone: data.timeZone ?? 'America/New_York' };
+  const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal }); if (!res.ok) throw new Error('Local forecast is temporarily unavailable. Please try again.');
+  const data = await readApiJson<Partial<WeatherData>>(res, 'Local forecast is temporarily unavailable. Please try again.');
+  return { periods: Array.isArray(data.periods) ? data.periods : [], outlook: Array.isArray(data.outlook) ? data.outlook : [], timeZone: data.timeZone || 'America/New_York' };
 }
 export function playScore(f: Forecast): number {
   const comfortable = Math.max(0, 100 - Math.abs(f.temp - 70) * 2.2);

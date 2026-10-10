@@ -1,3 +1,6 @@
+
+
+
 # OpenCourts
 
 OpenCourts is a map-first public tennis court finder. It combines OpenStreetMap court features, a MapLibre map, Photon place suggestions and OpenStreetMap Nominatim place search, and National Weather Service hourly forecasts. No account or API key is required for the included setup.
@@ -9,7 +12,7 @@ npm install
 npm run dev
 ```
 
-The Vite development server hosts the interface and runs `/api/geocode`, `/api/suggest`, `/api/courts`, `/api/court-context`, `/api/rain`, and `/api/weather` through the Pages Function handlers locally. Court search queries the available Overpass providers in parallel and uses the first valid response. The blocking court query is kept small; nearby streets, parks, and schools are fetched afterward to improve fallback names and addresses without delaying the map and list. The interface shows a spinner while it searches and a longer-wait message if needed. **You do not need a Cloudflare account or deployment to test the app.** After building, `npm run preview` runs the built site and functions through Wrangler Pages. If recent radar data is unavailable, the local error includes a diagnostic and the terminal logs `[OpenCourts] Radar rainfall query failed`. The radar route needs outbound access to NOAA's MRMS service. If your machine uses an HTTP proxy, environment-proxy support requires Node 22.21 or newer; otherwise the app uses your normal network connection.
+The Vite development server hosts the interface and runs `/api/geocode`, `/api/suggest`, `/api/courts`, `/api/court-context`, `/api/rain`, and `/api/weather` through the Pages Function handlers locally. Court search races no more than two Overpass providers at a time, then tries the next pair only if both fail. Successful court and nearby-detail results are cached at the edge for six hours. The initial query only requests tennis courts; a second, optional query adds nearby streets and places so it cannot hold up the first results. **You do not need a Cloudflare account or deployment to test the app.** After building, `npm run preview` runs the built site and functions through Wrangler Pages. If recent radar data is unavailable, the visitor sees a short message; local diagnostics are written to the terminal. The radar route needs outbound access to NOAA's MRMS service. If your machine uses an HTTP proxy, environment-proxy support requires Node 22.21 or newer; otherwise the app uses your normal network connection.
 
 ```sh
 npm run build
@@ -20,7 +23,7 @@ npm test
 
 ## Data and providers
 
-- **Court features:** OpenStreetMap through a Cloudflare Pages Function proxy to Overpass. The function limits searches to a regional bounding box, caches successful responses at the edge for 30 minutes, and tries alternate public Overpass instances if one is unavailable. It also finds nearby named parks, schools, and community centers for court labels, with named streets as a fallback, and looks for approximate addresses. Grouped court counts read the OSM `count=*` tag (plus legacy aliases); court names, counts, lighting, access, and coverage depend on OSM mapping and may be incomplete.
+- **Court features:** OpenStreetMap through a Cloudflare Pages Function proxy to Overpass. Searches are limited to a regional bounding box; successful results are cached at the edge for six hours. The function checks at most two Overpass instances at a time and moves to the next pair only if needed. Nearby streets, parks, schools, and community centers can fill in missing labels and approximate addresses. Grouped court counts read the OSM `count=*` tag (plus legacy aliases). Names, counts, lighting, access, and coverage depend on OSM mapping and may be incomplete.
 - **Maps:** MapLibre GL JS with OpenStreetMap raster tiles and visible OpenStreetMap attribution. Follow the tile provider's usage policy; for commercial or high-traffic use, select a tile provider and plan that supports your expected usage.
 - **Place search:** Typing at least three characters shows debounced suggestions from Photon; selecting one searches courts at that location. Submitting without selecting a suggestion uses OpenStreetMap's Nominatim geocoder through a Cloudflare Pages Function, with repeat searches cached. Nominatim's public service has a strict shared limit of one request per second and forbids autocomplete, so it is used only for a submitted search. Photon supports search-as-you-type; for high traffic, follow its service guidance or configure a provider with suitable production terms. See https://github.com/komoot/photon and https://operations.osmfoundation.org/policies/nominatim/.
 - **Weather:** NWS hourly and 12-hour forecast periods (up to seven days) via a Cloudflare Pages Function. A location's coordinates are sent to api.weather.gov. NWS support varies by location and API availability.

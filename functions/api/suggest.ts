@@ -1,3 +1,5 @@
+import { readEdgeCache, writeEdgeCache } from '../lib/edge-cache';
+
 interface Env {}
 
 type PhotonFeature = {
@@ -23,14 +25,14 @@ function toSuggestion(feature: PhotonFeature) {
   return { title, detail, label: [title, detail].filter(Boolean).join(', '), lat, lon };
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ request }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) => {
   const url = new URL(request.url);
   const query = (url.searchParams.get('q') ?? '').trim();
   if (query.length < 3 || query.length > 120) return Response.json({ suggestions: [] }, { headers: { 'Cache-Control': 'public, max-age=60' } });
 
   const key = new Request(`${url.origin}/api/suggest?q=${encodeURIComponent(query.toLowerCase())}`);
   const cache = typeof caches === 'undefined' ? undefined : caches.default;
-  const cached = cache ? await cache.match(key) : undefined;
+  const cached = await readEdgeCache(cache, key);
   if (cached) return cached;
 
   try {
@@ -44,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request }) => {
     const data = await response.json() as { features?: PhotonFeature[] };
     const suggestions = (data.features ?? []).map(toSuggestion).filter((item): item is NonNullable<typeof item> => item !== null);
     const result = Response.json({ suggestions }, { headers: { 'Cache-Control': 'public, max-age=3600' } });
-    if (cache) await cache.put(key, result.clone());
+    writeEdgeCache(cache, key, result, waitUntil);
     return result;
   } catch {
     return Response.json({ error: 'Place suggestions are temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });

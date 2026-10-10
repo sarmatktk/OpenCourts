@@ -4,7 +4,24 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#123d32" />
-    <meta name="description" content="OpenCourts privacy information" />
+    <meta name="description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OpenCourts" />
+    <meta property="og:title" content="OpenCourts Privacy" />
+    <meta property="og:description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta property="og:url" content="https://opencourts.us/privacy.html" />
+    <meta property="og:image" content="https://opencourts.us/social-preview.png" />
+    <meta property="og:image:secure_url" content="https://opencourts.us/social-preview.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OpenCourts Privacy" />
+    <meta name="twitter:description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta name="twitter:image" content="https://opencourts.us/social-preview.png" />
+    <meta name="twitter:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
+    <link rel="canonical" href="https://opencourts.us/privacy.html" />
     <link rel="icon"  href="/favicon.ico" />
     <link rel="stylesheet" href="/pages.css" />
     <title>Privacy | OpenCourts</title>
@@ -20,12 +37,14 @@
       <article class="page-card">
         <p class="page-kicker">OpenCourts policies</p>
         <h1>Privacy</h1>
-        <small class="page-updated">Last updated October 9, 2026</small>
-        <p>OpenCourts is a free court discovery service. We do not sell personal information.</p>
+        <small class="page-updated">Last updated October 10, 2026</small>
+        <p>OpenCourts is free to use. We do not sell personal information.</p>
         <h2>Location</h2>
-        <p>Your browser location is requested only when you choose a location button. Coordinates are used to load nearby court and weather data. A selected search location may be stored in your browser’s local storage for convenience. You can remove it by clearing site data.</p>
+        <p>Your browser location is requested only when you choose a location button. Coordinates are used to load nearby court and weather data. Place searches and results are cached in session storage for the current tab. The location you select is saved in local storage so it can be used when you return. Clear this site’s browser data to remove them.</p>
         <h2>External services</h2>
-        <p>When you submit a place search, the search text is sent to the OpenStreetMap Nominatim geocoder. Court searches are served through Cloudflare Pages Functions and the Overpass API. Forecasts come from the U.S. National Weather Service. These services receive the query or approximate coordinates needed to fulfill your request and have their own privacy practices.</p>
+        <p>OpenCourts uses OpenStreetMap for the map and court listings. Place suggestions come from Photon, and submitted place searches are sent to OpenStreetMap’s Nominatim service. Court searches are sent through Cloudflare Pages Functions to Overpass API providers. Forecasts come from the U.S. National Weather Service, and recent-rain estimates use NOAA radar data. Each service receives the search text or coordinates needed to respond and has its own privacy practices.</p>
+        <h2>Analytics</h2>
+        <p>The court-search page uses Google Analytics to measure visits. Google says its default web setup can collect visit and session counts, approximate location, browser and device information, and may use a first-party <code>_ga</code> cookie. Read <a class="page-inline-link" href="https://support.google.com/analytics/answer/11593727" rel="noreferrer">Google’s description of Analytics data collection</a>.</p>
         <h2>Contact</h2>
         <p>Questions? Email <a class="page-inline-link" href="mailto:samktk23@gmail.com">samktk23@gmail.com</a>.</p>
       </article>
