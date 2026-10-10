@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudSun, Compass, Crosshair, ExternalLink, Filter, LocateFixed, MapPin, Menu, Moon, Sun, SunMedium, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Sun, SunMedium, X } from 'lucide-react';
 import { findPlace, getCourts, getPlaceSuggestions, getRainAssessments, getWeather, weeklyPlayWindows } from './services';
 import type { Court, Forecast, Place, PlaceSuggestion, RainAssessment } from './types';
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
@@ -12,7 +12,7 @@ function distanceMiles(a: { lat: number; lon: number }, b: { lat: number; lon: n
 function App() {
   const [place, setPlace] = useState<Place>(() => { try { return JSON.parse(localStorage.getItem('opencourts-place') || 'null') ?? INITIAL; } catch { return INITIAL; } });
   const [query, setQuery] = useState(''); const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]); const [suggestionsOpen, setSuggestionsOpen] = useState(false); const [suggestionsLoading, setSuggestionsLoading] = useState(false); const [suggestionsError, setSuggestionsError] = useState(''); const [activeSuggestion, setActiveSuggestion] = useState(-1); const [courts, setCourts] = useState<Court[]>([]); const [hourlyForecast, setHourlyForecast] = useState<Forecast[]>([]); const [timeZone, setTimeZone] = useState('America/New_York'); const [visibleCount, setVisibleCount] = useState(30);
-  const [loading, setLoading] = useState(true); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
+  const [loading, setLoading] = useState(true); const [searchSlow, setSearchSlow] = useState(false); const [placeLookupLoading, setPlaceLookupLoading] = useState(false); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
   const [mapError, setMapError] = useState('');
   const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(false); const [selected, setSelected] = useState<Court | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -59,9 +59,15 @@ function App() {
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
     setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place', JSON.stringify(p)); } catch { /* storage optional */ }
     setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError('');
-    getCourts(p.lat, p.lon, controller.signal, p.label).then(setCourts).catch(e => { if (e.name !== 'AbortError') { setCourts([]); setError(e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    getCourts(p.lat, p.lon, controller.signal, p.label, enriched => { if (!controller.signal.aborted) setCourts(enriched); }).then(setCourts).catch(e => { if (e.name !== 'AbortError') { setCourts([]); setError(e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     setWeatherLoading(true); setWeatherError(''); getWeather(p.lat, p.lon, controller.signal).then(data => { setHourlyForecast(data.periods); setTimeZone(data.timeZone); }).catch(e => { if (e.name !== 'AbortError') { setHourlyForecast([]); setWeatherError(e.message); } }).finally(() => { if (!controller.signal.aborted) setWeatherLoading(false); });
   }, []);
+  useEffect(() => {
+    if (!loading) { setSearchSlow(false); return; }
+    setSearchSlow(false);
+    const timer = window.setTimeout(() => setSearchSlow(true), 7000);
+    return () => window.clearTimeout(timer);
+  }, [loading, place]);
   useEffect(() => { void load(place); return () => request.current?.abort(); }, []);
   useEffect(() => {
     if (!mapEl.current || map.current) return;
@@ -140,7 +146,7 @@ function App() {
     else if (e.key === 'Escape' && suggestionsOpen) { e.preventDefault(); setSuggestionsOpen(false); setActiveSuggestion(-1); }
     else if (e.key === 'Enter' && suggestionsOpen && activeSuggestion >= 0 && suggestions[activeSuggestion]) { e.preventDefault(); chooseSuggestion(suggestions[activeSuggestion]); }
   }
-  async function submitSearch(e?: React.FormEvent) { e?.preventDefault(); if (!query.trim()) return; setSuggestionsOpen(false); setError(''); try { const p = await findPlace(query.trim()); setQuery(''); setSelected(null); await load(p); } catch (e: any) { setError(e.message); } }
+  async function submitSearch(e?: React.FormEvent) { e?.preventDefault(); if (!query.trim() || placeLookupLoading) return; setSuggestionsOpen(false); setError(''); setPlaceLookupLoading(true); try { const p = await findPlace(query.trim()); setQuery(''); setSelected(null); await load(p); } catch (e: any) { setError(e.message); } finally { setPlaceLookupLoading(false); } }
   function locate() { if (!navigator.geolocation) { setError('Location sharing is not supported by this browser.'); return; }
     setError(''); navigator.geolocation.getCurrentPosition(pos => { const p = { label: 'Your location', lat: pos.coords.latitude, lon: pos.coords.longitude }; setSelected(null); void load(p); }, e => setError(e.code === 1 ? 'Location access was declined. You can still search for a city or ZIP code.' : 'Couldn’t get your location. Try searching for a city or ZIP code.'), { enableHighAccuracy: true, timeout: 10000 });
   }
@@ -153,7 +159,7 @@ function App() {
     <main id="top">
       <section className="intro"><h1>Find your court.</h1><p className="intro-copy">Explore nearby courts, compare amenities, and check the forecast.</p>
         <div className="search-wrap" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
-          <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit"><span>Find courts</span><ArrowRight size={17}/></button></form>
+          <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{placeLookupLoading || loading ? <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/> : <ArrowRight size={17}/>}</button></form>
           {suggestionsOpen && query.trim().length >= 3 && <div className="place-suggestions" id="place-suggestions" role="listbox" aria-label="Address suggestions">
             {suggestionsLoading && <div className="suggestion-message" role="status">Searching places…</div>}
             {!suggestionsLoading && suggestionsError && <div className="suggestion-message" role="status">{suggestionsError}</div>}
@@ -164,7 +170,8 @@ function App() {
       </section>
       <section className={mobileList ? 'explore list-open' : 'explore'} id="explore" aria-label="Explore tennis courts"><div className="mobile-view-switch" role="group" aria-label="Choose map or list view"><button type="button" aria-pressed={!mobileList} className={!mobileList ? 'active' : ''} onClick={showMapView}>Map</button><button type="button" aria-pressed={mobileList} className={mobileList ? 'active' : ''} onClick={() => setMobileList(true)}>List <span>{filtered.length}</span></button></div><div className="results-panel">
           <div className="results-head"><div><div className="section-kicker">COURTS NEAR</div><h2>{place.label}</h2></div><button className="round-action" title="Center map on location" onClick={() => map.current?.flyTo({ center: [place.lon, place.lat], zoom: 12 })}><Compass size={18}/></button></div>
-          <div className="result-meta"><span>{loading ? 'Searching nearby…' : error ? 'Results unavailable' : `${filtered.length} courts`}</span><label className="sort-control"><span>Sort</span><select aria-label="Sort courts" value={sort} onChange={e => setSort(e.target.value as 'near' | 'lighted')}><option value="near">Nearest first</option><option value="lighted">Lighted first</option></select><ChevronDown size={13}/></label></div>
+          <div className="result-meta"><span>{loading ? <><LoaderCircle size={14} className="search-spinner" aria-hidden="true"/> Searching nearby…</> : error ? 'Results unavailable' : `${filtered.length} courts`}</span><label className="sort-control"><span>Sort</span><select aria-label="Sort courts" value={sort} onChange={e => setSort(e.target.value as 'near' | 'lighted')}><option value="near">Nearest first</option><option value="lighted">Lighted first</option></select><ChevronDown size={13}/></label></div>
+          {loading && <div className="search-progress" role="status" aria-live="polite"><LoaderCircle size={17} className="search-spinner" aria-hidden="true"/><span>{searchSlow ? 'This area is taking longer than usual. Still searching for courts…' : `Finding tennis courts near ${place.label}…`}</span></div>}
           <div className="filter-toolbar"><button className={`filter-trigger ${filtersOpen || activeFilters ? 'active' : ''}`} aria-expanded={filtersOpen} aria-controls="court-filters" onClick={() => setFiltersOpen(!filtersOpen)}><Filter size={15}/> Filters {activeFilters > 0 && <span className="filter-count">{activeFilters}</span>}<ChevronDown size={14}/></button><button className={`quick-filter ${litOnly ? 'active' : ''}`} aria-pressed={litOnly} onClick={() => setLitOnly(!litOnly)}><SunMedium size={15}/> With lights</button>{activeFilters > 0 && <button className="filter-reset" onClick={resetFilters}>Reset</button>}</div>
           {filtersOpen && <div id="court-filters" className="filter-panel">
             <div className="filter-panel-heading"><strong>Refine your search</strong><button aria-label="Close filters" onClick={() => setFiltersOpen(false)}><X size={16}/></button></div>

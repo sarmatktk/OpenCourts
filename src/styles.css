@@ -112,3 +112,9 @@
 .suggestion-message{padding:14px 12px;color:var(--muted);font-size:12px;line-height:1.5}
 .dark .place-suggestion:hover,.dark .place-suggestion.active{background:#26382d}
 @media(max-width:620px){.search-wrap{width:100%;margin-top:18px}.search-wrap .searchbox{margin:0}.place-suggestions{top:calc(100% + 6px);max-height:50vh}}
+.search-spinner{display:inline-block;flex:none;animation:search-spin .8s linear infinite}
+@keyframes search-spin{to{transform:rotate(360deg)}}
+.search-submit:disabled{opacity:.88;cursor:wait}
+.search-progress{display:flex;align-items:center;gap:9px;margin:0 16px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--muted);font-size:12px;line-height:1.4}
+.search-progress .search-spinner{color:var(--green)}
+.dark .search-progress .search-spinner{color:#dce9af}

@@ -67,15 +67,62 @@ export async function getPlaceSuggestions(query: string, signal?: AbortSignal): 
   const data = await res.json();
   return Array.isArray(data.suggestions) ? data.suggestions : [];
 }
-export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = ''): Promise<Court[]> {
-  const key = `opencourts-courts-v5-${lat.toFixed(3)}-${lon.toFixed(3)}`;
-  try { const saved = sessionStorage.getItem(key); if (saved) return JSON.parse(saved); } catch { /* storage can be disabled */ }
+function enrichNearbyCourtDetails(courts: Court[], elements: any[], locality: string): Court[] {
+  const roads = elements.filter(item => item.tags?.highway && item.tags?.name);
+  const places = elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
+  return distinguishCourtNames(courts.map(court => {
+    const nearestRoad = roads.map(road => ({ road, lat: road.lat ?? road.center?.lat, lon: road.lon ?? road.center?.lon }))
+      .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon))
+      .map(item => ({ ...item, distance: milesBetween(court, item) })).sort((a, b) => a.distance - b.distance)[0];
+    let address = court.address;
+    let addressApprox = court.addressApprox;
+    if (!address && nearestRoad?.road.tags?.name && nearestRoad.distance <= 0.12) {
+      address = `Near ${nearestRoad.road.tags.name}${locality ? `, ${locality}` : ''}`;
+      addressApprox = true;
+    }
+    const nearestPlace = places.map(place => ({ place, lat: place.lat ?? place.center?.lat, lon: place.lon ?? place.center?.lon }))
+      .filter(item => Number.isFinite(item.lat) && Number.isFinite(item.lon))
+      .map(item => ({ ...item, distance: milesBetween(court, item) })).filter(item => item.distance <= 0.35).sort((a, b) => a.distance - b.distance)[0];
+    const genericName = /^tennis courts?(?:\s+(?:at|near)\s+.*)?$/i.test(court.name);
+    let name = court.name;
+    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${nearestPlace.place.tags.name}`;
+    else if (genericName && address) name = `Tennis courts near ${address.replace(/^Near\s+/i, '').split(',')[0]}`;
+    return { ...court, name, address, addressApprox };
+  }));
+}
+function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void) {
+  const url = new URL('/api/court-context', window.location.origin);
+  url.searchParams.set('lat', String(lat)); url.searchParams.set('lon', String(lon));
+  void fetch(url, { signal }).then(async response => {
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!Array.isArray(data.elements)) return;
+    const enriched = enrichNearbyCourtDetails(courts, data.elements, locality);
+    try { sessionStorage.setItem(`opencourts-courts-v6-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    onUpdate?.(enriched);
+  }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
+}
+export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
+  const key = `opencourts-courts-v6-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved) {
+      const courts = JSON.parse(saved) as Court[];
+      refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
+      return courts;
+    }
+  } catch { /* storage can be disabled */ }
   const res = await fetch(`/api/courts?lat=${lat}&lon=${lon}`, { signal });
-  if (!res.ok) throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : 'Court data is temporarily unavailable. Please try again.');
+  if (!res.ok) {
+    const failure = await res.json().catch(() => ({}));
+    const diagnostic = typeof failure.diagnostic === 'string' && failure.diagnostic ? ` (${failure.diagnostic})` : '';
+    throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : `${failure.error || 'Court data is temporarily unavailable. Please try again.'}${diagnostic}`);
+  }
   const data = await res.json(); const elements = data.elements ?? []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
   const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
   const courts = distinguishCourtNames(elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || '')).map((element: any) => normalizeCourt(element, roads, locality, places)).filter((court: Court) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, elements.find((item: any) => `osm-${item.type}-${item.id}` === court.id)?.tags)));
   try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
+  refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
   return courts;
 }
 export async function getRainAssessments(courts: Court[], signal?: AbortSignal): Promise<RainAssessment[]> {

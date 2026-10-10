@@ -6,22 +6,47 @@ const service = 'https://mapservices.weather.noaa.gov/raster/rest/services/obs/m
 type CourtPoint = { id: string; lat: number; lon: number };
 
 async function sample(points: CourtPoint[], hours: 1 | 3 | 6): Promise<(number | null)[]> {
-  const params = new URLSearchParams({
-    geometry: JSON.stringify({ points: points.map(point => [point.lon, point.lat]), spatialReference: { wkid: 4326 } }),
-    geometryType: 'esriGeometryMultipoint',
-    mosaicRule: JSON.stringify({ mosaicMethod: 'esriMosaicAttribute', where: `idp_subset='mrms_${hours}h_co'`, sortField: 'idp_filedate', sortValue: 0, ascending: false, mosaicOperation: 'MT_FIRST' }),
-    returnFirstValueOnly: 'true', returnGeometry: 'false', f: 'json',
-  });
-  const response = await fetch(`${service}?${params}`, { signal: AbortSignal.timeout(25000), headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error(`MRMS ${hours}h sample failed (${response.status})`);
-  const data: any = await response.json();
-  if (data.error) throw new Error(data.error.message || 'MRMS sample unavailable');
-  return points.map((_, index) => {
-    const sample = data.samples?.find((item: any) => Number(item.locationId) === index + 1) ?? data.samples?.[index];
-    const raw = sample?.value;
-    if (raw === undefined || raw === null || raw === '' || !Number.isFinite(Number(raw)) || Number(raw) < 0) return null;
-    return Number(raw);
-  });
+  // Keep URLs short enough for NOAA/ArcGIS gateways when checking many courts.
+  // The ArcGIS getSamples operation accepts GET requests, so sample in small batches.
+  const batchSize = 10;
+  const values: (number | null)[] = [];
+  for (let start = 0; start < points.length; start += batchSize) {
+    const batch = points.slice(start, start + batchSize);
+    // NOAA's MRMS ImageServer is published in Web Mercator (WKID 3857).
+    // Send coordinates in its native spatial reference to avoid server-side
+    // projection failures in getSamples.
+    const mercatorPoints = batch.map(point => {
+      const latitude = Math.max(-85.05112878, Math.min(85.05112878, point.lat));
+      const x = point.lon * 20037508.342789244 / 180;
+      const y = Math.log(Math.tan((90 + latitude) * Math.PI / 360)) * 20037508.342789244 / Math.PI;
+      return [x, y];
+    });
+    const params = new URLSearchParams({
+      geometry: JSON.stringify({ points: mercatorPoints, spatialReference: { wkid: 3857 } }),
+      geometryType: 'esriGeometryMultipoint',
+      // The service has one current MRMS mosaic per period and region. A
+      // simple where clause selects the correct product without optional
+      // sorting parameters that the NOAA service may reject.
+      mosaicRule: JSON.stringify({ where: `idp_subset='mrms_${hours}h_co'` }),
+      returnFirstValueOnly: 'true', f: 'json',
+    });
+    const response = await fetch(`${service}?${params}`, { signal: AbortSignal.timeout(25000), headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`MRMS ${hours}h sample failed (${response.status})`);
+    const data: any = await response.json();
+    if (data.error) {
+      const details = Array.isArray(data.error.details) ? data.error.details.join('; ') : '';
+      const codes = [data.error.code, data.error.extendedCode].filter((code: unknown) => code !== undefined && code !== null).join('/');
+      const reason = [data.error.message || 'MRMS sample unavailable', codes ? `ArcGIS ${codes}` : '', details].filter(Boolean).join(': ');
+      throw new Error(`MRMS ${hours}h: ${reason}`);
+    }
+    values.push(...batch.map((_, index) => {
+      const item = data.samples?.find((sample: any) => Number(sample.locationId) === index + 1) ?? data.samples?.[index];
+      const raw = item?.value;
+      if (raw === undefined || raw === null || raw === '' || !Number.isFinite(Number(raw)) || Number(raw) < 0) return null;
+      return Number(raw);
+    }));
+  }
+  return values;
 }
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
