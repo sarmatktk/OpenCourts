@@ -15,13 +15,15 @@ function App() {
   const [query, setQuery] = useState(''); const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]); const [suggestionsOpen, setSuggestionsOpen] = useState(false); const [suggestionsLoading, setSuggestionsLoading] = useState(false); const [suggestionsError, setSuggestionsError] = useState(''); const [activeSuggestion, setActiveSuggestion] = useState(-1); const [courts, setCourts] = useState<Court[]>([]); const [hourlyForecast, setHourlyForecast] = useState<Forecast[]>([]); const [timeZone, setTimeZone] = useState('America/New_York'); const [visibleCount, setVisibleCount] = useState(30);
   const [loading, setLoading] = useState(true); const [searchSlow, setSearchSlow] = useState(false); const [placeLookupLoading, setPlaceLookupLoading] = useState(false); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
   const [mapError, setMapError] = useState(''); const [mapReady, setMapReady] = useState(false);
-  const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(false); const [selected, setSelected] = useState<Court | null>(null);
+  const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(() => { try { return localStorage.getItem('opencourts-theme') === 'dark'; } catch { return false; } }); const [selected, setSelected] = useState<Court | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [radius, setRadius] = useState('all'); const [publicOnly, setPublicOnly] = useState(false); const [surface, setSurface] = useState('all');
   const activeFilters = Number(litOnly) + Number(publicOnly) + Number(radius !== 'all') + Number(surface !== 'all');
   function resetFilters() { setLitOnly(false); setPublicOnly(false); setRadius('all'); setSurface('all'); }
   const [menuOpen, setMenuOpen] = useState(false); const [mobileList, setMobileList] = useState(false); const [sort, setSort] = useState<'near' | 'lighted'>('near');
   const mapEl = useRef<HTMLDivElement>(null); const map = useRef<MapLibreMap | null>(null); const request = useRef<AbortController | null>(null); const suggestionRequest = useRef<AbortController | null>(null); const placeRef = useRef(place); placeRef.current = place;
+
+  function toggleTheme() { setDark(current => { const next = !current; try { localStorage.setItem('opencourts-theme', next ? 'dark' : 'light'); } catch { /* storage optional */ } return next; }); }
 
   useEffect(() => {
     const search = query.trim();
@@ -168,7 +170,7 @@ function App() {
   return <div className={dark ? 'app dark' : 'app'}>
     <header className="topbar"><a className="brand" href="#top" aria-label="OpenCourts home"><span className="brand-mark"><TennisBall size={20}/></span><span>open<span className="brand-light">courts</span></span></a>
       <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support.html" onClick={() => setMenuOpen(false)}>Support</a></nav>
-      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
+      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
     <main id="top">
       <section className="intro"><h1>Find your court.</h1><p className="intro-copy">Explore nearby courts, compare amenities, and check the forecast.</p>
