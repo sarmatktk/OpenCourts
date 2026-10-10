@@ -135,13 +135,42 @@ export async function getRainAssessments(courts: Court[], signal?: AbortSignal):
   return data.assessments ?? [];
 }
 export function assessRainfall(rain1h: number | null, rain3h: number | null, rain6h: number | null): Omit<RainAssessment, 'courtId'> {
-  if ([rain1h, rain3h, rain6h].some(value => value === null || !Number.isFinite(value))) return { rain1h, rain3h, rain6h, score: 50, confidence: 'Low', summary: 'Radar estimate unavailable' };
-  const current = rain1h!; const three = rain3h!; const six = rain6h!;
-  let score = 94; let summary = 'No rain detected in the past 6 hours';
-  if (current >= 0.01) { score = Math.max(12, Math.round(70 - current * 170)); summary = 'Rain detected in the past hour'; }
-  else if (three >= 0.01) { score = Math.max(35, Math.round(82 - three * 80)); summary = 'Rain likely stopped 1–3 hours ago'; }
-  else if (six >= 0.01) { score = Math.max(55, Math.round(89 - six * 55)); summary = 'Rain likely stopped 3–6 hours ago'; }
-  const confidence = Math.max(current, three, six) < 0.005 || Math.max(current, three, six) > 0.02 ? 'Moderate' : 'Low';
+  const valid = (value: number | null): value is number => value !== null && Number.isFinite(value);
+  if (![rain1h, rain3h, rain6h].some(valid)) return { rain1h, rain3h, rain6h, score: 50, confidence: 'Low', summary: 'Radar estimate unavailable' };
+  const current = valid(rain1h) ? rain1h : null;
+  const three = valid(rain3h) ? rain3h : null;
+  const six = valid(rain6h) ? rain6h : null;
+  let score = 100; let summary = 'No rain detected in the past 6 hours';
+  if (current !== null && current >= 0.01) { summary = 'Rain detected in the past hour'; }
+  else if (three !== null && three >= 0.01) {
+    summary = current === null ? 'Rain detected in the past 3 hours; current-hour data unavailable' : 'Rain likely stopped 1–3 hours ago';
+  }
+  else if (six !== null && six >= 0.01) { summary = 'Rain likely stopped 3–6 hours ago'; }
+  else if (current === null || three === null || six === null) {
+    // Use the available per-court readings while making incomplete coverage
+    // explicit in the summary.
+    const availableHours = [current !== null ? '1h' : '', three !== null ? '3h' : '', six !== null ? '6h' : ''].filter(Boolean).join(' and ');
+    summary = `No rain detected in available ${availableHours} radar; coverage is incomplete`;
+  }
+  // Each estimate is sampled at the court's coordinates. Let small local
+  // accumulation differences affect the score instead of assigning every dry
+  // court the same fixed value. The windows overlap, so weight older windows
+  // less heavily and compare successive totals to approximate when rain fell.
+  const recent = current ?? 0;
+  const priorThree = current !== null && three !== null ? Math.max(0, three - current) : (three ?? 0);
+  const priorSix = three !== null && six !== null ? Math.max(0, six - three) : (six ?? 0);
+  const rainImpact = recent * 420 + priorThree * 180 + priorSix * 80;
+  // A soft curve preserves separation between wet courts without a shared
+  // low-score floor (the former floor made very wet locations all show 12).
+  score = Math.round(100 / (1 + rainImpact / 50));
+  const readings = [current, three, six].filter((value): value is number => value !== null);
+  const completeDryReadings = current !== null && three !== null && six !== null && readings.every(value => value < 0.005);
+  const currentRainConfirmed = current !== null && current >= 0.02 && three !== null && three >= current * 0.8;
+  const stoppedRecently = current !== null && current < 0.005 && three !== null && three >= 0.02;
+  const rainOnlyInOlderWindow = current !== null && current < 0.005 && three !== null && three < 0.005 && six !== null && six >= 0.02;
+  const confidence: RainAssessment['confidence'] = currentRainConfirmed || completeDryReadings ? 'High'
+    : stoppedRecently || rainOnlyInOlderWindow || (readings.length === 3 && Math.max(...readings) >= 0.02) ? 'Moderate'
+    : 'Low';
   return { rain1h, rain3h, rain6h, score, confidence, summary };
 }
 export async function getWeather(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherData> {
