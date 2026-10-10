@@ -125,14 +125,51 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
   return courts;
 }
-export async function getRainAssessments(courts: Court[], signal?: AbortSignal): Promise<RainAssessment[]> {
-  if (!courts.length) return [];
-  const res = await fetch('/api/rain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ courts: courts.map(court => ({ id: court.id, lat: court.lat, lon: court.lon })) }), signal });
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) throw new Error('The rain endpoint did not return JSON. Confirm that the latest /api/rain Cloudflare Function is deployed.');
-  const data = await res.json();
-  if (!res.ok) throw new Error([data.error || 'Recent radar rainfall is temporarily unavailable.', data.diagnostic ? `Local diagnostic: ${data.diagnostic}` : ''].filter(Boolean).join(' '));
-  return data.assessments ?? [];
+export async function getRainAssessments(
+  courts: Court[],
+  signal?: AbortSignal,
+): Promise<RainAssessment[]> {
+  const batchSize = 12;
+  const assessments: RainAssessment[] = [];
+
+  for (let start = 0; start < courts.length; start += batchSize) {
+    const batch = courts.slice(start, start + batchSize);
+    const res = await fetch('/api/rain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        courts: batch.map(court => ({
+          id: court.id,
+          lat: court.lat,
+          lon: court.lon,
+        })),
+      }),
+      signal,
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(
+        'The rain endpoint did not return JSON. Confirm that the latest /api/rain Cloudflare Function is deployed.',
+      );
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(
+        [
+          data.error || 'Recent radar rainfall is temporarily unavailable.',
+          data.diagnostic ? `Local diagnostic: ${data.diagnostic}` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      );
+    }
+
+    assessments.push(...(data.assessments ?? []));
+  }
+
+  return assessments;
 }
 export function assessRainfall(rain1h: number | null, rain3h: number | null, rain6h: number | null): Omit<RainAssessment, 'courtId'> {
   const valid = (value: number | null): value is number => value !== null && Number.isFinite(value);
