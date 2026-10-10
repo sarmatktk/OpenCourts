@@ -18,16 +18,31 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   const cityLine = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']].filter(Boolean).join(', ') || locality;
   let address = addressLine ? [addressLine, cityLine].filter(Boolean).join(', ') : undefined;
   let addressApprox = false;
+  const catalogRoad = tags['opencourts:nearby_street'];
+  const catalogPlace = tags['opencourts:nearby_place'];
+  if (!address && (catalogRoad || catalogPlace)) {
+    address = `Near ${catalogRoad || catalogPlace}${cityLine ? `, ${cityLine}` : ''}`;
+    addressApprox = true;
+  }
   if (!address && Number.isFinite(lat) && Number.isFinite(lon)) {
     const nearby = roads.map(road => ({ road, lat: road.lat ?? road.center?.lat, lon: road.lon ?? road.center?.lon })).filter(r => r.road.tags?.name && Number.isFinite(r.lat) && Number.isFinite(r.lon)).map(r => ({ ...r, distance: milesBetween({ lat, lon }, r) })).sort((a, b) => a.distance - b.distance)[0];
     if (nearby && nearby.distance <= 0.12) { address = `Near ${nearby.road.tags.name}${cityLine ? `, ${cityLine}` : ''}`; addressApprox = true; }
   }
   const mappedName = tags.name || tags['name:en'];
+  const genericMappedName = /^tennis courts?(?:\s+·\s+\d+)?$/i.test(mappedName || '');
+  const numberedCourtName = /^(?:tennis\s+)?courts?\s*#?\s*\d+$/i.test(mappedName || '');
   const nearbyPlace = nearbyPlaces.map(place => ({ place, lat: place.lat ?? place.center?.lat, lon: place.lon ?? place.center?.lon })).filter(item => (item.place.tags?.name || item.place.tags?.['name:en']) && Number.isFinite(item.lat) && Number.isFinite(item.lon)).map(item => ({ ...item, distance: milesBetween({ lat, lon }, item) })).filter(item => item.distance <= 0.35).sort((a, b) => a.distance - b.distance)[0];
   const placeName = nearbyPlace?.place.tags?.name || nearbyPlace?.place.tags?.['name:en'];
   const placeLabel = nearbyPlace ? `Tennis courts ${nearbyPlace.distance <= 0.05 ? 'at' : 'near'} ${placeName}` : undefined;
   const fallbackLocation = address?.replace(/^Near\s+/i, '').split(',')[0];
-  return { id: `osm-${element.type}-${element.id}`, name: mappedName || placeLabel || (fallbackLocation ? `Tennis courts near ${fallbackLocation}` : 'Tennis courts'), lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+  let name = mappedName || placeLabel || (fallbackLocation ? `Tennis courts near ${fallbackLocation}` : 'Tennis courts');
+  if (genericMappedName && catalogPlace) {
+    const distance = Number(tags['opencourts:nearby_place_miles']);
+    name = `Tennis courts ${Number.isFinite(distance) && distance <= 0.05 ? 'at' : 'near'} ${catalogPlace}`;
+  } else if (genericMappedName && catalogRoad) name = `Tennis courts near ${catalogRoad}`;
+  else if (numberedCourtName && catalogPlace) name = `${mappedName} · ${catalogPlace}`;
+  else if (numberedCourtName && catalogRoad) name = `${mappedName} · near ${catalogRoad}`;
+  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextCached: tags['opencourts:context_version'] === '1', sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
 }
 export function distinguishCourtNames(courts: Court[]): Court[] {
   const groups = new Map<string, Court[]>();
@@ -42,6 +57,12 @@ export function distinguishCourtNames(courts: Court[]): Court[] {
   }
   const used = new Set<string>();
   return courts.map(court => {
+    // Generic OSM labels aren't names. Don't make them look like real places by
+    // appending an arbitrary result number; nearby context can provide a better label.
+    if (/^tennis courts?(?:\s+·\s+\d+)?$/i.test(court.name)) {
+      used.add(court.name);
+      return court;
+    }
     const duplicate = (groups.get(court.name)?.length ?? 0) > 1;
     let name = duplicate ? `${court.name} · ${rank.get(court.id)}` : court.name;
     let suffix = 2;
@@ -85,76 +106,117 @@ export async function getPlaceSuggestions(query: string, signal?: AbortSignal): 
   const data = await readApiJson<{ suggestions?: PlaceSuggestion[] }>(res, 'Place suggestions are temporarily unavailable.');
   return Array.isArray(data.suggestions) ? data.suggestions : [];
 }
-const DETAIL_GRID_SIZE = 0.01;
-type NearbyFeature = { feature: any; lat: number; lon: number };
-type NearbyGrid = Map<string, NearbyFeature[]>;
-
-function makeNearbyGrid(features: any[]): NearbyGrid {
-  const grid: NearbyGrid = new Map();
-  for (const feature of features) {
-    const lat = feature.lat ?? feature.center?.lat;
-    const lon = feature.lon ?? feature.center?.lon;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    const key = `${Math.floor(lat / DETAIL_GRID_SIZE)}:${Math.floor(lon / DETAIL_GRID_SIZE)}`;
-    const bucket = grid.get(key);
-    const point = { feature, lat, lon };
-    if (bucket) bucket.push(point);
-    else grid.set(key, [point]);
-  }
-  return grid;
+type GeoPoint = { lat: number; lon: number };
+function featureLines(feature: any): GeoPoint[][] {
+  const lines: GeoPoint[][] = [];
+  const add = (geometry: any[]) => {
+    const points = geometry?.map(point => ({ lat: point.lat, lon: point.lon }))
+      .filter(point => Number.isFinite(point.lat) && Number.isFinite(point.lon));
+    if (points?.length) lines.push(points);
+  };
+  if (Array.isArray(feature.geometry)) add(feature.geometry);
+  for (const member of feature.members ?? []) if (Array.isArray(member.geometry)) add(member.geometry);
+  const lat = feature.lat ?? feature.center?.lat;
+  const lon = feature.lon ?? feature.center?.lon;
+  if (Number.isFinite(lat) && Number.isFinite(lon)) lines.push([{ lat, lon }]);
+  return lines;
 }
 
-function nearestFeature(origin: { lat: number; lon: number }, grid: NearbyGrid, maxMiles: number): { feature: any; distance: number } | undefined {
-  const latCell = Math.floor(origin.lat / DETAIL_GRID_SIZE);
-  const lonCell = Math.floor(origin.lon / DETAIL_GRID_SIZE);
-  const latCells = Math.ceil(maxMiles / (68.7 * DETAIL_GRID_SIZE)) + 1;
-  const lonMilesPerDegree = 68.7 * Math.max(0.05, Math.abs(Math.cos(origin.lat * Math.PI / 180)));
-  const lonCells = Math.ceil(maxMiles / (lonMilesPerDegree * DETAIL_GRID_SIZE)) + 1;
-  let nearest: { feature: any; distance: number } | undefined;
-  for (let y = latCell - latCells; y <= latCell + latCells; y++) {
-    for (let x = lonCell - lonCells; x <= lonCell + lonCells; x++) {
-      for (const point of grid.get(`${y}:${x}`) ?? []) {
-        const distance = milesBetween(origin, point);
-        if (distance <= maxMiles && (!nearest || distance < nearest.distance)) nearest = { feature: point.feature, distance };
-      }
+function pointInPolygon(point: GeoPoint, polygon: GeoPoint[]): boolean {
+  if (polygon.length < 4) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i]; const b = polygon[j];
+    const crosses = (a.lat > point.lat) !== (b.lat > point.lat)
+      && point.lon < ((b.lon - a.lon) * (point.lat - a.lat)) / (b.lat - a.lat) + a.lon;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function distanceToFeature(origin: GeoPoint, feature: any, isArea: boolean): number | undefined {
+  const lines = featureLines(feature);
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const line of lines) {
+    if (isArea && pointInPolygon(origin, line)) return 0;
+    if (line.length === 1) nearest = Math.min(nearest, milesBetween(origin, line[0]));
+    for (let i = 1; i < line.length; i++) {
+      // Project a short local segment into miles before finding its nearest point.
+      const scaleX = 69.0 * Math.cos(origin.lat * Math.PI / 180);
+      const ax = (line[i - 1].lon - origin.lon) * scaleX;
+      const ay = (line[i - 1].lat - origin.lat) * 69.0;
+      const bx = (line[i].lon - origin.lon) * scaleX;
+      const by = (line[i].lat - origin.lat) * 69.0;
+      const dx = bx - ax; const dy = by - ay;
+      const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)));
+      nearest = Math.min(nearest, Math.hypot(ax + t * dx, ay + t * dy));
     }
   }
-  return nearest;
+  return Number.isFinite(nearest) ? nearest : undefined;
 }
 
 export function enrichNearbyCourtDetails(courts: Court[], elements: any[], locality: string): Court[] {
-  const roads = makeNearbyGrid(elements.filter(item => item.tags?.highway && item.tags?.name));
-  const places = makeNearbyGrid(elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school')));
+  // Overpass returns full geometries. A way's center can be miles from the
+  // actual road or park edge, which used to make valid nearby context disappear.
+  const roads = elements.filter(item => item.tags?.highway && item.tags?.name);
+  const places = elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
   return distinguishCourtNames(courts.map(court => {
-    const nearestRoad = nearestFeature(court, roads, 0.12);
+    const nearestRoad = roads.map(feature => ({ feature, distance: distanceToFeature(court, feature, false) }))
+      .filter((item): item is { feature: any; distance: number } => item.distance !== undefined && item.distance <= 0.35)
+      .sort((a, b) => a.distance - b.distance)[0];
     let address = court.address;
     let addressApprox = court.addressApprox;
     if (!address && nearestRoad?.feature.tags?.name) {
       address = `Near ${nearestRoad.feature.tags.name}${locality ? `, ${locality}` : ''}`;
       addressApprox = true;
     }
-    const nearestPlace = nearestFeature(court, places, 0.35);
-    const genericName = /^tennis courts?(?:\s+(?:at|near)\s+.*)?$/i.test(court.name);
-    let name = court.name;
-    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${nearestPlace.feature.tags.name || nearestPlace.feature.tags['name:en']}`;
+    const nearestPlace = places.map(feature => ({ feature, distance: distanceToFeature(court, feature, true) }))
+      .filter((item): item is { feature: any; distance: number } => item.distance !== undefined && item.distance <= 0.35)
+      .sort((a, b) => a.distance - b.distance)[0];
+    const genericName = /^tennis courts?(?:\s+·\s+\d+)?(?:\s+(?:at|near)\s+.*)?$/i.test(court.name);
+    const numberedCourtName = /^(?:tennis\s+)?courts?\s*#?\s*\d+$/i.test(court.name);
+    let name = genericName ? 'Tennis courts' : court.name;
+    const placeName = nearestPlace?.feature.tags.name || nearestPlace?.feature.tags['name:en'];
+    if (!address && placeName) {
+      address = `Near ${placeName}${locality ? `, ${locality}` : ''}`;
+      addressApprox = true;
+    }
+    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${placeName}`;
     else if (genericName && address) name = `Tennis courts near ${address.replace(/^Near\s+/i, '').split(',')[0]}`;
+    else if (numberedCourtName && placeName) name = `${court.name} · ${placeName}`;
+    else if (numberedCourtName && nearestRoad?.feature.tags?.name) name = `${court.name} · near ${nearestRoad.feature.tags.name}`;
     return { ...court, name, address, addressApprox };
   }));
 }
 function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void) {
+  if (courts.length > 0 && courts.every(court => court.contextCached)) return;
   const url = new URL('/api/court-context', window.location.origin);
-  url.searchParams.set('lat', String(lat)); url.searchParams.set('lon', String(lon));
-  void fetch(url, { signal }).then(async response => {
-    if (!response.ok) return;
+  const nearbyCourts = [...courts].filter(court => !court.contextCached)
+    .filter(court => Number.isFinite(court.lat) && Number.isFinite(court.lon))
+    .sort((a, b) => milesBetween(a, { lat, lon }) - milesBetween(b, { lat, lon }))
+    .slice(0, 24);
+  if (nearbyCourts.length === 0) return;
+  void fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courts: nearbyCourts.map(({ lat: courtLat, lon: courtLon }) => ({ lat: courtLat, lon: courtLon })) }),
+    signal,
+  }).then(async response => {
+    if (!response.ok) {
+      const failure = await response.json().catch(() => ({} as { error?: string; diagnostic?: string }));
+      console.warn('[OpenCourts] Nearby court details request failed', response.status, failure.diagnostic || failure.error || 'No diagnostic returned');
+      return;
+    }
     const data = await response.json();
     if (!Array.isArray(data.elements)) return;
+    if (data.elements.length === 0) console.info('[OpenCourts] Nearby map data returned no named context features.');
     const enriched = enrichNearbyCourtDetails(courts, data.elements, locality);
-    try { sessionStorage.setItem(`opencourts-courts-v6-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    try { sessionStorage.setItem(`opencourts-courts-v9-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v6-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v9-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {

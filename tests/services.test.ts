@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classifyAccess, classifyLighting, enrichNearbyCourtDetails, getRainAssessments, normalizeCourt, playScore } from '../src/services';
+import { classifyAccess, classifyLighting, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, normalizeCourt, playScore } from '../src/services';
 import type { Forecast } from '../src/types';
 import { estimatedSunset } from '../src/sun';
 
@@ -16,6 +16,16 @@ describe('court normalization', () => {
     const c = normalizeCourt({ type: 'way', id: 123, center: { lat: 38.8, lon: -77.3 }, tags: { name: 'Neighborhood Courts', lit: 'yes' } });
     expect(c.id).toBe('osm-way-123'); expect(c.name).toBe('Neighborhood Courts'); expect(c.lat).toBe(38.8); expect(c.lighting).toBe('yes');
   });
+  it('uses cataloged nationwide context without a live context lookup', () => {
+    const court = normalizeCourt({ type: 'way', id: 500, lat: 38.8, lon: -77.3, tags: {
+      name: 'Tennis courts', 'opencourts:context_version': '1', 'opencourts:nearby_place': 'Greenbriar Park',
+      'opencourts:nearby_place_miles': '0.020', 'opencourts:nearby_street': 'Cedar Lane',
+    } }, [], 'Fairfax');
+    expect(court.name).toBe('Tennis courts at Greenbriar Park');
+    expect(court.address).toBe('Near Cedar Lane, Fairfax');
+    expect(court.addressApprox).toBe(true);
+    expect(court.contextCached).toBe(true);
+  });
   it('adds nearby OSM road and place names without using distant features', () => {
     const court = normalizeCourt({ type: 'way', id: 7, center: { lat: 38.8462, lon: -77.3064 }, tags: {} });
     const enriched = enrichNearbyCourtDetails([court], [
@@ -25,6 +35,64 @@ describe('court normalization', () => {
     ], 'Fairfax');
     expect(enriched[0].name).toBe('Tennis courts at Green Park');
     expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
+    expect(enriched[0].addressApprox).toBe(true);
+  });
+  it('uses road geometry instead of a distant way center', () => {
+    const court = { id: 'osm-way-71', name: 'Court 1', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'way', id: 72, center: { lat: 38.9, lon: -77.3 }, geometry: [{ lat: 38.8461, lon: -77.31 }, { lat: 38.8461, lon: -77.30 }], tags: { highway: 'residential', name: 'Cedar Lane' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Court 1 · near Cedar Lane');
+    expect(enriched[0].address).toBe('Near Cedar Lane, Fairfax');
+  });
+  it('uses the name of a park containing the court even when its center is far away', () => {
+    const court = { id: 'osm-way-73', name: 'Tennis courts', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'way', id: 74, center: { lat: 38.85, lon: -77.30 }, geometry: [
+        { lat: 38.84, lon: -77.32 }, { lat: 38.84, lon: -77.29 }, { lat: 38.86, lon: -77.29 }, { lat: 38.86, lon: -77.32 }, { lat: 38.84, lon: -77.32 },
+      ], tags: { leisure: 'park', name: 'Greenbriar Park' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Tennis courts at Greenbriar Park');
+    expect(enriched[0].address).toBe('Near Greenbriar Park, Fairfax');
+  });
+  it('does not assign fake numbers to generic court labels', () => {
+    const courts = [1, 2, 3].map(id => ({ id: `osm-node-${id}`, name: 'Tennis courts', lat: 38.8, lon: -77.3 } as any));
+    expect(distinguishCourtNames(courts).map(court => court.name)).toEqual(['Tennis courts', 'Tennis courts', 'Tennis courts']);
+  });
+  it('replaces a cached generic number with a nearby named park', () => {
+    const court = { id: 'osm-way-11', name: 'Tennis courts · 384', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'node', id: 12, lat: 38.8464, lon: -77.3062, tags: { leisure: 'park', name: 'Green Park' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Tennis courts at Green Park');
+    expect(enriched[0].address).toBe('Near Green Park, Fairfax');
+    expect(enriched[0].addressApprox).toBe(true);
+  });
+  it('keeps numbered court names and adds nearby street context plus an approximate address', () => {
+    const court = { id: 'osm-way-13', name: 'Court 1', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'way', id: 14, center: { lat: 38.847, lon: -77.3064 }, tags: { highway: 'residential', name: 'Oak Road' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Court 1 · near Oak Road');
+    expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
+    expect(enriched[0].addressApprox).toBe(true);
+  });
+  it('adds a nearby landmark to a numbered court name without replacing it', () => {
+    const court = { id: 'osm-way-17', name: 'Court 2', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'node', id: 18, lat: 38.8464, lon: -77.3062, tags: { leisure: 'park', name: 'Greenbriar Park' } },
+      { type: 'way', id: 19, center: { lat: 38.847, lon: -77.3064 }, tags: { highway: 'residential', name: 'Oak Road' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Court 2 · Greenbriar Park');
+    expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
+  });
+  it('finds a named street when its mapped way center is farther than 0.12 miles', () => {
+    const court = { id: 'osm-way-15', name: 'Court 1', lat: 38.8462, lon: -77.3064 } as any;
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'way', id: 16, center: { lat: 38.85, lon: -77.3064 }, tags: { highway: 'residential', name: 'Cedar Lane' } },
+    ], 'Fairfax');
+    expect(enriched[0].name).toBe('Court 1 · near Cedar Lane');
+    expect(enriched[0].address).toBe('Near Cedar Lane, Fairfax');
     expect(enriched[0].addressApprox).toBe(true);
   });
 });

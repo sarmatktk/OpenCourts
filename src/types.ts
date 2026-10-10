@@ -1,6 +1,6 @@
 export type Lighting = 'yes' | 'no' | 'unknown';
 export type Access = 'public' | 'restricted' | 'unknown';
-export interface Court { id: string; name: string; lat: number; lon: number; lighting: Lighting; access: Access; surface?: string; courts?: number; sheltered?: boolean; address?: string; addressApprox?: boolean; sourceUrl: string; }
+export interface Court { id: string; name: string; lat: number; lon: number; lighting: Lighting; access: Access; surface?: string; courts?: number; sheltered?: boolean; address?: string; addressApprox?: boolean; contextCached?: boolean; sourceUrl: string; }
 export interface Forecast { time: string; endTime?: string; temp: number; wind: number; precip: number; short: string; icon: string; }
 export interface PlayWindow extends Forecast { score: number; }
 export interface DailyPlayWindows { date: string; windows: PlayWindow[]; }

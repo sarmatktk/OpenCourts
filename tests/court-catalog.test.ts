@@ -1,9 +1,10 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestGet as getCourts } from '../functions/api/courts';
 import { findCourtsInCatalog, type D1Database } from '../functions/lib/court-catalog';
 import { normalizeCourtRecords, parseGeoJSONFeature, parseOverpassResponse, writeCatalogFiles } from '../scripts/import-court-catalog.mjs';
+import { enrichCourtCatalog } from '../scripts/enrich-court-catalog.mjs';
 
 const temporaryDirectories: string[] = [];
 afterEach(async () => {
@@ -108,5 +109,25 @@ describe('D1 court catalog', () => {
     expect(court).toMatchObject({ type: 'way', id: 31, tags: { leisure: 'pitch', sport: 'tennis' } });
     expect(court.lat).toBeCloseTo(40.001, 8);
     expect(court.lon).toBeCloseTo(-73.999, 8);
+  });
+
+  it('precomputes nearby park and street names from nationwide OSM extracts', async () => {
+    const dir = await mkdtemp(path.join(process.cwd(), '.wrangler', 'opencourts-context-'));
+    temporaryDirectories.push(dir);
+    const input = path.join(dir, 'region.geojsonseq');
+    const output = path.join(dir, 'courts.geojsonseq');
+    const features = [
+      { type: 'Feature', id: 'way/1', properties: { '@type': 'way', '@id': 1, leisure: 'pitch', sport: 'tennis', name: 'Tennis courts' }, geometry: { type: 'Polygon', coordinates: [[[-77.3065, 38.8461], [-77.3063, 38.8461], [-77.3063, 38.8463], [-77.3065, 38.8463], [-77.3065, 38.8461]]] } },
+      { type: 'Feature', id: 'way/2', properties: { '@type': 'way', '@id': 2, highway: 'residential', name: 'Cedar Lane' }, geometry: { type: 'LineString', coordinates: [[-77.31, 38.846], [-77.30, 38.846]] } },
+      { type: 'Feature', id: 'way/3', properties: { '@type': 'way', '@id': 3, leisure: 'park', name: 'Greenbriar Park' }, geometry: { type: 'Polygon', coordinates: [[[-77.32, 38.84], [-77.29, 38.84], [-77.29, 38.86], [-77.32, 38.86], [-77.32, 38.84]]] } },
+    ];
+    await writeFile(input, features.map(feature => `\u001e${JSON.stringify(feature)}\n`).join(''));
+    const counts = await enrichCourtCatalog(input, output);
+    const result = (await readFile(output, 'utf8')).trim().replace(/^\u001e/, '');
+    const enriched = JSON.parse(result);
+    expect(counts).toMatchObject({ courts: 1, withPlace: 1, withRoad: 1 });
+    expect(enriched.properties['opencourts:nearby_place']).toBe('Greenbriar Park');
+    expect(enriched.properties['opencourts:nearby_street']).toBe('Cedar Lane');
+    expect(enriched.properties['opencourts:context_version']).toBe('1');
   });
 });
