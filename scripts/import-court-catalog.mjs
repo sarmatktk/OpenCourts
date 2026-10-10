@@ -111,11 +111,16 @@ async function readCandidates(inputPaths) {
       const stream = readline.createInterface({ input: createReadStream(inputPath), crlfDelay: Infinity });
       for await (const line of stream) {
         const trimmed = line.replace(/^\u001e/, '').trim();
-        if (trimmed) candidates.push(parseGeoJSONFeature(JSON.parse(trimmed)));
+        if (trimmed) {
+          const candidate = parseGeoJSONFeature(JSON.parse(trimmed));
+          // Regional OSM exports contain many kinds of pitches and centers.
+          // Keep only tennis records in memory while streaming nationwide data.
+          if (isTennisCourt(candidate.tags)) candidates.push(candidate);
+        }
       }
     } else {
       const raw = JSON.parse(await readFile(inputPath, 'utf8'));
-      if (Array.isArray(raw.features)) candidates.push(...raw.features.map(parseGeoJSONFeature));
+      if (Array.isArray(raw.features)) candidates.push(...raw.features.map(parseGeoJSONFeature).filter(item => isTennisCourt(item.tags)));
       else candidates.push(...parseOverpassResponse(raw));
     }
   }
