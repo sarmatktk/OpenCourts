@@ -21,3 +21,16 @@ export function estimatedSunset(lat: number, lon: number, timeZone: string, now 
 export function formatLocalTime(value: Date, timeZone: string) {
   return new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(value);
 }
+export function formatLocalTimeRange(start: string, end: string | undefined, timeZone: string) {
+  const formatHour = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric' }).format(new Date(value));
+  const startLabel = formatHour(start);
+  if (!end) return startLabel;
+  const endLabel = formatHour(end);
+  const startParts = startLabel.match(/^(\d+)(?:\s*(AM|PM))?$/i);
+  const endParts = endLabel.match(/^(\d+)(?:\s*(AM|PM))?$/i);
+  if (!startParts || !endParts) return `${startLabel}–${endLabel}`;
+  const startPeriod = startParts[2]?.toUpperCase();
+  const endPeriod = endParts[2]?.toUpperCase();
+  if (startPeriod === endPeriod) return `${startParts[1]}–${endParts[1]}${endPeriod ? ` ${endPeriod}` : ''}`;
+  return `${startLabel}–${endLabel}`;
+}

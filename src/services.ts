@@ -1,4 +1,4 @@
-import type { Access, Court, Forecast, Lighting, Place, WeatherData } from './types';
+import type { Access, Court, DailyPlayWindows, Forecast, Lighting, Place, PlaceSuggestion, PlayWindow, RainAssessment, WeatherData } from './types';
 
 export function classifyLighting(tags: Record<string, string | undefined>): Lighting {
   if (tags.lit === 'yes' || tags.lighting === 'yes') return 'yes';
@@ -6,13 +6,48 @@ export function classifyLighting(tags: Record<string, string | undefined>): Ligh
   return 'unknown';
 }
 export function classifyAccess(tags: Record<string, string | undefined>): Access {
-  if (tags.access === 'private' || tags.access === 'members' || tags.access === 'customers') return 'restricted';
-  if (tags.access === 'yes' || tags.access === 'permissive' || tags.access === 'public' || tags.leisure === 'park' || tags.access === undefined) return 'public';
+  if (['private', 'members', 'member', 'customers', 'customer', 'permit', 'no', 'fee'].includes(tags.access || '') || tags.fee === 'yes' || (Boolean(tags.membership) && !['no', 'none', 'open'].includes(tags.membership!)) || tags.private === 'yes') return 'restricted';
+  if (tags.access === 'yes' || tags.access === 'permissive' || tags.access === 'public' || tags.leisure === 'park') return 'public';
   return 'unknown';
 }
-export function normalizeCourt(element: any): Court {
+function milesBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (a.lat-b.lat)*rad; const dLon = (a.lon-b.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
+export function normalizeCourt(element: any, roads: any[] = [], locality = '', nearbyPlaces: any[] = []): Court {
   const tags = element.tags ?? {};
-  return { id: `osm-${element.type}-${element.id}`, name: tags.name || tags['name:en'] || 'Public tennis courts', lat: element.lat ?? element.center?.lat, lon: element.lon ?? element.center?.lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags['courts:count'] || tags.courts) || undefined, sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+  const lat = element.lat ?? element.center?.lat; const lon = element.lon ?? element.center?.lon;
+  const addressLine = tags['addr:full'] || [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
+  const cityLine = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']].filter(Boolean).join(', ') || locality;
+  let address = addressLine ? [addressLine, cityLine].filter(Boolean).join(', ') : undefined;
+  let addressApprox = false;
+  if (!address && Number.isFinite(lat) && Number.isFinite(lon)) {
+    const nearby = roads.map(road => ({ road, lat: road.lat ?? road.center?.lat, lon: road.lon ?? road.center?.lon })).filter(r => r.road.tags?.name && Number.isFinite(r.lat) && Number.isFinite(r.lon)).map(r => ({ ...r, distance: milesBetween({ lat, lon }, r) })).sort((a, b) => a.distance - b.distance)[0];
+    if (nearby && nearby.distance <= 0.12) { address = `Near ${nearby.road.tags.name}${cityLine ? `, ${cityLine}` : ''}`; addressApprox = true; }
+  }
+  const mappedName = tags.name || tags['name:en'];
+  const nearbyPlace = nearbyPlaces.map(place => ({ place, lat: place.lat ?? place.center?.lat, lon: place.lon ?? place.center?.lon })).filter(item => (item.place.tags?.name || item.place.tags?.['name:en']) && Number.isFinite(item.lat) && Number.isFinite(item.lon)).map(item => ({ ...item, distance: milesBetween({ lat, lon }, item) })).filter(item => item.distance <= 0.35).sort((a, b) => a.distance - b.distance)[0];
+  const placeName = nearbyPlace?.place.tags?.name || nearbyPlace?.place.tags?.['name:en'];
+  const placeLabel = nearbyPlace ? `Tennis courts ${nearbyPlace.distance <= 0.05 ? 'at' : 'near'} ${placeName}` : undefined;
+  const fallbackLocation = address?.replace(/^Near\s+/i, '').split(',')[0];
+  return { id: `osm-${element.type}-${element.id}`, name: mappedName || placeLabel || (fallbackLocation ? `Tennis courts near ${fallbackLocation}` : 'Tennis courts'), lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+}
+export function distinguishCourtNames(courts: Court[]): Court[] {
+  const groups = new Map<string, Court[]>();
+  for (const court of courts) groups.set(court.name, [...(groups.get(court.name) ?? []), court]);
+  const rank = new Map<string, number>();
+  for (const group of groups.values()) {
+    [...group].sort((a, b) => a.lat - b.lat || a.lon - b.lon).forEach((court, index) => rank.set(court.id, index + 1));
+  }
+  const used = new Set<string>();
+  return courts.map(court => {
+    const duplicate = (groups.get(court.name)?.length ?? 0) > 1;
+    let name = duplicate ? `${court.name} · ${rank.get(court.id)}` : court.name;
+    let suffix = 2;
+    while (used.has(name)) name = `${court.name} · Court ${suffix++}`;
+    used.add(name);
+    return { ...court, name };
+  });
+}
+export function isLikelyMembersClub(court: Court, tags: Record<string, string | undefined> = {}): boolean {
+  return court.access === 'restricted' || /\b(tennis|racquet|country|athletic)\s+clubs?\b|\bclub\s+(tennis|courts?)\b/i.test(court.name) || Boolean(tags.membership) || tags.fee === 'yes';
 }
 export async function findPlace(query: string, signal?: AbortSignal): Promise<Place> {
   const key = `opencourts-place-${query.trim().toLowerCase()}`;
@@ -25,22 +60,105 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   try { sessionStorage.setItem(key, JSON.stringify(place)); } catch { /* storage can be disabled */ }
   return place;
 }
-export async function getCourts(lat: number, lon: number, signal?: AbortSignal): Promise<Court[]> {
-  const key = `opencourts-courts-v1-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query);
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error('Place suggestions are temporarily unavailable.');
+  const data = await res.json();
+  return Array.isArray(data.suggestions) ? data.suggestions : [];
+}
+export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = ''): Promise<Court[]> {
+  const key = `opencourts-courts-v5-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try { const saved = sessionStorage.getItem(key); if (saved) return JSON.parse(saved); } catch { /* storage can be disabled */ }
   const res = await fetch(`/api/courts?lat=${lat}&lon=${lon}`, { signal });
   if (!res.ok) throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : 'Court data is temporarily unavailable. Please try again.');
-  const data = await res.json(); const courts = (data.elements ?? []).map(normalizeCourt).filter((court: Court) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && court.access !== 'restricted');
+  const data = await res.json(); const elements = data.elements ?? []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
+  const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
+  const courts = distinguishCourtNames(elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || '')).map((element: any) => normalizeCourt(element, roads, locality, places)).filter((court: Court) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, elements.find((item: any) => `osm-${item.type}-${item.id}` === court.id)?.tags)));
   try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
   return courts;
 }
+export async function getRainAssessments(courts: Court[], signal?: AbortSignal): Promise<RainAssessment[]> {
+  if (!courts.length) return [];
+  const res = await fetch('/api/rain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ courts: courts.map(court => ({ id: court.id, lat: court.lat, lon: court.lon })) }), signal });
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) throw new Error('The rain endpoint did not return JSON. Confirm that the latest /api/rain Cloudflare Function is deployed.');
+  const data = await res.json();
+  if (!res.ok) throw new Error([data.error || 'Recent radar rainfall is temporarily unavailable.', data.diagnostic ? `Local diagnostic: ${data.diagnostic}` : ''].filter(Boolean).join(' '));
+  return data.assessments ?? [];
+}
+export function assessRainfall(rain1h: number | null, rain3h: number | null, rain6h: number | null): Omit<RainAssessment, 'courtId'> {
+  if ([rain1h, rain3h, rain6h].some(value => value === null || !Number.isFinite(value))) return { rain1h, rain3h, rain6h, score: 50, confidence: 'Low', summary: 'Radar estimate unavailable' };
+  const current = rain1h!; const three = rain3h!; const six = rain6h!;
+  let score = 94; let summary = 'No rain detected in the past 6 hours';
+  if (current >= 0.01) { score = Math.max(12, Math.round(70 - current * 170)); summary = 'Rain detected in the past hour'; }
+  else if (three >= 0.01) { score = Math.max(35, Math.round(82 - three * 80)); summary = 'Rain likely stopped 1–3 hours ago'; }
+  else if (six >= 0.01) { score = Math.max(55, Math.round(89 - six * 55)); summary = 'Rain likely stopped 3–6 hours ago'; }
+  const confidence = Math.max(current, three, six) < 0.005 || Math.max(current, three, six) > 0.02 ? 'Moderate' : 'Low';
+  return { rain1h, rain3h, rain6h, score, confidence, summary };
+}
 export async function getWeather(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherData> {
   const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`, { signal }); if (!res.ok) throw new Error('Weather forecast unavailable');
-  const data = await res.json(); return { periods: data.periods ?? [], timeZone: data.timeZone ?? 'America/New_York' };
+  const data = await res.json(); return { periods: data.periods ?? [], outlook: data.outlook ?? [], timeZone: data.timeZone ?? 'America/New_York' };
 }
 export function playScore(f: Forecast): number {
   const comfortable = Math.max(0, 100 - Math.abs(f.temp - 70) * 2.2);
   const windPenalty = Math.min(40, Math.max(0, f.wind - 8) * 2.2);
   const rainPenalty = Math.min(60, f.precip * 1.5);
   return Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty)));
+}
+export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyPlayWindows[] {
+  const partsFor = (time: string) => new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(time));
+  const localParts = periods.map(period => {
+    if (!Number.isFinite(new Date(period.time).getTime())) return { period, day: '', hour: -1 };
+    const parts = partsFor(period.time);
+    const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+    return { period, day: `${value('year')}-${value('month')}-${value('day')}`, hour: Number(value('hour')) };
+  });
+  const daytime = localParts.filter(({ hour }) => hour >= 8 && hour <= 18);
+  const byDay = new Map<string, Forecast[]>();
+  for (const { period, day } of daytime) {
+    if (!day) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), period]);
+  }
+  const getEnd = (period: Forecast) => {
+    const explicitEnd = period.endTime ? new Date(period.endTime).getTime() : Number.NaN;
+    return Number.isFinite(explicitEnd) ? explicitEnd : new Date(period.time).getTime() + 60 * 60 * 1000;
+  };
+  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 7).flatMap(([date, hours]) => {
+    hours.sort((a, b) => a.time.localeCompare(b.time));
+    const candidates: PlayWindow[] = [];
+    for (let i = 0; i < hours.length - 1; i++) {
+      const first = hours[i]; const second = hours[i + 1];
+      const start = new Date(first.time).getTime(); const nextStart = new Date(second.time).getTime(); const end = getEnd(second);
+      if (Math.abs(nextStart - getEnd(first)) > 60_000 || end - start < 90 * 60_000 || end - start > 150 * 60_000) continue;
+      const conditions = [...new Set([first.short, second.short].filter(Boolean))];
+      const window: PlayWindow = {
+        time: first.time, endTime: second.endTime || new Date(end).toISOString(),
+        temp: (first.temp + second.temp) / 2,
+        wind: Math.round((first.wind + second.wind) / 2),
+        precip: Math.round((first.precip + second.precip) / 2),
+        short: conditions.join(' · ') || 'Forecast conditions', icon: first.icon,
+        score: 0,
+      };
+      window.score = playScore(window);
+      candidates.push(window);
+    }
+    const bestScore = Math.max(...candidates.map(candidate => candidate.score), -1);
+    const threshold = Math.max(55, bestScore - 18);
+    const selected: PlayWindow[] = [];
+    for (const candidate of candidates.filter(item => item.score >= threshold).sort((a, b) => b.score - a.score || a.time.localeCompare(b.time))) {
+      const start = new Date(candidate.time).getTime(); const end = getEnd(candidate);
+      const overlaps = selected.some(item => start < getEnd(item) && end > new Date(item.time).getTime());
+      if (!overlaps) selected.push(candidate);
+    }
+    if (!selected.length && hours.length) {
+      const bestHour = hours.map(period => ({ ...period, score: playScore(period) })).sort((a, b) => b.score - a.score)[0];
+      if (bestHour.score >= 55) selected.push(bestHour);
+    }
+    if (!selected.length) return [];
+    return [{ date, windows: selected.sort((a, b) => a.time.localeCompare(b.time)) }];
+  });
 }
