@@ -4,3 +4,5 @@ playwright-report/
 test-results/
 .wrangler/
 .env
+.court-catalog-import/
+court-data.json
