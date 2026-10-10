@@ -98,7 +98,7 @@
 .dark .support-button{background:#dce9af;color:#17382e}
 .dark .support-button:hover{background:#e8f2c6}
 @media(max-width:1300px){.support-strip{margin-left:5.5%;margin-right:5.5%}}
-@media(max-width:620px){.support-strip{margin:0 18px 38px;padding:22px 20px;align-items:flex-start;flex-direction:column;gap:16px}.support-strip h2{font-size:24px}.support-strip p{font-size:12px}.support-qr{width:auto;flex-direction:row;font-size:11px}.support-qr img{width:78px;height:78px}.support-button{width:100%}}
+@media(max-width:620px){.support-strip{margin:0 18px 38px;padding:22px 20px;align-items:flex-start;flex-direction:column;gap:16px}.support-strip h2{font-size:24px}.support-strip p{font-size:12px}.support-qr{width:100%;flex-direction:column;align-items:center;text-align:center;font-size:11px}.support-qr img{width:84px;height:84px}.support-button{width:100%}}
 
 .search-wrap{position:relative;z-index:5;width:min(720px,100%);margin:20px 0 0}
 .search-wrap .searchbox{width:100%;margin:0}
