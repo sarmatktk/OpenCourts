@@ -148,3 +148,6 @@
 .badges{row-gap:5px}
 .badge.surface{text-transform:capitalize}
 .popover-context{font-size:11px!important;line-height:1.4;color:var(--muted)}
+.rain-court-distance{display:flex;align-items:center;gap:4px;max-width:100%!important;white-space:normal!important;overflow:visible!important;line-height:1.4}
+.rain-court-distance svg{flex:none;color:var(--muted)}
+.rain-court-badges{gap:5px;flex-wrap:wrap;margin:1px 0 2px}
