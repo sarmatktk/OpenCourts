@@ -340,17 +340,17 @@ export function assessRainfall(rain1h: number | null, rain3h: number | null, rai
   const current = valid(rain1h) ? rain1h : null;
   const three = valid(rain3h) ? rain3h : null;
   const six = valid(rain6h) ? rain6h : null;
-  let score = 100; let summary = 'No rain detected in the past 6 hours';
-  if (current !== null && current >= 0.01) { summary = 'Rain detected in the past hour'; }
+  let score = 100; let summary = 'No precipitation detected in the past 6 hours';
+  if (current !== null && current >= 0.01) { summary = 'Precipitation detected in the past hour'; }
   else if (three !== null && three >= 0.01) {
-    summary = current === null ? 'Rain detected in the past 3 hours; current-hour data unavailable' : 'Rain likely stopped 1–3 hours ago';
+    summary = current === null ? 'Precipitation detected in the past 3 hours; current-hour data unavailable' : 'Precipitation likely stopped 1–3 hours ago';
   }
-  else if (six !== null && six >= 0.01) { summary = 'Rain likely stopped 3–6 hours ago'; }
+  else if (six !== null && six >= 0.01) { summary = 'Precipitation likely stopped 3–6 hours ago'; }
   else if (current === null || three === null || six === null) {
     // Use the available per-court readings while making incomplete coverage
     // explicit in the summary.
     const availableHours = [current !== null ? '1h' : '', three !== null ? '3h' : '', six !== null ? '6h' : ''].filter(Boolean).join(' and ');
-    summary = `No rain detected in available ${availableHours} radar; coverage is incomplete`;
+    summary = `No precipitation detected in available ${availableHours} radar; coverage is incomplete`;
   }
   // Each estimate is sampled at the court's coordinates. Let small local
   // accumulation differences affect the score instead of assigning every dry
