@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classifyAccess, classifyLighting, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, normalizeCourt, playScore } from '../src/services';
+import { classifyAccess, classifyLighting, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, normalizeCourt, playScore } from '../src/services';
 import type { Forecast } from '../src/types';
 import { estimatedSunset } from '../src/sun';
 
@@ -21,7 +21,8 @@ describe('court normalization', () => {
       name: 'Tennis courts', 'opencourts:context_version': '1', 'opencourts:nearby_place': 'Greenbriar Park',
       'opencourts:nearby_place_miles': '0.020', 'opencourts:nearby_street': 'Cedar Lane',
     } }, [], 'Fairfax');
-    expect(court.name).toBe('Tennis courts at Greenbriar Park');
+    expect(court.name).toBe('Tennis courts');
+    expect(court.contextName).toBe('At Greenbriar Park');
     expect(court.address).toBe('Near Cedar Lane, Fairfax');
     expect(court.addressApprox).toBe(true);
     expect(court.contextCached).toBe(true);
@@ -33,7 +34,8 @@ describe('court normalization', () => {
       { type: 'node', id: 9, lat: 38.8464, lon: -77.3062, tags: { leisure: 'park', name: 'Green Park' } },
       { type: 'node', id: 10, lat: 38.9, lon: -77.3, tags: { leisure: 'park', name: 'Distant Park' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Tennis courts at Green Park');
+    expect(enriched[0].name).toBe('Tennis courts');
+    expect(enriched[0].contextName).toBe('At Green Park');
     expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
     expect(enriched[0].addressApprox).toBe(true);
   });
@@ -42,7 +44,7 @@ describe('court normalization', () => {
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'way', id: 72, center: { lat: 38.9, lon: -77.3 }, geometry: [{ lat: 38.8461, lon: -77.31 }, { lat: 38.8461, lon: -77.30 }], tags: { highway: 'residential', name: 'Cedar Lane' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Court 1 · near Cedar Lane');
+    expect(enriched[0].name).toBe('Court 1');
     expect(enriched[0].address).toBe('Near Cedar Lane, Fairfax');
   });
   it('uses the name of a park containing the court even when its center is far away', () => {
@@ -52,7 +54,8 @@ describe('court normalization', () => {
         { lat: 38.84, lon: -77.32 }, { lat: 38.84, lon: -77.29 }, { lat: 38.86, lon: -77.29 }, { lat: 38.86, lon: -77.32 }, { lat: 38.84, lon: -77.32 },
       ], tags: { leisure: 'park', name: 'Greenbriar Park' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Tennis courts at Greenbriar Park');
+    expect(enriched[0].name).toBe('Tennis courts');
+    expect(enriched[0].contextName).toBe('At Greenbriar Park');
     expect(enriched[0].address).toBe('Near Greenbriar Park, Fairfax');
   });
   it('does not assign fake numbers to generic court labels', () => {
@@ -64,7 +67,8 @@ describe('court normalization', () => {
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'node', id: 12, lat: 38.8464, lon: -77.3062, tags: { leisure: 'park', name: 'Green Park' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Tennis courts at Green Park');
+    expect(enriched[0].name).toBe('Tennis courts');
+    expect(enriched[0].contextName).toBe('At Green Park');
     expect(enriched[0].address).toBe('Near Green Park, Fairfax');
     expect(enriched[0].addressApprox).toBe(true);
   });
@@ -73,17 +77,18 @@ describe('court normalization', () => {
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'way', id: 14, center: { lat: 38.847, lon: -77.3064 }, tags: { highway: 'residential', name: 'Oak Road' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Court 1 · near Oak Road');
+    expect(enriched[0].name).toBe('Court 1');
     expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
     expect(enriched[0].addressApprox).toBe(true);
   });
-  it('adds a nearby landmark to a numbered court name without replacing it', () => {
+  it('keeps a numbered court name and shows its landmark separately', () => {
     const court = { id: 'osm-way-17', name: 'Court 2', lat: 38.8462, lon: -77.3064 } as any;
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'node', id: 18, lat: 38.8464, lon: -77.3062, tags: { leisure: 'park', name: 'Greenbriar Park' } },
       { type: 'way', id: 19, center: { lat: 38.847, lon: -77.3064 }, tags: { highway: 'residential', name: 'Oak Road' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Court 2 · Greenbriar Park');
+    expect(enriched[0].name).toBe('Court 2');
+    expect(enriched[0].contextName).toBe('At Greenbriar Park');
     expect(enriched[0].address).toBe('Near Oak Road, Fairfax');
   });
   it('finds a named street when its mapped way center is farther than 0.12 miles', () => {
@@ -91,9 +96,27 @@ describe('court normalization', () => {
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'way', id: 16, center: { lat: 38.85, lon: -77.3064 }, tags: { highway: 'residential', name: 'Cedar Lane' } },
     ], 'Fairfax');
-    expect(enriched[0].name).toBe('Court 1 · near Cedar Lane');
+    expect(enriched[0].name).toBe('Court 1');
     expect(enriched[0].address).toBe('Near Cedar Lane, Fairfax');
     expect(enriched[0].addressApprox).toBe(true);
+  });
+});
+describe('venue court grouping', () => {
+  const court = (id: number, surface?: string) => ({
+    id: `osm-node-${id}`, name: `Court ${id}`, lat: 38.97 + id * 0.0001, lon: -77.38,
+    contextName: 'At Herndon High School', lighting: 'unknown', access: 'unknown', sheltered: false,
+    surface, sourceUrl: `https://www.openstreetmap.org/node/${id}`,
+  } as any);
+  it('combines nearby courts at one named venue and reports their count', () => {
+    const grouped = groupCourtsByVenue([court(1), court(2), court(3), court(4)]);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].name).toBe('Herndon High School');
+    expect(grouped[0].courts).toBe(4);
+  });
+  it('keeps courts with different surfaces in separate groups', () => {
+    const grouped = groupCourtsByVenue([court(1, 'hard'), court(2, 'clay')]);
+    expect(grouped).toHaveLength(2);
+    expect(grouped.map(item => item.surface)).toEqual(['hard', 'clay']);
   });
 });
 describe('PlayScore', () => {

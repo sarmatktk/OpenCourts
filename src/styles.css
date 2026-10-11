@@ -136,3 +136,15 @@
 .search-progress{display:flex;align-items:center;gap:9px;margin:0 16px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--muted);font-size:12px;line-height:1.4}
 .search-progress .search-spinner{color:var(--green)}
 .dark .search-progress .search-spinner{color:#dce9af}
+
+/* Keep enriched labels readable in the scrollable court list. */
+.court-card{flex:0 0 auto;gap:12px;padding:18px 22px}
+.court-index,.card-arrow{flex:none}
+.court-main{min-width:0}
+.court-main h3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow:hidden;line-height:1.35;margin-bottom:4px;overflow-wrap:anywhere}
+.court-context{margin:0 0 4px;color:var(--muted);font-size:10px;line-height:1.4;font-weight:600;overflow-wrap:anywhere}
+.court-distance{line-height:1.45;margin:0 0 7px;flex-wrap:wrap}
+.court-address{line-height:1.45;margin:0 0 8px;overflow-wrap:anywhere}
+.badges{row-gap:5px}
+.badge.surface{text-transform:capitalize}
+.popover-context{font-size:11px!important;line-height:1.4;color:var(--muted)}

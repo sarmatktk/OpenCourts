@@ -33,16 +33,23 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   const numberedCourtName = /^(?:tennis\s+)?courts?\s*#?\s*\d+$/i.test(mappedName || '');
   const nearbyPlace = nearbyPlaces.map(place => ({ place, lat: place.lat ?? place.center?.lat, lon: place.lon ?? place.center?.lon })).filter(item => (item.place.tags?.name || item.place.tags?.['name:en']) && Number.isFinite(item.lat) && Number.isFinite(item.lon)).map(item => ({ ...item, distance: milesBetween({ lat, lon }, item) })).filter(item => item.distance <= 0.35).sort((a, b) => a.distance - b.distance)[0];
   const placeName = nearbyPlace?.place.tags?.name || nearbyPlace?.place.tags?.['name:en'];
-  const placeLabel = nearbyPlace ? `Tennis courts ${nearbyPlace.distance <= 0.05 ? 'at' : 'near'} ${placeName}` : undefined;
-  const fallbackLocation = address?.replace(/^Near\s+/i, '').split(',')[0];
-  let name = mappedName || placeLabel || (fallbackLocation ? `Tennis courts near ${fallbackLocation}` : 'Tennis courts');
+  const placeLabel = nearbyPlace ? `${nearbyPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}` : undefined;
+  let name = mappedName || 'Tennis courts';
+  let contextName: string | undefined;
   if (genericMappedName && catalogPlace) {
+    name = 'Tennis courts';
     const distance = Number(tags['opencourts:nearby_place_miles']);
-    name = `Tennis courts ${Number.isFinite(distance) && distance <= 0.05 ? 'at' : 'near'} ${catalogPlace}`;
-  } else if (genericMappedName && catalogRoad) name = `Tennis courts near ${catalogRoad}`;
-  else if (numberedCourtName && catalogPlace) name = `${mappedName} · ${catalogPlace}`;
-  else if (numberedCourtName && catalogRoad) name = `${mappedName} · near ${catalogRoad}`;
-  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextCached: tags['opencourts:context_version'] === '1', sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+    contextName = `${Number.isFinite(distance) && distance <= 0.05 ? 'At' : 'Near'} ${catalogPlace}`;
+  } else if (genericMappedName && catalogRoad) name = 'Tennis courts';
+  else if (numberedCourtName && catalogPlace) {
+    const distance = Number(tags['opencourts:nearby_place_miles']);
+    contextName = `${Number.isFinite(distance) && distance <= 0.05 ? 'At' : 'Near'} ${catalogPlace}`;
+  }
+  else if (genericMappedName && nearbyPlace) {
+    name = 'Tennis courts';
+    contextName = placeLabel;
+  }
+  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextName, contextCached: tags['opencourts:context_version'] === '1', sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
 }
 export function distinguishCourtNames(courts: Court[]): Court[] {
   const groups = new Map<string, Court[]>();
@@ -69,6 +76,54 @@ export function distinguishCourtNames(courts: Court[]): Court[] {
     while (used.has(name)) name = `${court.name} · Court ${suffix++}`;
     used.add(name);
     return { ...court, name };
+  });
+}
+export function groupCourtsByVenue(courts: Court[]): Court[] {
+  const groups: Court[][] = [];
+  const venueFor = (court: Court) => court.contextName?.match(/^At\s+(.+)$/i)?.[1].trim().toLocaleLowerCase();
+  const canGroup = (court: Court) => /^(?:tennis courts?(?:\s+·\s+\d+)?|court\s*#?\s*\d+(?:\s+·\s+\d+)?)$/i.test(court.name.trim()) && venueFor(court);
+
+  for (const court of courts) {
+    const venue = venueFor(court);
+    if (!venue || !canGroup(court)) { groups.push([court]); continue; }
+    const group = groups.find(members => {
+      const first = members[0];
+      if (venueFor(first) !== venue || !canGroup(first)) return false;
+      if ((first.surface || '').trim().toLowerCase() !== (court.surface || '').trim().toLowerCase()) return false;
+      if (first.lighting !== court.lighting || first.access !== court.access || first.sheltered !== court.sheltered) return false;
+      const center = members.reduce((point, member) => ({ lat: point.lat + member.lat / members.length, lon: point.lon + member.lon / members.length }), { lat: 0, lon: 0 });
+      return milesBetween(center, court) <= 0.15;
+    });
+    if (group) group.push(court); else groups.push([court]);
+  }
+
+  return groups.map(members => {
+    if (members.length === 1) return members[0];
+    const first = members[0];
+    const venue = first.contextName!.replace(/^At\s+/i, '').trim();
+    const multiCourtCounts = members.map(member => member.courts ?? 0).filter(count => count > 1);
+    const courtsCount = multiCourtCounts.length
+      ? Math.max(members.length, ...multiCourtCounts)
+      : members.reduce((total, member) => total + (member.courts || 1), 0);
+    const addresses = new Map<string, { count: number; approximate: boolean }>();
+    for (const member of members) if (member.address) {
+      const existing = addresses.get(member.address) || { count: 0, approximate: false };
+      addresses.set(member.address, { count: existing.count + 1, approximate: existing.approximate || Boolean(member.addressApprox) });
+    }
+    const address = [...addresses.entries()].sort((a, b) => b[1].count - a[1].count)[0];
+    const center = members.reduce((point, member) => ({ lat: point.lat + member.lat / members.length, lon: point.lon + member.lon / members.length }), { lat: 0, lon: 0 });
+    return {
+      ...first,
+      id: `venue-${first.id}`,
+      name: venue,
+      contextName: undefined,
+      lat: center.lat,
+      lon: center.lon,
+      courts: courtsCount,
+      address: address?.[0],
+      addressApprox: address?.[1].approximate,
+      contextCached: members.every(member => member.contextCached),
+    };
   });
 }
 export function isLikelyMembersClub(court: Court, tags: Record<string, string | undefined> = {}): boolean {
@@ -176,16 +231,16 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
     const genericName = /^tennis courts?(?:\s+·\s+\d+)?(?:\s+(?:at|near)\s+.*)?$/i.test(court.name);
     const numberedCourtName = /^(?:tennis\s+)?courts?\s*#?\s*\d+$/i.test(court.name);
     let name = genericName ? 'Tennis courts' : court.name;
+    let contextName = court.contextName;
     const placeName = nearestPlace?.feature.tags.name || nearestPlace?.feature.tags['name:en'];
     if (!address && placeName) {
       address = `Near ${placeName}${locality ? `, ${locality}` : ''}`;
       addressApprox = true;
     }
-    if (genericName && nearestPlace) name = `Tennis courts ${nearestPlace.distance <= 0.05 ? 'at' : 'near'} ${placeName}`;
-    else if (genericName && address) name = `Tennis courts near ${address.replace(/^Near\s+/i, '').split(',')[0]}`;
-    else if (numberedCourtName && placeName) name = `${court.name} · ${placeName}`;
-    else if (numberedCourtName && nearestRoad?.feature.tags?.name) name = `${court.name} · near ${nearestRoad.feature.tags.name}`;
-    return { ...court, name, address, addressApprox };
+    if (genericName && nearestPlace) contextName = `${nearestPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;
+    else if (genericName && address) name = 'Tennis courts';
+    else if (numberedCourtName && placeName) contextName = `${nearestPlace!.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;
+    return { ...court, name, contextName, address, addressApprox };
   }));
 }
 function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void) {
@@ -210,13 +265,13 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     const data = await response.json();
     if (!Array.isArray(data.elements)) return;
     if (data.elements.length === 0) console.info('[OpenCourts] Nearby map data returned no named context features.');
-    const enriched = enrichNearbyCourtDetails(courts, data.elements, locality);
-    try { sessionStorage.setItem(`opencourts-courts-v10-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    const enriched = groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality));
+    try { sessionStorage.setItem(`opencourts-courts-v12-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v10-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v12-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
@@ -236,9 +291,9 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const elements = Array.isArray(data.elements) ? data.elements : []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
   const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
   const courtElements = elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || ''));
-  const courts = distinguishCourtNames(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
+  const courts = groupCourtsByVenue(distinguishCourtNames(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
     .filter(({ element, court }: { element: any; court: Court }) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, element.tags))
-    .map(({ court }: { court: Court }) => court));
+    .map(({ court }: { court: Court }) => court)));
   try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
   refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
   return courts;
