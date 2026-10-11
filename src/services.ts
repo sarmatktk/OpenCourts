@@ -211,12 +211,12 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     if (!Array.isArray(data.elements)) return;
     if (data.elements.length === 0) console.info('[OpenCourts] Nearby map data returned no named context features.');
     const enriched = enrichNearbyCourtDetails(courts, data.elements, locality);
-    try { sessionStorage.setItem(`opencourts-courts-v9-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    try { sessionStorage.setItem(`opencourts-courts-v10-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v9-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v10-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {

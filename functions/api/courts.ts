@@ -20,7 +20,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   const south = Math.max(-90, lat - dLat); const north = Math.min(90, lat + dLat);
   const west = Math.max(-180, lon - dLon); const east = Math.min(180, lon + dLon);
   const bbox = `${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)}`;
-  const cacheKey = new Request(`${url.origin}/api/courts?v=4&bbox=${bbox}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
+  const cacheKey = new Request(`${url.origin}/api/courts?v=5&bbox=${bbox}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
   const cached = await readEdgeCache(cache, cacheKey); if (cached) return cached;
   // Keep the blocking query focused on tennis features. Nearby roads and parks
   // are fetched separately after this response so they can't delay the results.
