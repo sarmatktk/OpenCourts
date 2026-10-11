@@ -11,11 +11,12 @@ export function classifyAccess(tags: Record<string, string | undefined>): Access
   return 'unknown';
 }
 function milesBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (a.lat-b.lat)*rad; const dLon = (a.lon-b.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
+function usefulLocality(locality: string) { const value = locality.trim(); return /^(?:your|my|current) location$|^near me$/i.test(value) ? '' : value; }
 export function normalizeCourt(element: any, roads: any[] = [], locality = '', nearbyPlaces: any[] = []): Court {
   const tags = element.tags ?? {};
   const lat = element.lat ?? element.center?.lat; const lon = element.lon ?? element.center?.lon;
   const addressLine = tags['addr:full'] || [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
-  const cityLine = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']].filter(Boolean).join(', ') || locality;
+  const cityLine = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']].filter(Boolean).join(', ') || usefulLocality(locality);
   let address = addressLine ? [addressLine, cityLine].filter(Boolean).join(', ') : undefined;
   let addressApprox = false;
   const catalogRoad = tags['opencourts:nearby_street'];
@@ -211,6 +212,7 @@ function distanceToFeature(origin: GeoPoint, feature: any, isArea: boolean): num
 }
 
 export function enrichNearbyCourtDetails(courts: Court[], elements: any[], locality: string): Court[] {
+  const localityLabel = usefulLocality(locality);
   // Overpass returns full geometries. A way's center can be miles from the
   // actual road or park edge, which used to make valid nearby context disappear.
   const roads = elements.filter(item => item.tags?.highway && item.tags?.name);
@@ -222,7 +224,7 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
     let address = court.address;
     let addressApprox = court.addressApprox;
     if (!address && nearestRoad?.feature.tags?.name) {
-      address = `Near ${nearestRoad.feature.tags.name}${locality ? `, ${locality}` : ''}`;
+      address = `Near ${nearestRoad.feature.tags.name}${localityLabel ? `, ${localityLabel}` : ''}`;
       addressApprox = true;
     }
     const nearestPlace = places.map(feature => ({ feature, distance: distanceToFeature(court, feature, true) }))
@@ -234,7 +236,7 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
     let contextName = court.contextName;
     const placeName = nearestPlace?.feature.tags.name || nearestPlace?.feature.tags['name:en'];
     if (!address && placeName) {
-      address = `Near ${placeName}${locality ? `, ${locality}` : ''}`;
+      address = `Near ${placeName}${localityLabel ? `, ${localityLabel}` : ''}`;
       addressApprox = true;
     }
     if (genericName && nearestPlace) contextName = `${nearestPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;

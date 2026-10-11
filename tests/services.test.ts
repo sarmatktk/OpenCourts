@@ -27,6 +27,12 @@ describe('court normalization', () => {
     expect(court.addressApprox).toBe(true);
     expect(court.contextCached).toBe(true);
   });
+  it('does not append the generic current-location label to a street address', () => {
+    const court = normalizeCourt({ type: 'node', id: 501, lat: 38.8, lon: -77.3, tags: {
+      name: 'Tennis courts', 'opencourts:context_version': '1', 'opencourts:nearby_street': 'Four Ponds Trail',
+    } }, [], 'Your location');
+    expect(court.address).toBe('Near Four Ponds Trail');
+  });
   it('adds nearby OSM road and place names without using distant features', () => {
     const court = normalizeCourt({ type: 'way', id: 7, center: { lat: 38.8462, lon: -77.3064 }, tags: {} });
     const enriched = enrichNearbyCourtDetails([court], [
