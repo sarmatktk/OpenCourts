@@ -415,12 +415,32 @@ export async function getWeatherAlerts(lat: number, lon: number, signal?: AbortS
 }
 export const HEAT_INDEX_DISPLAY_THRESHOLD_F = 90;
 export function heatIndexFahrenheit(temp: number, humidity: number): number {
-  if (!Number.isFinite(temp) || !Number.isFinite(humidity) || humidity < 0 || humidity > 100 || temp < 80) return temp;
+  if (!Number.isFinite(temp) || !Number.isFinite(humidity) || humidity < 0 || humidity > 100) return temp;
+  // NWS first uses the simple approximation; the Rothfusz regression is only
+  // appropriate when the averaged simple value reaches 80°F.
+  const simple = 0.5 * (temp + 61 + (temp - 68) * 1.2 + humidity * 0.094);
+  const initial = (simple + temp) / 2;
+  if (initial < 80) return Math.round(initial);
   const t = temp; const rh = humidity;
   let index = -42.379 + 2.04901523 * t + 10.14333127 * rh - 0.22475541 * t * rh - 0.00683783 * t * t - 0.05481717 * rh * rh + 0.00122874 * t * t * rh + 0.00085282 * t * rh * rh - 0.00000199 * t * t * rh * rh;
   if (rh < 13 && t >= 80 && t <= 112) index -= ((13 - rh) / 4) * Math.sqrt(Math.max(0, (17 - Math.abs(t - 95)) / 17));
   if (rh > 85 && t >= 80 && t <= 87) index += ((rh - 85) / 10) * ((87 - t) / 5);
-  return Math.round(Math.max(t, index));
+  return Math.round(index);
+}
+export function currentHeatCaution(period?: Forecast, alertEvent?: string): { label: string; high: boolean } | null {
+  const temp = period?.temp;
+  const validTemp = temp !== undefined && Number.isFinite(temp);
+  const humidity = period?.humidity;
+  const index = validTemp && humidity !== undefined && Number.isFinite(humidity) && humidity >= 0 && humidity <= 100
+    ? heatIndexFahrenheit(temp, humidity) : undefined;
+  const elevated = index !== undefined && index >= HEAT_INDEX_DISPLAY_THRESHOLD_F;
+  const temperatureOnly = index === undefined && validTemp && temp >= HEAT_INDEX_DISPLAY_THRESHOLD_F;
+  if (!alertEvent && !elevated && !temperatureOnly) return null;
+  const measure = elevated ? `${index}°F heat index` : temperatureOnly ? `${Math.round(temp)}°F air temperature` : '';
+  return {
+    label: `${alertEvent ? `${alertEvent} in this area` : 'Area forecast'}${measure ? ` · ${measure}` : ''} · check heat conditions`,
+    high: /warning|emergency|excessive heat/i.test(alertEvent || '') || (index !== undefined ? index >= 103 : validTemp && temp >= 103),
+  };
 }
 export function playScore(f: Forecast): number {
   const comfortable = Math.max(0, 100 - Math.abs(f.temp - 70) * 2.2);
@@ -428,13 +448,39 @@ export function playScore(f: Forecast): number {
   const rainPenalty = Math.min(60, f.precip * 1.5);
   const heatPenalty = f.humidity === undefined ? 0 : Math.min(55, Math.max(0, heatIndexFahrenheit(f.temp, f.humidity) - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5);
   const score = Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty - heatPenalty)));
-  return f.winterRisk ? Math.min(20, score) : score;
+  return f.winterRisk || f.winterCaution ? Math.min(20, score) : score;
+}
+export type WinterCautionSeed = { type: 'snow' | 'ice'; until: number };
+export function withWinterSurfaceCaution(periods: Forecast[], seed?: WinterCautionSeed): Forecast[] {
+  const ordered = [...periods].sort((a, b) => a.time.localeCompare(b.time));
+  let lingering: { type: 'snow' | 'ice'; until: number; warmHours: number } | null = seed ? { ...seed, warmHours: 0 } : null;
+  let previousEnd = seed && ordered.length ? Date.parse(ordered[0].time) : Number.NEGATIVE_INFINITY;
+  return ordered.map(period => {
+    const start = Date.parse(period.time);
+    const end = period.endTime ? Date.parse(period.endTime) : start + 60 * 60_000;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return { ...period, winterCaution: undefined };
+    if (lingering && (start >= lingering.until || start - previousEnd > 90 * 60_000)) lingering = null;
+    previousEnd = end;
+    if (period.winterRisk) {
+      const type = period.winterRisk === 'ice' || lingering?.type === 'ice' ? 'ice' : 'snow';
+      lingering = { type, until: Math.max(lingering?.until ?? 0, end + (type === 'ice' ? 36 : 24) * 60 * 60_000), warmHours: 0 };
+      return { ...period, winterCaution: { type, lingering: false } };
+    }
+    if (!lingering) return { ...period, winterCaution: undefined };
+    // Six consecutive warm, relatively dry forecast hours can end the extra
+    // caution early. This is an area forecast, never a surface observation.
+    const warm = Number.isFinite(period.temp) && period.temp >= (lingering.type === 'ice' ? 50 : 45)
+      && Number.isFinite(period.precip) && period.precip < 20;
+    lingering.warmHours = warm ? lingering.warmHours + Math.min(2, Math.max(0, (end - start) / 60 / 60_000)) : 0;
+    if (lingering.warmHours >= 6) { lingering = null; return { ...period, winterCaution: undefined }; }
+    return { ...period, winterCaution: { type: lingering.type, lingering: true } };
+  });
 }
 export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyPlayWindows[] {
   const partsFor = (time: string) => new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date(time));
-  const localParts = periods.map(period => {
+  const localParts = (periods.some(period => period.winterCaution) ? periods : withWinterSurfaceCaution(periods)).map(period => {
     if (!Number.isFinite(new Date(period.time).getTime())) return { period, day: '', hour: -1 };
     const parts = partsFor(period.time);
     const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
@@ -459,14 +505,15 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyP
       if (Math.abs(nextStart - getEnd(first)) > 60_000 || end - start < 90 * 60_000 || end - start > 150 * 60_000) continue;
       const conditions = [...new Set([first.short, second.short].filter(Boolean))];
       const humidity = first.humidity !== undefined && second.humidity !== undefined ? (first.humidity + second.humidity) / 2 : first.humidity ?? second.humidity;
-      const winterRisk = first.winterRisk === 'ice' || second.winterRisk === 'ice' ? 'ice' : first.winterRisk || second.winterRisk;
+      const winterRisk = first.winterCaution?.type === 'ice' || second.winterCaution?.type === 'ice' ? 'ice' : first.winterCaution?.type || second.winterCaution?.type;
+      const winterLingering = winterRisk && !first.winterRisk && !second.winterRisk;
       const window: PlayWindow = {
         time: first.time, endTime: second.endTime || new Date(end).toISOString(),
         temp: (first.temp + second.temp) / 2,
         wind: Math.round((first.wind + second.wind) / 2),
         precip: Math.round((first.precip + second.precip) / 2),
         ...(humidity === undefined ? {} : { humidity, heatIndex: heatIndexFahrenheit((first.temp + second.temp) / 2, humidity) }),
-        ...(winterRisk === undefined ? {} : { winterRisk }),
+        ...(winterRisk === undefined ? {} : { winterRisk, winterCaution: { type: winterRisk, lingering: !!winterLingering } }),
         short: conditions.join(' · ') || 'Forecast conditions', icon: first.icon,
         score: 0,
       };

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { classifyAccess, classifyLighting, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, normalizeCourt, playScore } from '../src/services';
+import { assessRainfall, classifyAccess, classifyLighting, currentHeatCaution, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, heatIndexFahrenheit, normalizeCourt, playScore, weeklyPlayWindows, withWinterSurfaceCaution } from '../src/services';
 import type { Forecast } from '../src/types';
 import { estimatedSunset } from '../src/sun';
 
@@ -131,11 +131,142 @@ describe('PlayScore', () => {
     expect(playScore(forecast(70, 4, 0))).toBeGreaterThan(playScore(forecast(70, 20, 80)));
     expect(playScore(forecast(70, 4, 0))).toBe(100);
   });
+  it('keeps humidity optional and lowers scores when humidity raises heat index', () => {
+    const dryForecast = forecast(90, 4, 0);
+    expect(HEAT_INDEX_DISPLAY_THRESHOLD_F).toBe(90);
+    expect(heatIndexFahrenheit(90, 70)).toBeGreaterThanOrEqual(105);
+    expect(playScore({ ...dryForecast, humidity: 70 })).toBeLessThan(playScore(dryForecast));
+    expect(playScore({ ...dryForecast, humidity: undefined })).toBe(playScore(dryForecast));
+  });
+  it('uses the NWS simple heat-index step before the full regression', () => {
+    expect(heatIndexFahrenheit(80, 10)).toBe(79);
+    expect(heatIndexFahrenheit(96, 65)).toBe(121);
+    expect(heatIndexFahrenheit(90, 70)).toBeGreaterThan(100);
+  });
+  it('shows a current heat caution with humidity, without humidity, or from an official alert', () => {
+    const mild = forecast(75, 4, 0);
+    expect(currentHeatCaution(mild)).toBeNull();
+    expect(currentHeatCaution({ ...forecast(90, 4, 0), humidity: 70 })).toMatchObject({ high: true });
+    expect(currentHeatCaution(forecast(92, 4, 0))?.label).toContain('92°F air temperature');
+    expect(currentHeatCaution(mild, 'Heat Advisory')?.label).toContain('Heat Advisory');
+    expect(currentHeatCaution(undefined, 'Excessive Heat Warning')).toMatchObject({ high: true });
+  });
+  it('caps snow and ice forecast windows at a poor playing score', () => {
+    const periods = [
+      { ...forecast(40, 3, 20), time: '2026-01-02T15:00:00Z', endTime: '2026-01-02T16:00:00Z', short: 'Cloudy' },
+      { ...forecast(38, 3, 60), time: '2026-01-02T16:00:00Z', endTime: '2026-01-02T17:00:00Z', short: 'Snow showers', winterRisk: 'snow' as const },
+    ];
+    const window = weeklyPlayWindows(periods, 'UTC')[0]?.windows[0];
+    expect(window?.winterRisk).toBe('snow');
+    expect(window?.score).toBeLessThanOrEqual(20);
+  });
+  it('carries snow and ice cautions after precipitation ends, then clears after sustained warmth', () => {
+    const hourly = (risk: 'snow' | 'ice', temp: number) => Array.from({ length: 9 }, (_, index) => ({
+      ...forecast(index === 0 ? 30 : temp, 3, index === 0 ? 80 : 0),
+      time: new Date(Date.UTC(2026, 0, 2, 10 + index)).toISOString(),
+      endTime: new Date(Date.UTC(2026, 0, 2, 11 + index)).toISOString(),
+      short: index === 0 ? risk : 'Clear', ...(index === 0 ? { winterRisk: risk } : {}),
+    }));
+    const snow = withWinterSurfaceCaution(hourly('snow', 47));
+    expect(snow[1].winterCaution).toEqual({ type: 'snow', lingering: true });
+    expect(snow[5].winterCaution).toEqual({ type: 'snow', lingering: true });
+    expect(snow[6].winterCaution).toBeUndefined();
+    const ice = withWinterSurfaceCaution(hourly('ice', 47));
+    expect(ice[6].winterCaution).toEqual({ type: 'ice', lingering: true });
+    expect(playScore(ice[1])).toBeLessThanOrEqual(20);
+    const windows = weeklyPlayWindows(hourly('ice', 47), 'UTC').flatMap(day => day.windows);
+    expect(windows.some(window => window.winterCaution?.lingering && window.score <= 20)).toBe(true);
+  });
+  it('expires lingering cautions and leaves unrelated dry forecasts alone', () => {
+    const hourly = (risk: 'snow' | 'ice') => Array.from({ length: 42 }, (_, index) => ({
+      ...forecast(28, 3, index === 0 ? 80 : 0),
+      time: new Date(Date.UTC(2026, 0, 2, index)).toISOString(),
+      endTime: new Date(Date.UTC(2026, 0, 2, index + 1)).toISOString(),
+      short: index === 0 ? risk : 'Clear', ...(index === 0 ? { winterRisk: risk } : {}),
+    }));
+    const snow = withWinterSurfaceCaution(hourly('snow'));
+    const ice = withWinterSurfaceCaution(hourly('ice'));
+    expect(snow[24].winterCaution?.lingering).toBe(true);
+    expect(snow[25].winterCaution).toBeUndefined();
+    expect(ice[35].winterCaution?.lingering).toBe(true);
+    expect(ice[37].winterCaution).toBeUndefined();
+    expect(withWinterSurfaceCaution(hourly('snow').slice(1)).every(item => !item.winterCaution)).toBe(true);
+  });
+  it('retains a bounded caution when a refreshed forecast starts after the event', () => {
+    const start = Date.UTC(2026, 0, 2, 12);
+    const periods = Array.from({ length: 8 }, (_, index) => ({
+      ...forecast(30, 3, 0), time: new Date(start + index * 60 * 60_000).toISOString(),
+      endTime: new Date(start + (index + 1) * 60 * 60_000).toISOString(), short: 'Clear',
+    }));
+    const seeded = withWinterSurfaceCaution(periods, { type: 'ice', until: start + 36 * 60 * 60_000 });
+    expect(seeded[0].winterCaution).toEqual({ type: 'ice', lingering: true });
+    expect(weeklyPlayWindows(seeded, 'UTC').flatMap(day => day.windows).some(window => window.winterCaution?.lingering)).toBe(true);
+    expect(withWinterSurfaceCaution(periods, { type: 'ice', until: start - 1 })[0].winterCaution).toBeUndefined();
+  });
+  it('keeps high heat-index windows visible with their low score and heat value', () => {
+    const periods = [
+      { ...forecast(94, 4, 0), time: '2026-01-02T15:00:00Z', endTime: '2026-01-02T16:00:00Z', short: 'Hot', humidity: 70 },
+      { ...forecast(94, 4, 0), time: '2026-01-02T16:00:00Z', endTime: '2026-01-02T17:00:00Z', short: 'Hot', humidity: 70 },
+    ];
+    const window = weeklyPlayWindows(periods, 'UTC')[0]?.windows[0];
+    expect(window?.heatIndex).toBeGreaterThanOrEqual(HEAT_INDEX_DISPLAY_THRESHOLD_F);
+    expect(window?.score).toBeLessThan(55);
+  });
 });
 describe('rain API errors', () => {
   it('shows a plain visitor message when the endpoint returns HTML instead of JSON', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>Bad gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))));
     await expect(getRainAssessments([{ id: 'court-1', lat: 38.8, lon: -77.3 } as any])).rejects.toThrow('Recent rain data is temporarily unavailable. Please try again.');
+  });
+});
+describe('hourly radar score', () => {
+  it('scores the actual court readings and describes the latest radar window', () => {
+    expect(assessRainfall(0, 0, 0)).toMatchObject({ score: 100, confidence: 'High', summary: 'No precipitation in the latest 6-hour radar estimate' });
+    expect(assessRainfall(0.1, 0.3, 0.5).score).toBe(39);
+  });
+  it('lets rainfall from 3–6 hours ago fade more than recent rain', () => {
+    const olderRain = assessRainfall(0, 0, 7.6);
+    const currentRain = assessRainfall(0.1, 0.1, 0.1);
+    expect(olderRain.score).toBe(57);
+    expect(olderRain.score).toBeGreaterThan(currentRain.score);
+    expect(olderRain.summary).toBe('Precipitation likely stopped 3–6 hours ago');
+  });
+  it('grades complete, consistent radar readings independently of whether rain has stopped', () => {
+    expect(assessRainfall(0, 0.4, 8.5).confidence).toBe('High');
+    expect(assessRainfall(0, 0, 7.6).confidence).toBe('High');
+    expect(assessRainfall(0, 0.4, null).confidence).toBe('Moderate');
+    expect(assessRainfall(0, null, null).confidence).toBe('Low');
+    expect(assessRainfall(0.5, 0.2, 0.6).confidence).toBe('Low');
+  });
+  it('omits an extreme raster value from the score and recommendations', () => {
+    const result = assessRainfall(0, 1.7, 66.8);
+    expect(result).toMatchObject({ rain1h: 0, rain3h: 1.7, rain6h: null, confidence: 'Low' });
+    expect(result.score).toBe(14);
+    expect(result.summary).toContain('unusually high radar value was omitted');
+    expect(assessRainfall(null, null, 66.8)).toMatchObject({ rain6h: null, confidence: 'Low' });
+  });
+});
+describe('nearby rain warning', () => {
+  const reading = (id: number, hour: number | null, threeHours: number | null) => ({
+    courtId: `court-${id}`, ...assessRainfall(hour, threeHours, null),
+  });
+  const ids = new Set([1, 2, 3, 4, 5].map(id => `court-${id}`));
+
+  it('warns for widespread light rain even when individual radar scores are high', () => {
+    const readings = [reading(1, 0.01, 0.01), reading(2, 0.02, 0.02), reading(3, 0, 0.01), reading(4, 0, 0), reading(5, 0, 0)];
+    expect(readings[0].score).toBeGreaterThan(80);
+    expect(hasWidespreadRecentRain(readings, ids)).toBe(true);
+    expect(hasWidespreadRecentRain([1, 2, 3, 4, 5].map(id => reading(id, 0.2, 0.3)), ids)).toBe(true);
+  });
+  it('does not warn for dry, scattered, stale, or too few readable courts', () => {
+    expect(hasWidespreadRecentRain([reading(1, 0, 0), reading(2, 0, 0), reading(3, 0, 0)], ids)).toBe(false);
+    expect(hasWidespreadRecentRain([reading(1, 0.02, 0.02), reading(2, 0.02, 0.02), reading(3, 0, 0), reading(4, 0, 0), reading(5, 0, 0)], ids)).toBe(false);
+    expect(hasWidespreadRecentRain([reading(1, 0, 0), reading(2, 0, 0), reading(3, null, null)], ids)).toBe(false);
+    expect(hasWidespreadRecentRain([reading(1, 0.02, 0.02), reading(2, 0.02, 0.02), reading(6, 0.02, 0.02)], ids)).toBe(false);
+    expect(hasWidespreadRecentRain([reading(1, 0, 0), reading(2, 0, 0), reading(3, 0, 0.01)], ids)).toBe(false);
+    expect(hasWidespreadRecentRain([1, 2, 3].map(id => ({ ...reading(id, 0, 0), rain6h: 0.2 })), ids)).toBe(false);
+    expect(hasWidespreadRecentRain([1, 2, 3].map(id => ({ ...reading(id, 13, null), rain3h: null })), ids)).toBe(false);
+    expect(hasWidespreadRecentRain([1, 2, 3].map(id => reading(id, 0.5, 0.1)), ids)).toBe(false);
   });
 });
 describe('daylight estimate', () => {
