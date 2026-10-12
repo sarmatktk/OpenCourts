@@ -335,11 +335,17 @@ export async function getRainAssessments(
   return assessments;
 }
 export function assessRainfall(rain1h: number | null, rain3h: number | null, rain6h: number | null): Omit<RainAssessment, 'courtId'> {
-  const valid = (value: number | null): value is number => value !== null && Number.isFinite(value);
-  if (![rain1h, rain3h, rain6h].some(valid)) return { rain1h, rain3h, rain6h, score: 50, confidence: 'Low', summary: 'Radar estimate unavailable' };
-  const current = valid(rain1h) ? rain1h : null;
-  const three = valid(rain3h) ? rain3h : null;
-  const six = valid(rain6h) ? rain6h : null;
+  const valid = (value: number | null): value is number => value !== null && Number.isFinite(value) && value >= 0;
+  // Conservative screening limits, not a claim about the maximum possible
+  // rainfall. An anomalous pixel must not become a high-quality recommendation.
+  const outlier = (valid(rain1h) && rain1h > 12) || (valid(rain3h) && rain3h > 20) || (valid(rain6h) && rain6h > 30);
+  const current = valid(rain1h) && rain1h <= 12 ? rain1h : null;
+  const three = valid(rain3h) && rain3h <= 20 ? rain3h : null;
+  const six = valid(rain6h) && rain6h <= 30 ? rain6h : null;
+  if (current === null && three === null && six === null) return {
+    rain1h: null, rain3h: null, rain6h: null, score: 50, confidence: 'Low',
+    summary: outlier ? 'An unusually high radar value was omitted. Verify conditions locally.' : 'Radar estimate unavailable',
+  };
   let score = 100; let summary = 'No precipitation in the latest 6-hour radar estimate';
   if (current !== null && current >= 0.01) { summary = 'Precipitation detected in the past hour'; }
   else if (three !== null && three >= 0.01) {
@@ -359,19 +365,26 @@ export function assessRainfall(rain1h: number | null, rain3h: number | null, rai
   const recent = current ?? 0;
   const priorThree = current !== null && three !== null ? Math.max(0, three - current) : (three ?? 0);
   const priorSix = three !== null && six !== null ? Math.max(0, six - three) : (six ?? 0);
-  const rainImpact = recent * 420 + priorThree * 180 + priorSix * 80;
+  // Rain from the oldest window is a weaker residual-dampness signal than
+  // rain in the last one or three hours. Keep it in the score, but let that
+  // penalty fade so a storm from earlier in the six-hour window does not
+  // dominate a court's current estimate.
+  const rainImpact = recent * 420 + priorThree * 180 + priorSix * 5;
   // A soft curve preserves separation between wet courts without a shared
   // low-score floor (the former floor made very wet locations all show 12).
   score = Math.round(100 / (1 + rainImpact / 50));
   const readings = [current, three, six].filter((value): value is number => value !== null);
-  const completeDryReadings = current !== null && three !== null && six !== null && readings.every(value => value < 0.005);
-  const currentRainConfirmed = current !== null && current >= 0.02 && three !== null && three >= current * 0.8;
-  const stoppedRecently = current !== null && current < 0.005 && three !== null && three >= 0.02;
-  const rainOnlyInOlderWindow = current !== null && current < 0.005 && three !== null && three < 0.005 && six !== null && six >= 0.02;
-  const confidence: RainAssessment['confidence'] = currentRainConfirmed || completeDryReadings ? 'High'
-    : stoppedRecently || rainOnlyInOlderWindow || (readings.length === 3 && Math.max(...readings) >= 0.02) ? 'Moderate'
-    : 'Low';
-  return { rain1h, rain3h, rain6h, score, confidence, summary };
+  // Independent radar mosaics can differ slightly. Allow rounding and small
+  // revisions while requiring longer accumulation windows to agree broadly.
+  const tolerance = (shorter: number) => Math.max(0.03, shorter * 0.1);
+  const consistent = (current === null || three === null || three + tolerance(current) >= current)
+    && (three === null || six === null || six + tolerance(three) >= three)
+    && (current === null || six === null || six + tolerance(current) >= current);
+  const confidence: RainAssessment['confidence'] = outlier || !consistent ? 'Low'
+    : readings.length === 3 ? 'High' : readings.length === 2 ? 'Moderate' : 'Low';
+  if (outlier) summary += '. An unusually high radar value was omitted; verify conditions locally.';
+  else if (!consistent) summary += '. Radar time windows disagree; verify conditions locally.';
+  return { rain1h: current, rain3h: three, rain6h: six, score, confidence, summary };
 }
 export function hasWidespreadRecentRain(assessments: RainAssessment[], sampledCourtIds: ReadonlySet<string>): boolean {
   let readable = 0;
@@ -380,9 +393,10 @@ export function hasWidespreadRecentRain(assessments: RainAssessment[], sampledCo
     if (!sampledCourtIds.has(item.courtId)) continue;
     const hour = item.rain1h;
     const threeHours = item.rain3h;
-    const validHour = hour !== null && Number.isFinite(hour) && hour >= 0;
-    const validThreeHours = threeHours !== null && Number.isFinite(threeHours) && threeHours >= 0;
+    const validHour = hour !== null && Number.isFinite(hour) && hour >= 0 && hour <= 12;
+    const validThreeHours = threeHours !== null && Number.isFinite(threeHours) && threeHours >= 0 && threeHours <= 20;
     if (!validHour && !validThreeHours) continue;
+    if (validHour && validThreeHours && threeHours + Math.max(0.03, hour * 0.1) < hour) continue;
     readable++;
     if ((validHour && hour >= 0.01) || (validThreeHours && threeHours >= 0.01)) wet++;
   }
