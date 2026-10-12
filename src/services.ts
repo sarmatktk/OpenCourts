@@ -1,4 +1,4 @@
-import type { Access, Court, DailyPlayWindows, Forecast, Lighting, Place, PlaceSuggestion, PlayWindow, RainAssessment, WeatherData } from './types';
+import type { Access, Court, DailyPlayWindows, Forecast, Lighting, Place, PlaceSuggestion, PlayWindow, RainAssessment, WeatherAlertData, WeatherData } from './types';
 
 export function classifyLighting(tags: Record<string, string | undefined>): Lighting {
   if (tags.lit === 'yes' || tags.lighting === 'yes') return 'yes';
@@ -378,11 +378,28 @@ export async function getWeather(lat: number, lon: number, signal?: AbortSignal)
   const data = await readApiJson<Partial<WeatherData>>(res, 'Local forecast is temporarily unavailable. Please try again.');
   return { periods: Array.isArray(data.periods) ? data.periods : [], outlook: Array.isArray(data.outlook) ? data.outlook : [], timeZone: data.timeZone || 'America/New_York' };
 }
+export async function getWeatherAlerts(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherAlertData> {
+  const res = await fetch(`/api/weather-alerts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal });
+  if (!res.ok) throw new Error('Weather alert information is temporarily unavailable.');
+  const data = await readApiJson<Partial<WeatherAlertData>>(res, 'Weather alert information could not be read.');
+  return { supported: data.supported === true, alerts: Array.isArray(data.alerts) ? data.alerts : [] };
+}
+export const HEAT_INDEX_DISPLAY_THRESHOLD_F = 90;
+export function heatIndexFahrenheit(temp: number, humidity: number): number {
+  if (!Number.isFinite(temp) || !Number.isFinite(humidity) || humidity < 0 || humidity > 100 || temp < 80) return temp;
+  const t = temp; const rh = humidity;
+  let index = -42.379 + 2.04901523 * t + 10.14333127 * rh - 0.22475541 * t * rh - 0.00683783 * t * t - 0.05481717 * rh * rh + 0.00122874 * t * t * rh + 0.00085282 * t * rh * rh - 0.00000199 * t * t * rh * rh;
+  if (rh < 13 && t >= 80 && t <= 112) index -= ((13 - rh) / 4) * Math.sqrt(Math.max(0, (17 - Math.abs(t - 95)) / 17));
+  if (rh > 85 && t >= 80 && t <= 87) index += ((rh - 85) / 10) * ((87 - t) / 5);
+  return Math.round(Math.max(t, index));
+}
 export function playScore(f: Forecast): number {
   const comfortable = Math.max(0, 100 - Math.abs(f.temp - 70) * 2.2);
   const windPenalty = Math.min(40, Math.max(0, f.wind - 8) * 2.2);
   const rainPenalty = Math.min(60, f.precip * 1.5);
-  return Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty)));
+  const heatPenalty = f.humidity === undefined ? 0 : Math.min(55, Math.max(0, heatIndexFahrenheit(f.temp, f.humidity) - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5);
+  const score = Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty - heatPenalty)));
+  return f.winterRisk ? Math.min(20, score) : score;
 }
 export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyPlayWindows[] {
   const partsFor = (time: string) => new Intl.DateTimeFormat('en-CA', {
@@ -412,11 +429,15 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyP
       const start = new Date(first.time).getTime(); const nextStart = new Date(second.time).getTime(); const end = getEnd(second);
       if (Math.abs(nextStart - getEnd(first)) > 60_000 || end - start < 90 * 60_000 || end - start > 150 * 60_000) continue;
       const conditions = [...new Set([first.short, second.short].filter(Boolean))];
+      const humidity = first.humidity !== undefined && second.humidity !== undefined ? (first.humidity + second.humidity) / 2 : first.humidity ?? second.humidity;
+      const winterRisk = first.winterRisk === 'ice' || second.winterRisk === 'ice' ? 'ice' : first.winterRisk || second.winterRisk;
       const window: PlayWindow = {
         time: first.time, endTime: second.endTime || new Date(end).toISOString(),
         temp: (first.temp + second.temp) / 2,
         wind: Math.round((first.wind + second.wind) / 2),
         precip: Math.round((first.precip + second.precip) / 2),
+        ...(humidity === undefined ? {} : { humidity, heatIndex: heatIndexFahrenheit((first.temp + second.temp) / 2, humidity) }),
+        ...(winterRisk === undefined ? {} : { winterRisk }),
         short: conditions.join(' · ') || 'Forecast conditions', icon: first.icon,
         score: 0,
       };
@@ -426,7 +447,7 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyP
     const bestScore = Math.max(...candidates.map(candidate => candidate.score), -1);
     const threshold = Math.max(55, bestScore - 18);
     const selected: PlayWindow[] = [];
-    for (const candidate of candidates.filter(item => item.score >= threshold).sort((a, b) => b.score - a.score || a.time.localeCompare(b.time))) {
+    for (const candidate of candidates.filter(item => item.score >= threshold || item.winterRisk || (item.heatIndex !== undefined && item.heatIndex >= HEAT_INDEX_DISPLAY_THRESHOLD_F)).sort((a, b) => b.score - a.score || a.time.localeCompare(b.time))) {
       const start = new Date(candidate.time).getTime(); const end = getEnd(candidate);
       const overlaps = selected.some(item => start < getEnd(item) && end > new Date(item.time).getTime());
       if (!overlaps) selected.push(candidate);

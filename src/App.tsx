@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Sun, SunMedium, X } from 'lucide-react';
-import { findPlace, getCourts, getPlaceSuggestions, getRainAssessments, getWeather, weeklyPlayWindows } from './services';
-import type { Court, Forecast, Place, PlaceSuggestion, RainAssessment } from './types';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, X } from 'lucide-react';
+import { findPlace, getCourts, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, HEAT_INDEX_DISPLAY_THRESHOLD_F, weeklyPlayWindows } from './services';
+import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
 
 const INITIAL: Place = { label: 'Fairfax, Virginia', lat: 38.8462, lon: -77.3064 };
@@ -39,9 +39,37 @@ function rainCondition(score: number) {
   if (score <= 80) return { label: 'Some recent precipitation', tone: 'moderate' };
   return null;
 }
+function weatherAlertTone(alert: WeatherAlert): 'warning' | 'advisory' | 'watch' | 'ice' {
+  if (/\b(?:ice storm|freezing rain|freezing drizzle|sleet|black ice|ice warning|ice advisory)\b/i.test(alert.event)) return 'ice';
+  if (/watch/i.test(alert.event)) return 'watch';
+  if (/warning/i.test(alert.event) || alert.severity === 'Extreme' || alert.severity === 'Severe') return 'warning';
+  return 'advisory';
+}
+function WeatherAlertIcon({ alert, size = 17 }: { alert: WeatherAlert; size?: number }) {
+  if (weatherAlertTone(alert) === 'ice') return <ThermometerSnowflake size={size} aria-hidden="true" />;
+  if (/\b(?:snow|blizzard|winter storm|winter weather)\b/i.test(alert.event)) return <Snowflake size={size} aria-hidden="true" />;
+  if (/\b(?:heat|excessive heat|hot)\b/i.test(alert.event)) return <ThermometerSun size={size} aria-hidden="true" />;
+  return null;
+}
+function formatAlertDateTime(value: string | null, timeZone: string) {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+function heatIndexLabel(window: Forecast) {
+  if (window.heatIndex === undefined || window.heatIndex < HEAT_INDEX_DISPLAY_THRESHOLD_F) return '';
+  const prefix = window.heatIndex >= 103 ? 'Very high heat' : 'Elevated heat';
+  return `${prefix} · heat index ${window.heatIndex}°F${window.humidity === undefined ? '' : ` · ${Math.round(window.humidity)}% humidity`}`;
+}
 
 function App() {
   const [place, setPlace] = useState<Place>(() => { try { return JSON.parse(localStorage.getItem('opencourts-place') || 'null') ?? INITIAL; } catch { return INITIAL; } });
+  const localWeatherDemo = import.meta.env.DEV ? (() => {
+    const params = new URLSearchParams(window.location.search);
+    const winterMode = params.get('winterDemo');
+    if (winterMode === 'snow' || winterMode === 'ice') return winterMode;
+    return params.get('heatDemo') === '1' ? 'heat' : null;
+  })() : null;
+  const [weatherAlerts, setWeatherAlerts] = useState<WeatherAlert[]>([]); const [weatherAlertStatus, setWeatherAlertStatus] = useState<'loading' | 'available' | 'unsupported' | 'unavailable'>('loading');
   const [query, setQuery] = useState(''); const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]); const [suggestionsOpen, setSuggestionsOpen] = useState(false); const [suggestionsLoading, setSuggestionsLoading] = useState(false); const [suggestionsError, setSuggestionsError] = useState(''); const [activeSuggestion, setActiveSuggestion] = useState(-1); const [courts, setCourts] = useState<Court[]>([]); const [hourlyForecast, setHourlyForecast] = useState<Forecast[]>([]); const [timeZone, setTimeZone] = useState('America/New_York'); const [visibleCount, setVisibleCount] = useState(30);
   const [loading, setLoading] = useState(true); const [searchSlow, setSearchSlow] = useState(false); const [placeLookupLoading, setPlaceLookupLoading] = useState(false); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
   const [mapError, setMapError] = useState(''); const [mapReady, setMapReady] = useState(false);
@@ -91,10 +119,27 @@ function App() {
   const load = useCallback(async (p: Place) => {
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
     setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place', JSON.stringify(p)); } catch { /* storage optional */ }
-    setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError('');
+    setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError(''); setWeatherAlerts([]); setWeatherAlertStatus('loading');
     getCourts(p.lat, p.lon, controller.signal, p.label, enriched => { if (!controller.signal.aborted) setCourts(enriched); }).then(setCourts).catch(e => { if (e.name !== 'AbortError') { setCourts([]); setError(e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     setWeatherLoading(true); setWeatherError(''); getWeather(p.lat, p.lon, controller.signal).then(data => { setHourlyForecast(data.periods); setTimeZone(data.timeZone); }).catch(e => { if (e.name !== 'AbortError') { setHourlyForecast([]); setWeatherError(e.message); } }).finally(() => { if (!controller.signal.aborted) setWeatherLoading(false); });
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    let receivedResult = false;
+    const refreshWeatherAlerts = () => {
+      getWeatherAlerts(place.lat, place.lon, controller.signal).then(data => {
+        if (controller.signal.aborted) return;
+        receivedResult = true;
+        setWeatherAlerts(data.alerts);
+        setWeatherAlertStatus(data.supported ? 'available' : 'unsupported');
+      }).catch(error => {
+        if (!controller.signal.aborted && !receivedResult && error.name !== 'AbortError') setWeatherAlertStatus('unavailable');
+      });
+    };
+    refreshWeatherAlerts();
+    const timer = window.setInterval(refreshWeatherAlerts, 60_000);
+    return () => { window.clearInterval(timer); controller.abort(); };
+  }, [place.lat, place.lon]);
   useEffect(() => {
     if (!loading) { setSearchSlow(false); return; }
     setSearchSlow(false);
@@ -155,7 +200,22 @@ function App() {
   const displayed = filtered.slice(0, visibleCount);
   useEffect(() => setVisibleCount(30), [place, litOnly, publicOnly, radius, surface, sort]);
   const sunset = useMemo(() => estimatedSunset(place.lat, place.lon, timeZone), [place.lat, place.lon, timeZone]);
-  const bestWindows = useMemo(() => weeklyPlayWindows(hourlyForecast, timeZone), [hourlyForecast, timeZone]);
+  const forecastForDisplay = useMemo(() => {
+    if (localWeatherDemo !== 'snow' && localWeatherDemo !== 'ice' && localWeatherDemo !== 'heat') return hourlyForecast;
+    const previewUntil = Date.now() + 48 * 60 * 60 * 1000;
+    return hourlyForecast.map(period => {
+      if (localWeatherDemo === 'heat') return { ...period, winterRisk: undefined, temp: 94, humidity: 70, precip: 0, short: 'Hot and humid · local preview' };
+      if (Date.parse(period.time) > previewUntil) return { ...period, winterRisk: undefined, humidity: undefined, heatIndex: undefined };
+      const winterRisk: 'snow' | 'ice' = localWeatherDemo === 'ice' ? 'ice' : 'snow';
+      return { ...period, winterRisk, temp: localWeatherDemo === 'ice' ? 28 : 30, precip: 80, humidity: undefined, heatIndex: undefined, short: localWeatherDemo === 'ice' ? 'Freezing rain · local preview' : 'Snow showers · local preview' };
+    });
+  }, [hourlyForecast, localWeatherDemo]);
+  const alertsForDisplay = useMemo<WeatherAlert[]>(() => localWeatherDemo === 'heat' ? [{
+    id: 'local-heat-preview', event: 'Heat Advisory · local preview', severity: 'Moderate',
+    headline: 'Simulated for testing. This is not an active National Weather Service alert.',
+    area: place.label, effective: new Date().toISOString(), ends: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), url: '',
+  }] : localWeatherDemo === 'snow' || localWeatherDemo === 'ice' ? [] : weatherAlerts, [localWeatherDemo, place.label, weatherAlerts]);
+  const bestWindows = useMemo(() => weeklyPlayWindows(forecastForDisplay, timeZone), [forecastForDisplay, timeZone]);
   const bestWindowDay = useMemo(() => {
     let bestIndex = 0; let highestScore = -1;
     bestWindows.forEach((day, index) => {
@@ -172,6 +232,13 @@ function App() {
     const veryWetCount = readings.filter(item => item.score <= 20).length;
     return readings.length >= 3 && veryWetCount / readings.length >= 0.6;
   }, [rainAssessments, rainCandidateIds]);
+  const nearTermWinterRisk = useMemo(() => {
+    const now = Date.now(); const end = now + 48 * 60 * 60 * 1000;
+    const risks = forecastForDisplay.filter(period => period.winterRisk && Date.parse(period.time) >= now - 60 * 60 * 1000 && Date.parse(period.time) <= end).map(period => period.winterRisk);
+    return risks.includes('ice') ? 'ice' : risks.includes('snow') ? 'snow' : undefined;
+  }, [forecastForDisplay]);
+  const hasWinterAlert = alertsForDisplay.some(alert => /winter|snow|sleet|ice|freezing|blizzard|wind chill|frost|freeze/i.test(alert.event));
+  const showWinterForecastAlert = nearTermWinterRisk && !hasWinterAlert ? nearTermWinterRisk : undefined;
   const selectedRain = selected ? rainById.get(selected.id) : undefined;
   const selectedRainCondition = selectedRain ? rainCondition(selectedRain.score) : null;
   const recommendedCourts = useMemo(() => [...filtered].filter(court => rainCandidateIds.has(court.id) && court.access !== 'restricted' && rainById.get(court.id)?.confidence === 'High').sort((a, b) => (rainById.get(b.id)?.score ?? -1) - (rainById.get(a.id)?.score ?? -1) || distanceMiles(a, place) - distanceMiles(b, place)).slice(0, 3), [filtered, rainById, rainCandidateIds, place]);
@@ -242,25 +309,30 @@ function App() {
           {!loading && displayed.length < filtered.length && <button className="load-more" onClick={() => setVisibleCount(n => n + 30)}>Show 30 more courts <span>({filtered.length - displayed.length} remaining)</span></button>}
           {!loading && <div className="data-note"><span className="note-line"/><p>Court details come from OpenStreetMap and may change. Please confirm access and amenities locally.</p></div>}
         </div>
-        <div className="map-panel"><div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div>{areaRainAlert && <div className="map-weather-alert" role="status">Widespread precipitation · playing conditions may be poor</div>}<button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
+        <div className="map-panel"><div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div><div className="map-alert-stack">{areaRainAlert && <div className="map-weather-alert" role="status">Widespread precipitation · playing conditions may be poor</div>}{alertsForDisplay.slice(0, 2).map(alert => <div className={`map-heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={alert.id}><strong><WeatherAlertIcon alert={alert} size={13}/>{alert.event}</strong>{alert.headline}</div>)}{showWinterForecastAlert && <div className={`map-winter-alert winter-risk-${showWinterForecastAlert}`} role="status">{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={14} aria-hidden="true"/> : <Snowflake size={14} aria-hidden="true"/>}{showWinterForecastAlert === 'ice' ? 'Ice in forecast · courts may be unsafe' : 'Snow in forecast · courts may be unplayable'}</div>}</div><button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
           {selected && <div className="map-popover"><button className="popover-close" aria-label="Close selected court" onClick={() => setSelected(null)}><X size={16}/></button><span className="popover-label">COURT DETAILS</span><strong>{selected.name}</strong>{selected.contextName && <span className="popover-context">{selected.contextName}</span>}<span className="popover-address">{selected.address || 'Address not listed'}{selected.addressApprox && selected.address ? ' · approximate' : ''}</span><span>{selected.courts ? `${selected.courts} courts` : 'Court count not listed'}{selected.surface ? ` · ${selected.surface} surface` : ''} · {selected.access === 'public' ? 'Public access listed' : 'Access not listed'} · {selected.lighting === 'yes' ? 'Lights listed' : selected.lighting === 'no' ? 'No lights listed' : 'Lighting not listed'}</span><div className="popover-rain"><span className="popover-label">RECENT PRECIPITATION · PLAYABILITY ESTIMATE</span>{selectedRain ? <><strong>{selectedRain.score}<small>/100</small><i className={`rain-confidence confidence-${selectedRain.confidence.toLowerCase()}`}>Radar confidence: {selectedRain.confidence}</i></strong>{selectedRainCondition && <span className={`rain-condition rain-condition-${selectedRainCondition.tone}`}>{selectedRainCondition.label}</span>}<span>{selectedRain.summary}</span><span>{rainfallDetail(selectedRain)}</span></> : selectedRainLoading || rainLoading ? <span>Checking recent radar near this court…</span> : selectedRainError || rainError ? <span>{selectedRainError || rainError}</span> : <span>No radar estimate available for this court.</span>}</div><a className="court-source-link" href={selected.sourceUrl} target="_blank" rel="noreferrer">Check or edit OpenStreetMap data <ExternalLink size={13}/></a><button className="directions" onClick={() => directions(selected)}>Get directions <ArrowUpRight size={15}/></button></div>}
           <div className="map-legend" aria-label="Map legend"><span className="legend-item"><span className="legend-dot lime"/>Lighted</span><span className="legend-item"><span className="legend-dot white"/>Lighting unknown</span><span className="legend-label">Radar confidence</span><span className="legend-item"><span className="legend-ring confidence-high"/>High</span><span className="legend-item"><span className="legend-ring confidence-moderate"/>Moderate</span><span className="legend-item"><span className="legend-ring confidence-low"/>Low</span></div>
           <button className="mobile-list-toggle" onClick={() => setMobileList(!mobileList)}>{mobileList ? <><ArrowDown size={16}/> Show map</> : <><ArrowLeft size={16}/> View {filtered.length} courts</>}</button>
         </div>
       </section>
       <section className="rain-planner" aria-labelledby="rain-planner-title"><div className="rain-planner-heading"><div><div className="section-kicker">RECENT PRECIPITATION · NEARBY COURTS</div><h2 id="rain-planner-title">Courts with the least recent precipitation.</h2><p>Recent radar precipitation is compared across nearby courts. Courts with less precipitation appear first.</p></div><span className="rain-live"><i/> NOAA radar</span></div>
+        {alertsForDisplay.slice(0, 2).map(alert => <div className={`heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={`rain-${alert.id}`}><span className="heat-alert-mark" aria-hidden="true"><WeatherAlertIcon alert={alert} size={17}/>{!WeatherAlertIcon({ alert }) && '!'}</span><div className="heat-alert-copy"><strong>{alert.event} in this area</strong><span>{alert.headline}</span><small>Check the alert before choosing a court or play time.</small></div>{alert.url && <a href={alert.url} target="_blank" rel="noreferrer">NWS details<ExternalLink size={13}/></a>}</div>)}
+        {showWinterForecastAlert && <p className={`winter-forecast-alert winter-risk-${showWinterForecastAlert}`} role="status"><strong>{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={16} aria-hidden="true"/> : <Snowflake size={16} aria-hidden="true"/>}{showWinterForecastAlert === 'ice' ? 'Ice risk in the forecast' : 'Snow in the forecast'}</strong><span>{showWinterForecastAlert === 'ice' ? 'Freezing conditions may make courts unsafe. Check local conditions before heading out.' : 'Snow may make courts unplayable. Check local conditions before heading out.'}</span></p>}
         {rainLoading && <p className="rain-status" role="status">Checking recent rainfall near public courts…</p>}
         {rainError && <p className="rain-status" role="status">{rainError}</p>}
         {!rainLoading && !rainError && areaRainAlert && <p className="area-rain-alert" role="status"><strong>Widespread precipitation detected</strong><span>Playing conditions at nearby courts may be poor. Radar shows precipitation, but it can’t confirm local surface conditions.</span></p>}
         {!rainLoading && !rainError && recommendedCourts.length > 0 && <div className="rain-recommendations">{recommendedCourts.map((court, index) => { const result = rainById.get(court.id)!; const condition = rainCondition(result.score); return <button className="rain-recommendation" key={court.id} onClick={() => { selectCourt(court); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><span className="rain-rank">0{index + 1}</span><span className="rain-court-info"><strong>{court.name}</strong><small className="rain-court-distance"><MapPin size={13}/>{distanceMiles(court, place).toFixed(1)} mi · {court.access === 'public' ? 'Public access listed' : 'Access not listed'}</small><small>{court.contextName ? `${court.contextName} · ` : ''}{court.address || 'Address not listed'}{court.addressApprox ? ' · approx.' : ''}</small><span className="badges rain-court-badges">{court.lighting === 'yes' ? <span className="badge lit"><SunMedium size={13}/> Lights listed</span> : court.lighting === 'no' ? <span className="badge"><Moon size={12}/> No lights listed</span> : <span className="badge"><span className="badge-dot"/> Lighting unknown</span>}{court.courts && <span className="badge">{court.courts} courts</span>}{court.surface && <span className="badge surface">{court.surface.replaceAll('_', ' ')}</span>}</span>{condition && <span className={`rain-condition rain-condition-${condition.tone}`}>{condition.label}</span>}<small>{result.summary}</small><small>{rainfallDetail(result)}</small></span><span className="rain-score"><small>PLAYABILITY</small><strong>{result.score}<small>/100</small></strong><small className={`rain-confidence confidence-${result.confidence.toLowerCase()}`}>Radar confidence: {result.confidence}</small></span><ArrowUpRight size={16}/></button>; })}</div>}
         {!rainLoading && !rainError && recommendedCourts.length > 0 && recommendedCourts.length < 3 && <p className="rain-status" role="status">Showing {recommendedCourts.length} court{recommendedCourts.length === 1 ? '' : 's'} with high-confidence radar readings; fewer than three qualified in this area.</p>}
         {!rainLoading && !rainError && !recommendedCourts.length && <p className="rain-status">{rainCandidates.length ? 'No courts in the sampled area have high-confidence radar readings right now.' : 'No courts were found nearby.'}</p>}
-        <p className="rain-caveat">The estimate uses radar precipitation sampled at about 1 km. High radar confidence means the reading is reliable, not that conditions are playable. Radar cannot confirm precipitation type, shade, drainage, or the court’s current surface. Courts marked private, membership-only, fee-based, or as clubs are left out. OpenStreetMap details may be incomplete, so confirm access, address, and lighting locally.</p>
+        <p className="rain-caveat">The estimate uses radar precipitation sampled at about 1 km. High radar confidence means the reading is reliable, not that conditions are playable. Radar cannot confirm precipitation type, shade, drainage, or the court’s current surface. Forecast snow and ice risk appears in the weather planner and is not part of this per-court radar score. Courts marked private, membership-only, fee-based, or as clubs are left out. OpenStreetMap details may be incomplete, so confirm access, address, and lighting locally.</p>
       </section>
       <section id="conditions" className="weather-section"><div className="weather-title"><div><div className="section-kicker">7-DAY WEATHER</div><h2>Plan around the forecast.</h2><p>{place.label} · forecast for the next 7 days</p>{sunset && !weatherError && !weatherLoading && <p className="sunset-note"><Sun size={13}/> Estimated sunset {formatLocalTime(sunset, timeZone)}</p>}</div><div className="weather-icon"><CloudSun size={26}/></div></div>
+        {alertsForDisplay.slice(0, 2).map(alert => { const tone = weatherAlertTone(alert); const start = formatAlertDateTime(alert.effective, timeZone); const end = formatAlertDateTime(alert.ends, timeZone); return <div className={`heat-alert heat-alert-${tone}`} role="alert" key={alert.id}><span className="heat-alert-mark" aria-hidden="true"><WeatherAlertIcon alert={alert} size={17}/>{!WeatherAlertIcon({ alert }) && '!'}</span><div className="heat-alert-copy"><strong>{alert.event}</strong><span>{alert.headline}</span>{alert.area && <small>{alert.area}</small>}{(start || end) && <small>{start ? `Valid from ${start}` : 'Active now'}{end ? ` · Until ${end}` : ''}</small>}</div>{alert.url && <a href={alert.url} target="_blank" rel="noreferrer">NWS details<ExternalLink size={13}/></a>}</div>; })}
+        {showWinterForecastAlert && <p className={`winter-forecast-alert winter-risk-${showWinterForecastAlert}`} role="status"><strong>{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={16} aria-hidden="true"/> : <Snowflake size={16} aria-hidden="true"/>}{showWinterForecastAlert === 'ice' ? 'Ice risk in the forecast' : 'Snow in the forecast'}</strong><span>{showWinterForecastAlert === 'ice' ? 'Freezing conditions may make courts unsafe. Check local conditions before heading out.' : 'Snow may make courts unplayable. Check local conditions before heading out.'}</span></p>}
+        {weatherAlertStatus === 'unavailable' && <p className="heat-alert-unavailable" role="status">Weather alert information could not be checked right now.</p>}
         {weatherError && <p className="weather-error" role="status">{weatherError}</p>}
-        {weatherLoading ? <div className="weather-grid">{[0,1,2,3].map(n => <div className="weather-card skeleton-weather" key={n}/>)}</div> : bestWindows.length ? <div className="weather-grid weekly-grid">{bestWindows.map((day, i) => <article className={`weather-card ${i === bestWindowDay ? 'best-window' : ''}`} key={day.date}><div className="weather-time"><span>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })}</span>{i === bestWindowDay && <span className="best-window-tag">BEST DAY</span>}</div><div className="window-list">{day.windows.map(window => <div className="window-item" key={window.time}><div className="window-details"><strong>{formatLocalTimeRange(window.time, window.endTime, timeZone)}</strong><span>{window.short}</span><small>{window.wind} mph wind · {window.precip}% rain</small></div><span className="window-score">{window.score}<small>score</small></span></div>)}</div></article>)}</div> : <p className="weather-error">No two-hour period in the forecast meets the play-score threshold.</p>}
-        <div className="score-explainer"><span className="score-mark"><Clock3 size={17}/></span><p><strong>Play score</strong> ranks available two-hour forecast slots by temperature, wind, and rain probability. Multiple non-overlapping slots are shown when conditions support them. The radar planner above compares recent rainfall by court.</p><span className="weather-source">U.S. National Weather Service</span></div>
+        {weatherLoading ? <div className="weather-grid">{[0,1,2,3].map(n => <div className="weather-card skeleton-weather" key={n}/>)}</div> : bestWindows.length ? <div className="weather-grid weekly-grid">{bestWindows.map((day, i) => <article className={`weather-card ${i === bestWindowDay ? 'best-window' : ''}`} key={day.date}><div className="weather-time"><span>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })}</span>{i === bestWindowDay && <span className="best-window-tag">BEST DAY</span>}</div><div className="window-list">{day.windows.map(window => <div className="window-item" key={window.time}><div className="window-details"><strong>{formatLocalTimeRange(window.time, window.endTime, timeZone)}</strong><span>{window.short}</span><small>{window.wind} mph wind · {window.precip}% rain</small>{window.winterRisk && <small className={`winter-weather-note winter-risk-${window.winterRisk}`}>{window.winterRisk === 'ice' ? <ThermometerSnowflake size={13} aria-hidden="true"/> : <Snowflake size={13} aria-hidden="true"/>}{window.winterRisk === 'ice' ? 'Ice risk · likely poor playing conditions' : 'Snow in forecast · likely poor playing conditions'}</small>}{heatIndexLabel(window) && <small className={`heat-index-note ${window.heatIndex! >= 103 ? 'heat-index-high' : 'heat-index-caution'}`}><ThermometerSun size={13} aria-hidden="true"/>{heatIndexLabel(window)}</small>}</div><span className="window-score">{window.score}<small>score</small></span></div>)}</div></article>)}</div> : <p className="weather-error">No two-hour period in the forecast meets the play-score threshold.</p>}
+        <div className="score-explainer"><span className="score-mark"><Clock3 size={17}/></span><p><strong>Play score</strong> ranks two-hour forecast windows using temperature, wind, and rain probability. When humidity data is available, the estimated heat index is shown at {HEAT_INDEX_DISPLAY_THRESHOLD_F}°F and above, and heat above {HEAT_INDEX_DISPLAY_THRESHOLD_F}°F lowers the score. If either hour forecasts snow or ice, that window’s score is capped at 20/100 and marked as a likely poor playing condition. NWS alerts appear separately. The nearby-court radar scores compare recent rainfall and do not include forecast snow or ice; neither score confirms actual court conditions.</p><span className="weather-source">U.S. National Weather Service</span></div>
       </section>
       <section className="about-strip" id="about"><div><span className="section-kicker">ABOUT OPENCOURTS</span><h2>A local guide to tennis.</h2></div><div><p>Court locations and amenities come from OpenStreetMap. Access and opening hours can change; check with the venue before visiting.</p><a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Explore the source<ExternalLink size={14}/></a></div></section>
       <section className="support-strip" id="support" aria-labelledby="support-title"><div className="support-copy"><span className="section-kicker">SUPPORT THE PROJECT</span><h2 id="support-title">Help keep OpenCourts available.</h2><p>OpenCourts is free to use. If it has helped you find a court or plan around the weather, you can help pay for hosting and data costs. Contributions are optional and are not tax-deductible.</p></div><a className="support-qr" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer" aria-label="Scan the QR code to support OpenCourts on Buy Me a Coffee"><img src="/qr-code.png" alt="QR code for OpenCourts on Buy Me a Coffee"/><span>Scan to support</span></a><a className="support-button" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer">Support OpenCourts<ExternalLink size={15}/></a></section>

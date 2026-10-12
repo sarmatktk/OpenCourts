@@ -7,7 +7,7 @@ const pagesApiDev = {
       try {
         const url = new URL(req.url || '/', 'http://localhost');
         if (!url.pathname.startsWith('/api/')) return next();
-        const endpoint = url.pathname === '/api/courts' ? '/functions/api/courts.ts' : url.pathname === '/api/court-context' ? '/functions/api/court-context.ts' : url.pathname === '/api/weather' ? '/functions/api/weather.ts' : url.pathname === '/api/geocode' ? '/functions/api/geocode.ts' : url.pathname === '/api/suggest' ? '/functions/api/suggest.ts' : url.pathname === '/api/rain' ? '/functions/api/rain.ts' : null;
+        const endpoint = url.pathname === '/api/courts' ? '/functions/api/courts.ts' : url.pathname === '/api/court-context' ? '/functions/api/court-context.ts' : url.pathname === '/api/weather' ? '/functions/api/weather.ts' : url.pathname === '/api/weather-alerts' ? '/functions/api/weather-alerts.ts' : url.pathname === '/api/geocode' ? '/functions/api/geocode.ts' : url.pathname === '/api/suggest' ? '/functions/api/suggest.ts' : url.pathname === '/api/rain' ? '/functions/api/rain.ts' : null;
         if (!endpoint) return next();
         const module = await server.ssrLoadModule(endpoint);
         const body = req.method !== 'GET' && req.method !== 'HEAD' ? await new Promise<string>((resolve, reject) => { let value = ''; req.setEncoding('utf8'); req.on('data', (chunk: string) => { value += chunk; }); req.on('end', () => resolve(value)); req.on('error', reject); }) : undefined;
