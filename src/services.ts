@@ -340,7 +340,7 @@ export function assessRainfall(rain1h: number | null, rain3h: number | null, rai
   const current = valid(rain1h) ? rain1h : null;
   const three = valid(rain3h) ? rain3h : null;
   const six = valid(rain6h) ? rain6h : null;
-  let score = 100; let summary = 'No precipitation detected in the past 6 hours';
+  let score = 100; let summary = 'No precipitation in the latest 6-hour radar estimate';
   if (current !== null && current >= 0.01) { summary = 'Precipitation detected in the past hour'; }
   else if (three !== null && three >= 0.01) {
     summary = current === null ? 'Precipitation detected in the past 3 hours; current-hour data unavailable' : 'Precipitation likely stopped 1–3 hours ago';
