@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, X } from 'lucide-react';
-import { findPlace, getCourts, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, HEAT_INDEX_DISPLAY_THRESHOLD_F, weeklyPlayWindows } from './services';
+import { findPlace, getCourts, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, weeklyPlayWindows } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
 
@@ -229,11 +229,7 @@ function App() {
   const rainCandidates = useMemo(() => sampleRainCourts(courts, place), [courts, place]);
   const rainCandidateIds = useMemo(() => new Set(rainCandidates.map(court => court.id)), [rainCandidates]);
   const rainById = useMemo(() => new Map(rainAssessments.map(assessment => [assessment.courtId, assessment])), [rainAssessments]);
-  const areaRainAlert = useMemo(() => {
-    const readings = rainAssessments.filter(item => rainCandidateIds.has(item.courtId) && item.confidence === 'High' && [item.rain1h, item.rain3h, item.rain6h].some(value => value !== null && Number.isFinite(value)));
-    const veryWetCount = readings.filter(item => item.score <= 20).length;
-    return readings.length >= 3 && veryWetCount / readings.length >= 0.6;
-  }, [rainAssessments, rainCandidateIds]);
+  const areaRainAlert = useMemo(() => hasWidespreadRecentRain(rainAssessments, rainCandidateIds), [rainAssessments, rainCandidateIds]);
   const nearTermWinterRisk = useMemo(() => {
     const now = Date.now(); const end = now + 48 * 60 * 60 * 1000;
     const risks = forecastForDisplay.filter(period => period.winterRisk && Date.parse(period.time) >= now - 60 * 60 * 1000 && Date.parse(period.time) <= end).map(period => period.winterRisk);

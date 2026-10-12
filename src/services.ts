@@ -373,6 +373,21 @@ export function assessRainfall(rain1h: number | null, rain3h: number | null, rai
     : 'Low';
   return { rain1h, rain3h, rain6h, score, confidence, summary };
 }
+export function hasWidespreadRecentRain(assessments: RainAssessment[], sampledCourtIds: ReadonlySet<string>): boolean {
+  let readable = 0;
+  let wet = 0;
+  for (const item of assessments) {
+    if (!sampledCourtIds.has(item.courtId)) continue;
+    const hour = item.rain1h;
+    const threeHours = item.rain3h;
+    const validHour = hour !== null && Number.isFinite(hour) && hour >= 0;
+    const validThreeHours = threeHours !== null && Number.isFinite(threeHours) && threeHours >= 0;
+    if (!validHour && !validThreeHours) continue;
+    readable++;
+    if ((validHour && hour >= 0.01) || (validThreeHours && threeHours >= 0.01)) wet++;
+  }
+  return readable >= 3 && wet / readable >= 0.6;
+}
 export async function getWeather(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherData> {
   const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal }); if (!res.ok) throw new Error('Local forecast is temporarily unavailable. Please try again.');
   const data = await readApiJson<Partial<WeatherData>>(res, 'Local forecast is temporarily unavailable. Please try again.');
