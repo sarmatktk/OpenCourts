@@ -1,4 +1,5 @@
 import type { Access, Court, DailyPlayWindows, Forecast, Lighting, Place, PlaceSuggestion, PlayWindow, RainAssessment, WeatherAlertData, WeatherData } from './types';
+import { estimatedSunrise, estimatedSunset } from './sun';
 
 export function classifyLighting(tags: Record<string, string | undefined>): Lighting {
   if (tags.lit === 'yes' || tags.lighting === 'yes') return 'yes';
@@ -476,7 +477,7 @@ export function withWinterSurfaceCaution(periods: Forecast[], seed?: WinterCauti
     return { ...period, winterCaution: { type: lingering.type, lingering: true } };
   });
 }
-export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyPlayWindows[] {
+export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: number, lon?: number): DailyPlayWindows[] {
   const partsFor = (time: string) => new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date(time));
@@ -486,23 +487,88 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyP
     const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
     return { period, day: `${value('year')}-${value('month')}-${value('day')}`, hour: Number(value('hour')) };
   });
-  const daytime = localParts.filter(({ hour }) => hour >= 8 && hour <= 18);
+  const daylightByDate = new Map<string, { sunrise: number; sunset: number }>();
+  const daytime = localParts.flatMap(({ period, day, hour }) => {
+    if (!day) return [];
+    if (lat === undefined || lon === undefined) return hour >= 8 && hour <= 18 ? [period] : [];
+    if (!daylightByDate.has(day)) {
+      const date = new Date(period.time);
+      const sunrise = estimatedSunrise(lat, lon, timeZone, date)?.getTime();
+      const sunset = estimatedSunset(lat, lon, timeZone, date)?.getTime();
+      if (sunrise !== undefined && sunset !== undefined) daylightByDate.set(day, { sunrise, sunset });
+    }
+    const daylight = daylightByDate.get(day);
+    if (!daylight) return [];
+    const start = Math.max(new Date(period.time).getTime(), daylight.sunrise);
+    const end = Math.min(period.endTime ? new Date(period.endTime).getTime() : new Date(period.time).getTime() + 60 * 60_000, daylight.sunset);
+    return end > start ? [{ ...period, time: new Date(start).toISOString(), endTime: new Date(end).toISOString() }] : [];
+  });
   const byDay = new Map<string, Forecast[]>();
-  for (const { period, day } of daytime) {
-    if (!day) continue;
+  for (const period of daytime) {
+    const parts = partsFor(period.time);
+    const value = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+    const day = `${value('year')}-${value('month')}-${value('day')}`;
     byDay.set(day, [...(byDay.get(day) ?? []), period]);
   }
   const getEnd = (period: Forecast) => {
     const explicitEnd = period.endTime ? new Date(period.endTime).getTime() : Number.NaN;
     return Number.isFinite(explicitEnd) ? explicitEnd : new Date(period.time).getTime() + 60 * 60 * 1000;
   };
-  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 7).flatMap(([date, hours]) => {
+  return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 7).map(([date, hours]) => {
     hours.sort((a, b) => a.time.localeCompare(b.time));
-    const candidates: PlayWindow[] = [];
-    for (let i = 0; i < hours.length - 1; i++) {
-      const first = hours[i]; const second = hours[i + 1];
-      const start = new Date(first.time).getTime(); const nextStart = new Date(second.time).getTime(); const end = getEnd(second);
-      if (Math.abs(nextStart - getEnd(first)) > 60_000 || end - start < 90 * 60_000 || end - start > 150 * 60_000) continue;
+    type PoorCondition = 'ice' | 'snow' | 'rain' | 'wind' | 'heat' | 'cold';
+    const poorCondition = (period: Forecast): PoorCondition | null => {
+      if (playScore(period) >= 55) return null;
+      if (period.winterRisk?.includes('ice') || period.winterCaution?.type === 'ice') return 'ice';
+      if (period.winterRisk === 'snow' || period.winterCaution?.type === 'snow') return 'snow';
+      const temperaturePenalty = Math.abs(period.temp - 70) * 2.2;
+      const windPenalty = Math.min(40, Math.max(0, period.wind - 8) * 2.2);
+      const rainPenalty = Math.min(60, period.precip * 1.5);
+      const heatPenalty = period.humidity === undefined ? 0 : Math.min(55, Math.max(0, heatIndexFahrenheit(period.temp, period.humidity) - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5);
+      const largest = Math.max(temperaturePenalty, windPenalty, rainPenalty, heatPenalty);
+      if (rainPenalty === largest) return 'rain';
+      if (heatPenalty === largest || temperaturePenalty === largest && period.temp > 70) return 'heat';
+      if (windPenalty === largest) return 'wind';
+      return 'cold';
+    };
+    const poorSummary = (stretch: Forecast[], condition: PoorCondition, fullDay: boolean): PlayWindow => {
+      const average = (values: number[]) => Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+      const humidity = stretch.every(period => period.humidity !== undefined) ? average(stretch.map(period => period.humidity!)) : undefined;
+      return {
+        ...stretch[0], endTime: new Date(getEnd(stretch[stretch.length - 1])).toISOString(),
+        temp: average(stretch.map(period => period.temp)), wind: average(stretch.map(period => period.wind)),
+        precip: average(stretch.map(period => period.precip)),
+        ...(humidity === undefined ? {} : { humidity, heatIndex: heatIndexFahrenheit(average(stretch.map(period => period.temp)), humidity) }),
+        ...(condition === 'snow' || condition === 'ice' ? { winterRisk: condition, winterCaution: { type: condition, lingering: stretch.every(period => !period.winterRisk) } } : {}),
+        short: `${condition === 'ice' ? 'Ice risk' : condition === 'wind' ? 'Windy' : condition === 'heat' ? 'Hot' : condition === 'cold' ? 'Cold' : condition === 'rain' ? 'Rain' : 'Snow'} ${fullDay ? 'throughout the day' : 'during this period'}`,
+        score: average(stretch.map(playScore)),
+      };
+    };
+    const windows: PlayWindow[] = [];
+    for (let i = 0; i < hours.length;) {
+      const first = hours[i];
+      const condition = poorCondition(first);
+      if (condition) {
+        let end = i + 1;
+        while (end < hours.length && poorCondition(hours[end]) === condition &&
+          (condition !== 'snow' && condition !== 'ice' || !!hours[end].winterRisk === !!first.winterRisk) &&
+          Math.abs(new Date(hours[end].time).getTime() - getEnd(hours[end - 1])) <= 60_000) end++;
+        const solarDay = daylightByDate.get(date);
+        const fullDay = i === 0 && end === hours.length && (solarDay
+          ? Math.abs(new Date(hours[0].time).getTime() - solarDay.sunrise) <= 60_000 && Math.abs(getEnd(hours[end - 1]) - solarDay.sunset) <= 60_000
+          : hours.length === 11 && hours.every((period, index) => Number(partsFor(period.time).find(part => part.type === 'hour')?.value) === 8 + index));
+        windows.push(poorSummary(hours.slice(i, end), condition, fullDay));
+        i = end;
+        continue;
+      }
+      const next = hours[i + 1];
+      const second = next && !poorCondition(next) && Math.abs(new Date(next.time).getTime() - getEnd(first)) <= 60_000 && getEnd(next) - new Date(first.time).getTime() <= 150 * 60_000 ? next : undefined;
+      if (!second) {
+        windows.push({ ...first, endTime: new Date(getEnd(first)).toISOString(), score: playScore(first) });
+        i++;
+        continue;
+      }
+      const end = getEnd(second);
       const conditions = [...new Set([first.short, second.short].filter(Boolean))];
       const humidity = first.humidity !== undefined && second.humidity !== undefined ? (first.humidity + second.humidity) / 2 : first.humidity ?? second.humidity;
       const winterRisk = first.winterCaution?.type === 'ice' || second.winterCaution?.type === 'ice' ? 'ice' : first.winterCaution?.type || second.winterCaution?.type;
@@ -518,21 +584,9 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC'): DailyP
         score: 0,
       };
       window.score = playScore(window);
-      candidates.push(window);
+      windows.push(window);
+      i += 2;
     }
-    const bestScore = Math.max(...candidates.map(candidate => candidate.score), -1);
-    const threshold = Math.max(55, bestScore - 18);
-    const selected: PlayWindow[] = [];
-    for (const candidate of candidates.filter(item => item.score >= threshold || item.winterRisk || (item.heatIndex !== undefined && item.heatIndex >= HEAT_INDEX_DISPLAY_THRESHOLD_F)).sort((a, b) => b.score - a.score || a.time.localeCompare(b.time))) {
-      const start = new Date(candidate.time).getTime(); const end = getEnd(candidate);
-      const overlaps = selected.some(item => start < getEnd(item) && end > new Date(item.time).getTime());
-      if (!overlaps) selected.push(candidate);
-    }
-    if (!selected.length && hours.length) {
-      const bestHour = hours.map(period => ({ ...period, score: playScore(period) })).sort((a, b) => b.score - a.score)[0];
-      if (bestHour.score >= 55) selected.push(bestHour);
-    }
-    if (!selected.length) return [];
-    return [{ date, windows: selected.sort((a, b) => a.time.localeCompare(b.time)) }];
+    return { date, windows };
   });
 }

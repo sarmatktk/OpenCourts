@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assessRainfall, classifyAccess, classifyLighting, currentHeatCaution, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, heatIndexFahrenheit, normalizeCourt, playScore, weeklyPlayWindows, withWinterSurfaceCaution } from '../src/services';
 import type { Forecast } from '../src/types';
-import { estimatedSunset } from '../src/sun';
+import { estimatedSunrise, estimatedSunset } from '../src/sun';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -156,7 +156,7 @@ describe('PlayScore', () => {
       { ...forecast(40, 3, 20), time: '2026-01-02T15:00:00Z', endTime: '2026-01-02T16:00:00Z', short: 'Cloudy' },
       { ...forecast(38, 3, 60), time: '2026-01-02T16:00:00Z', endTime: '2026-01-02T17:00:00Z', short: 'Snow showers', winterRisk: 'snow' as const },
     ];
-    const window = weeklyPlayWindows(periods, 'UTC')[0]?.windows[0];
+    const window = weeklyPlayWindows(periods, 'UTC')[0]?.windows.find(item => item.winterRisk === 'snow');
     expect(window?.winterRisk).toBe('snow');
     expect(window?.score).toBeLessThanOrEqual(20);
   });
@@ -211,6 +211,53 @@ describe('PlayScore', () => {
     const window = weeklyPlayWindows(periods, 'UTC')[0]?.windows[0];
     expect(window?.heatIndex).toBeGreaterThanOrEqual(HEAT_INDEX_DISPLAY_THRESHOLD_F);
     expect(window?.score).toBeLessThan(55);
+  });
+  it('shows every available hour from 8 AM through 7 PM on a rainy day', () => {
+    const periods = Array.from({ length: 11 }, (_, hour) => ({
+      ...forecast(70, 4, 90),
+      time: new Date(Date.UTC(2026, 9, 15, 8 + hour)).toISOString(),
+      endTime: new Date(Date.UTC(2026, 9, 15, 9 + hour)).toISOString(),
+      short: 'Rain showers',
+    }));
+    const windows = weeklyPlayWindows(periods, 'UTC')[0]?.windows ?? [];
+    expect(windows).toHaveLength(1);
+    expect(windows[0].time).toBe(periods[0].time);
+    expect(windows.at(-1)?.endTime).toBe(periods.at(-1)?.endTime);
+    expect(windows.every(window => window.score < 55)).toBe(true);
+    expect(windows[0].short).toBe('Rain throughout the day');
+    expect(weeklyPlayWindows(periods.map((period, index) => index === 5 ? { ...period, short: 'Sunny', precip: 0 } : period), 'UTC')[0].windows).toHaveLength(3);
+    expect(weeklyPlayWindows(periods.map(period => ({ ...period, short: 'Snow', winterRisk: 'snow' as const })), 'UTC')[0].windows[0].short).toBe('Snow throughout the day');
+    const fiveRainHours = weeklyPlayWindows(periods.map((period, index) => index >= 2 && index < 7 ? period : { ...period, short: 'Sunny', precip: 0 }), 'UTC')[0].windows;
+    expect(fiveRainHours.map(window => window.short)).toEqual(['Sunny', 'Rain during this period', 'Sunny', 'Sunny']);
+    expect(fiveRainHours[1].time).toBe(periods[2].time);
+    expect(fiveRainHours[1].endTime).toBe(periods[7].time);
+  });
+  it('groups low-scoring wind and heat hours while keeping later playable hours', () => {
+    const periods = Array.from({ length: 11 }, (_, hour) => ({
+      ...forecast(hour < 3 ? 80 : hour < 5 ? 96 : 70, hour < 3 ? 35 : 4, 0),
+      time: new Date(Date.UTC(2026, 9, 15, 8 + hour)).toISOString(),
+      endTime: new Date(Date.UTC(2026, 9, 15, 9 + hour)).toISOString(),
+      short: hour < 3 ? 'Windy' : hour < 5 ? 'Hot' : 'Sunny',
+    }));
+    const windows = weeklyPlayWindows(periods, 'UTC')[0].windows;
+    expect(windows.map(window => window.short)).toEqual(['Windy during this period', 'Hot during this period', 'Sunny', 'Sunny', 'Sunny']);
+    expect(windows[0].endTime).toBe(periods[3].time);
+    expect(windows.at(-1)?.endTime).toBe(periods.at(-1)?.endTime);
+  });
+  it('uses local sunrise and sunset for summer and winter forecast hours', () => {
+    const hourly = (month: number, day: number) => Array.from({ length: 48 }, (_, hour) => ({
+      ...forecast(70, 4, 0), short: 'Clear',
+      time: new Date(Date.UTC(2026, month, day, hour)).toISOString(),
+      endTime: new Date(Date.UTC(2026, month, day, hour + 1)).toISOString(),
+    }));
+    const lat = 38.8462; const lon = -77.3064; const zone = 'America/New_York';
+    const summer = weeklyPlayWindows(hourly(5, 21), zone, lat, lon).find(day => day.date === '2026-06-21')?.windows ?? [];
+    const winter = weeklyPlayWindows(hourly(0, 21), zone, lat, lon).find(day => day.date === '2026-01-21')?.windows ?? [];
+    expect(summer[0].time).toBe(estimatedSunrise(lat, lon, zone, new Date('2026-06-21T12:00:00Z'))?.toISOString());
+    expect(summer.at(-1)?.endTime).toBe(estimatedSunset(lat, lon, zone, new Date('2026-06-21T12:00:00Z'))?.toISOString());
+    expect(new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', hour12: false }).format(new Date(summer.at(-1)!.endTime!))).toBe('20');
+    expect(winter.at(-1)?.endTime).toBe(estimatedSunset(lat, lon, zone, new Date('2026-01-21T12:00:00Z'))?.toISOString());
+    expect(summer.length).toBeGreaterThan(winter.length);
   });
 });
 describe('rain API errors', () => {
