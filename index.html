@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#123d32" />
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/favicon.ico" />
-    <meta name="description" content="Find public tennis courts near you. Explore court locations, lighting information, and local playing weather with OpenCourts." />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="description" content="Find public tennis courts near you, compare access, lighting and amenities, check recent radar rain, and plan play with a seven-day weather forecast." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="OpenCourts" />
-    <meta property="og:title" content="OpenCourts — Find Your Court. Play Your Game." />
-    <meta property="og:description" content="Discover public tennis courts, find lighting details, and check when the weather is right to play." />
+    <meta property="og:title" content="Find Public Tennis Courts &amp; Plan Around the Weather | OpenCourts" />
+    <meta property="og:description" content="Find public tennis courts, compare lighting and amenities, check recent rain, and see a seven-day playing forecast." />
     <meta property="og:url" content="https://opencourts.us/" />
     <meta property="og:image" content="https://opencourts.us/social-preview.png" />
     <meta property="og:image:secure_url" content="https://opencourts.us/social-preview.png" />
@@ -19,11 +20,37 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="OpenCourts helps you find public tennis courts and check recent rain and local weather." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="OpenCourts — Find Your Court. Play Your Game." />
-    <meta name="twitter:description" content="Discover public tennis courts, find lighting details, and check when the weather is right to play." />
+    <meta name="twitter:title" content="Find Public Tennis Courts &amp; Plan Around the Weather | OpenCourts" />
+    <meta name="twitter:description" content="Find public tennis courts, compare lighting and amenities, check recent rain, and see a seven-day playing forecast." />
     <meta name="twitter:image" content="https://opencourts.us/social-preview.png" />
     <meta name="twitter:image:alt" content="OpenCourts helps you find public tennis courts and check recent rain and local weather." />
     <link rel="canonical" href="https://opencourts.us/" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://opencourts.us/#website",
+            "name": "OpenCourts",
+            "url": "https://opencourts.us/",
+            "description": "Find public tennis courts and plan around local weather."
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://opencourts.us/#app",
+            "name": "OpenCourts",
+            "url": "https://opencourts.us/",
+            "description": "Free public tennis court finder with court details, recent radar precipitation estimates, weather alerts, and a seven-day playing forecast.",
+            "applicationCategory": "SportsApplication",
+            "operatingSystem": "Any",
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "publisher": { "@id": "https://opencourts.us/#website" }
+          }
+        ]
+      }
+    </script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410"></script>
     <script>
@@ -32,7 +59,7 @@
       gtag('js', new Date());
       gtag('config', 'G-7T3S2D1410');
     </script>
-    <title>OpenCourts — Find Your Court. Play Your Game.</title>
+    <title>Find Public Tennis Courts &amp; Plan Around the Weather | OpenCourts</title>
   </head>
   <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>
