@@ -448,6 +448,16 @@ function rainChancePenalty(chance: number): number {
   return 70 * probability ** 1.5;
 }
 
+function combinedForecastDescription(first: Forecast, second: Forecast): string {
+  const descriptions = [first.short, second.short].filter(Boolean);
+  if (descriptions.length < 2) return descriptions[0] || 'Forecast conditions';
+  const event = (description: string) => description.replace(/^(?:slight chance|chance|likely)\s+/i, '').trim().toLowerCase();
+  if (event(descriptions[0]) === event(descriptions[1])) {
+    return second.precip >= first.precip ? descriptions[1] : descriptions[0];
+  }
+  return [...new Set(descriptions)].join(' · ');
+}
+
 function temperaturePenalty(f: Forecast): number {
   if (f.temp < 60) return (60 - f.temp) * 4.2;
   const apparent = f.humidity === undefined ? f.temp : heatIndexFahrenheit(f.temp, f.humidity);
@@ -590,7 +600,6 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
         continue;
       }
       const end = getEnd(second);
-      const conditions = [...new Set([first.short, second.short].filter(Boolean))];
       const humidity = first.humidity !== undefined && second.humidity !== undefined ? (first.humidity + second.humidity) / 2 : first.humidity ?? second.humidity;
       const winterRisk = first.winterCaution?.type === 'ice' || second.winterCaution?.type === 'ice' ? 'ice' : first.winterCaution?.type || second.winterCaution?.type;
       const winterLingering = winterRisk && !first.winterRisk && !second.winterRisk;
@@ -601,7 +610,7 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
         precip: Math.round((first.precip + second.precip) / 2),
         ...(humidity === undefined ? {} : { humidity, heatIndex: heatIndexFahrenheit((first.temp + second.temp) / 2, humidity) }),
         ...(winterRisk === undefined ? {} : { winterRisk, winterCaution: { type: winterRisk, lingering: !!winterLingering } }),
-        short: conditions.join(' · ') || 'Forecast conditions', icon: first.icon,
+        short: combinedForecastDescription(first, second), icon: first.icon,
         score: 0,
       };
       window.score = playScore(window);

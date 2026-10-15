@@ -261,6 +261,13 @@ describe('PlayScore', () => {
     expect(fiveRainHours[1].time).toBe(periods[2].time);
     expect(fiveRainHours[1].endTime).toBe(periods[7].time);
   });
+  it('combines adjacent hours without repeating the same shower forecast', () => {
+    const periods = [
+      { ...forecast(70, 4, 20), time: '2026-10-15T15:00:00Z', endTime: '2026-10-15T16:00:00Z', short: 'Slight Chance Showers And Thunderstorms' },
+      { ...forecast(70, 4, 36), time: '2026-10-15T16:00:00Z', endTime: '2026-10-15T17:00:00Z', short: 'Chance Showers And Thunderstorms' },
+    ];
+    expect(weeklyPlayWindows(periods, 'UTC')[0].windows[0].short).toBe('Chance Showers And Thunderstorms');
+  });
   it('groups low-scoring wind and heat hours while keeping later playable hours', () => {
     const periods = Array.from({ length: 11 }, (_, hour) => ({
       ...forecast(hour < 3 ? 80 : hour < 5 ? 96 : 70, hour < 3 ? 35 : 4, 0),
