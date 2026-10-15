@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
-:root{font-family:'DM Sans',sans-serif;color:#17221e;background:#f8f9f6;font-synthesis:none;text-rendering:optimizeLegibility;--green:#123d32;--lime:#d5f36a;--bg:#f8f9f6;--surface:#fff;--text:#17221e;--muted:#748078;--line:#e6ebe5;--shadow:0 8px 32px rgba(25,51,37,.08)}
-:root[data-theme="dark"]{color-scheme:dark;color:#edf2ed;background:#101a16;--green:#1e4b3f;--lime:#d5f36a;--bg:#101a16;--surface:#17231e;--text:#edf2ed;--muted:#a5b1a9;--line:#2b3830;--shadow:0 8px 32px rgba(0,0,0,.2)}
+:root{font-family:'DM Sans',sans-serif;color:#17221e;background:#f8f9f6;font-synthesis:none;text-rendering:optimizeLegibility;font-optical-sizing:auto;font-weight:400;--green:#123d32;--lime:#d5f36a;--bg:#f8f9f6;--surface:#fff;--text:#17221e;--muted:#748078;--line:#e6ebe5;--shadow:0 8px 32px rgba(25,51,37,.08)}
+:root[data-theme="dark"]{color-scheme:dark;color:#edf2ed;background:#101a16;--green:#1e4b3f;--lime:#d5f36a;--bg:#101a16;--surface:#17231e;--text:#edf2ed;--muted:#b9c7bd;--line:#405348;--shadow:0 8px 32px rgba(0,0,0,.2)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;min-width:320px;min-height:100vh;background:var(--bg);color:var(--text)}

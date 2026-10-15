@@ -4,12 +4,13 @@
 .landing-header .page-brand-mark{width:36px;height:36px;border:1px solid var(--line);background:transparent}
 .landing-nav{display:flex;align-items:center;gap:36px;margin-left:50px}
 .landing-nav a{font-size:13px;font-weight:600;color:var(--muted)}
-.landing-nav a:hover{color:var(--text)}
+.landing-nav a:hover{color:var(--green)}
 .landing-actions{display:flex;align-items:center;gap:10px}
 .landing-near{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border:0;border-radius:8px;background:none;color:var(--green);font:600 13px 'DM Sans',sans-serif;cursor:pointer}
 .landing-near:hover{background:#f0f5ed}
 .landing-near:disabled{opacity:.55}
 .landing-theme,.landing-menu{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);cursor:pointer}
+.landing-theme{color:#65736b}
 .landing-theme .landing-sun,:root[data-theme="dark"] .landing-theme .landing-moon{display:none}
 :root[data-theme="dark"] .landing-theme .landing-sun{display:block}
 .landing-menu{display:none;border:0}
@@ -69,8 +70,10 @@
 :root[data-theme="dark"] .landing-kicker{color:#dce9af}
 :root[data-theme="dark"] .landing-header .page-brand-mark,:root[data-theme="dark"] .landing-near{color:#dce9af}
 :root[data-theme="dark"] .page-footer .page-brand-mark{color:#dce9af}
-:root[data-theme="dark"] .landing-near:hover{background:#263d31}
-:root[data-theme="dark"] .landing-theme,:root[data-theme="dark"] .landing-menu{color:#dce9af}
+:root[data-theme="dark"] .landing-near:hover{background:#26352c}
+:root[data-theme="dark"] .landing-theme{color:#d9e5dc}
+:root[data-theme="dark"] .landing-nav a:hover{color:#dce9af}
+:root[data-theme="dark"] .landing-menu{color:var(--text)}
 :root[data-theme="dark"] .landing-primary{background:#dce9af;color:#17382e}
 :root[data-theme="dark"] .landing-primary:hover{background:#e8f2c6}
 :root[data-theme="dark"] .landing-practical{background:#23372d}
@@ -88,4 +91,4 @@
 @media(max-width:900px){.landing-nav{gap:20px;margin-left:15px}.landing-nav a{font-size:11px}.landing-actions{gap:9px}.landing-hero{gap:30px}.landing-photo img{height:380px}.landing-detail,.landing-practical{gap:36px}.landing-detail-list article{grid-template-columns:1fr;gap:6px}.landing-places article{flex-direction:column}}
 @media(max-width:800px){.landing-near{display:none}}
 @media(max-width:700px){.landing-main{margin:0 18px;padding-bottom:25px}.landing-hero{grid-template-columns:1fr;gap:30px;padding:38px 0 29px}.landing-copy h1{font-size:42px;letter-spacing:-1.2px}.landing-intro{font-size:15px}.landing-photo img{height:270px}.landing-facts{grid-template-columns:1fr 1fr}.landing-facts>div{padding:17px 15px}.landing-facts>div:first-child{padding-left:15px}.landing-facts>div:nth-child(3){grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}.landing-facts strong{font-size:21px}.landing-detail{grid-template-columns:1fr;gap:25px;padding:62px 0}.landing-detail-heading>p:last-child{margin-top:12px}.landing-detail-list article{grid-template-columns:1fr}.landing-practical{grid-template-columns:1fr;gap:28px;padding:28px 24px}.landing-caveat{margin-bottom:52px}.landing-next{align-items:flex-start;flex-direction:column;padding:30px 25px}.landing-next h2{font-size:29px}.landing-related{gap:14px}}
-@media(max-width:620px){.landing-header{height:68px}.landing-header .page-header-inner{padding:0 18px}.landing-header .page-brand{font-size:18px}.landing-header .page-brand-mark{width:36px;height:36px}.landing-nav{display:none;position:absolute;top:67px;left:0;right:0;z-index:2;margin:0;padding:13px 20px 19px;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow);flex-direction:column;align-items:stretch;gap:0}.landing-nav.open{display:flex}.landing-nav a{padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}.landing-near{display:none}.landing-menu{display:grid;min-width:44px;min-height:44px;color:var(--text)}.page-footer{min-height:135px}}
+@media(max-width:620px){.landing-header{height:68px}.landing-header .page-header-inner{padding:0 18px}.landing-header .page-brand{font-size:18px}.landing-header .page-brand-mark{width:36px;height:36px}.landing-nav{display:none;position:absolute;top:67px;left:0;right:0;z-index:2;margin:0;padding:13px 20px 19px;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow);flex-direction:column;align-items:stretch;gap:0}.landing-nav.open{display:flex}.landing-nav a{padding:12px 0;border-bottom:1px solid var(--line);font-size:13px}.landing-near{display:none}.landing-theme{min-width:44px;min-height:44px}.landing-menu{display:grid;min-width:44px;min-height:44px;color:var(--text)}.page-footer{min-height:135px}}
