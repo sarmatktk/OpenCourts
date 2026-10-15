@@ -2,12 +2,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestGet as geocode } from '../functions/api/geocode';
 import { onRequestGet as suggest } from '../functions/api/suggest';
 import { normalizeLocationQuery, ZIP_FORMAT_ERROR } from '../src/zip-query';
+import { findPlace } from '../src/services';
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 const context = (path: string) => ({ request: new Request(`https://opencourts.us${path}`), waitUntil: () => undefined }) as unknown as Parameters<typeof geocode>[0];
 
 describe('ZIP lookup', () => {
+  it('does not reuse a browser-cached wrong ZIP result', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://opencourts.us' } });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ result: {
+      display_name: 'Dallas, Texas 75201', lat: '32.77', lon: '-96.79', postcode: '75201',
+    } }));
+    await expect(findPlace(' 20127 ')).rejects.toThrow('find that place');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(new URL(String(url)).searchParams.get('v')).toBe('6');
+    expect(options).toMatchObject({ cache: 'no-store' });
+  });
   it('normalizes surrounding spaces and ZIP+4 but rejects malformed ZIP-only input', () => {
     expect(normalizeLocationQuery('  20127  ')).toMatchObject({ query: '20127', zip: '20127', error: null });
     expect(normalizeLocationQuery(' 20127-1234 ')).toMatchObject({ query: '20127', zip: '20127', error: null });

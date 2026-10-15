@@ -69,6 +69,7 @@
 @media(max-width:620px){.rain-planner{margin:20px 18px 0;padding:20px 15px}.rain-planner-heading{gap:10px}.rain-planner-heading h2{font-size:24px}.rain-planner-heading p{font-size:11px}.rain-live{font-size:8px;padding:6px}.rain-recommendation{gap:8px;padding:12px 2px}.rain-court-info small{max-width:210px}.rain-score small{font-size:8px}.court-address{font-size:9px}}
 .court-source-link{display:inline-flex;align-items:center;gap:5px;margin:0 0 10px;color:var(--muted);font-size:10px;text-decoration:underline;text-underline-offset:3px}.court-source-link:hover{color:var(--text)}
 .map-popover{max-height:min(420px,68%);overflow-y:auto}.map-popover .popover-address{line-height:1.45}.popover-rain{display:flex;flex-direction:column;gap:5px;margin:4px 0 3px;padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:6px}.popover-rain>strong{display:flex;align-items:baseline;gap:2px;color:var(--text);font:700 18px Manrope,sans-serif}.popover-rain>strong small{font-size:10px;color:var(--muted);font-weight:500}.popover-rain>strong i{margin-left:auto;color:var(--muted);font:500 9px 'DM Sans',sans-serif}.popover-rain>span:last-child{font-size:10px;line-height:1.45;color:var(--muted)}
+.map-popover .directions{height:40px;min-height:40px;padding:7px 12px;margin-top:8px;font-size:11px;flex-shrink:0}
 .mobile-view-switch{display:none}
 @media(max-width:620px){
   .explore{display:flex;flex-direction:column;height:min(72svh,640px);min-height:430px;max-height:700px;margin:0 12px;overflow:hidden;border:1px solid var(--line);border-radius:10px}

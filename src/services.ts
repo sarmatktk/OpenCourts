@@ -141,31 +141,22 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   const normalized = normalizeLocationQuery(query);
   if (normalized.error) throw new Error(normalized.error);
   query = normalized.query;
-  const key = `opencourts-place-v5-${query.toLowerCase()}`;
-  try {
-    const saved = sessionStorage.getItem(key);
-    if (saved) {
-      const place = JSON.parse(saved) as Place;
-      if (place && Number.isFinite(place.lat) && Number.isFinite(place.lon) && Math.abs(place.lat) <= 90 && Math.abs(place.lon) <= 180) return place;
-    }
-  } catch { /* storage can be disabled or contain stale data */ }
-  const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query);
-  const res = await fetch(url, { signal }); if (!res.ok) throw new Error(res.status === 429 ? 'Location search is busy. Please wait a moment and try again.' : 'Location search is unavailable. Try a city and state or ZIP code.');
-  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
+  const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6');
+  const res = await fetch(url, { signal, cache: 'no-store' }); if (!res.ok) throw new Error(res.status === 429 ? 'Location search is busy. Please wait a moment and try again.' : 'Location search is unavailable. Try a city and state or ZIP code.');
+  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number; postcode?: string } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
   const match = data.result;
   if (!match) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
   const lat = Number(match.lat); const lon = Number(match.lon);
-  if (!match.display_name || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
+  if (!match.display_name || (normalized.zip && match.postcode !== normalized.zip) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
   const place = { label: match.display_name, lat, lon };
-  try { sessionStorage.setItem(key, JSON.stringify(place)); } catch { /* storage can be disabled */ }
   return place;
 }
 export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
   const normalized = normalizeLocationQuery(query);
   if (normalized.error) return [];
   query = normalized.query;
-  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query);
-  const res = await fetch(url, { signal });
+  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6');
+  const res = await fetch(url, { signal, cache: 'no-store' });
   if (!res.ok) throw new Error('Place suggestions are temporarily unavailable.');
   const data = await readApiJson<{ suggestions?: PlaceSuggestion[] }>(res, 'Place suggestions are temporarily unavailable.');
   return Array.isArray(data.suggestions) ? data.suggestions : [];

@@ -95,7 +95,7 @@ function WindowScoreFactors({ forecast }: { forecast: Forecast }) {
 }
 
 function App() {
-  const [place, setPlace] = useState<Place>(() => { try { return JSON.parse(localStorage.getItem('opencourts-place') || 'null') ?? INITIAL; } catch { return INITIAL; } });
+  const [place, setPlace] = useState<Place>(() => { try { return JSON.parse(localStorage.getItem('opencourts-place-v2') || 'null') ?? INITIAL; } catch { return INITIAL; } });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const localWeatherDemo = import.meta.env.DEV ? (() => {
@@ -153,7 +153,7 @@ function App() {
 
   const load = useCallback(async (p: Place) => {
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
-    setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place', JSON.stringify(p)); } catch { /* storage optional */ }
+    setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place-v2', JSON.stringify(p)); } catch { /* storage optional */ }
     setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError(''); setHourlyForecast([]); setWeatherAlerts([]); setWeatherAlertStatus('loading');
     getCourts(p.lat, p.lon, controller.signal, p.label, enriched => { if (!controller.signal.aborted) setCourts(enriched); }).then(setCourts).catch(e => { if (e.name !== 'AbortError') { setCourts([]); setError(e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     setWeatherLoading(true); setWeatherError(''); getWeather(p.lat, p.lon, controller.signal).then(data => { setHourlyForecast(data.periods); setTimeZone(data.timeZone); }).catch(e => { if (e.name !== 'AbortError') { setHourlyForecast([]); setWeatherError(e.message); } }).finally(() => { if (!controller.signal.aborted) setWeatherLoading(false); });

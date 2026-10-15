@@ -35,7 +35,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) =
       && (!cityState || (String(item.address?.state ?? '').toLowerCase() === cityState.state
         && [item.address?.city, item.address?.town, item.address?.village, item.address?.hamlet, item.address?.municipality]
           .some(name => String(name ?? '').toLowerCase() === cityState.city))));
-    const result = match ? { display_name: match.display_name, lat: match.lat, lon: match.lon } : null;
+    const result = match ? { display_name: match.display_name, lat: match.lat, lon: match.lon, postcode: match.address?.postcode } : null;
     const res = Response.json({ result }, { headers: { 'Cache-Control': result ? 'public, max-age=86400' : 'public, max-age=900' } });
     writeEdgeCache(cache, key, res, waitUntil); return res;
   } catch { return Response.json({ error: 'Location search is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
