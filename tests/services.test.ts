@@ -135,13 +135,22 @@ describe('PlayScore', () => {
     expect(playScore(forecast(70, 4, 15))).toBe(96);
     expect(playScore(forecast(70, 4, 33))).toBe(87);
     expect(playScore(forecast(70, 4, 90))).toBe(40);
-    expect(playScore(forecast(63, 4, 33))).toBe(71);
-    expect(playScore(forecast(63, 4, 80))).toBeLessThan(40);
+    expect(playScore(forecast(63, 4, 33))).toBe(87);
+    expect(playScore(forecast(63, 4, 80))).toBeLessThan(55);
   });
   it('ranks score explanations by the actual penalty and prioritizes winter risk', () => {
     expect(playScoreFactors(forecast(50, 12, 30)).map(factor => factor.type)).toEqual(['cold', 'rain', 'wind']);
     expect(playScoreFactors(forecast(70, 4, 15))).toEqual([]);
     expect(playScoreFactors({ ...forecast(50, 12, 30), winterRisk: 'snow' })).toMatchObject([{ type: 'snow' }]);
+  });
+  it('treats mild temperatures as comfortable rather than heat or cold', () => {
+    expect(playScore(forecast(73, 4, 0))).toBe(100);
+    expect(playScoreFactors(forecast(73, 4, 0))).toEqual([]);
+    expect(playScore(forecast(63, 4, 0))).toBe(100);
+    expect(playScoreFactors(forecast(63, 4, 0))).toEqual([]);
+    expect(playScoreFactors({ ...forecast(73, 4, 0), humidity: 70 }).some(factor => factor.type === 'heat')).toBe(false);
+    expect(playScoreFactors(forecast(85, 4, 0)).map(factor => factor.type)).toContain('heat');
+    expect(playScoreFactors(forecast(55, 4, 0)).map(factor => factor.type)).toContain('cold');
   });
   it('keeps humidity optional and lowers scores when humidity raises heat index', () => {
     const dryForecast = forecast(90, 4, 0);
