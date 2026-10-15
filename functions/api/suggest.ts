@@ -1,4 +1,6 @@
 import { readEdgeCache, writeEdgeCache } from '../lib/edge-cache';
+import { normalizeLocationQuery } from '../../src/zip-query';
+import { cityStateQuery } from './geocode';
 
 interface Env {}
 
@@ -27,10 +29,12 @@ function toSuggestion(feature: PhotonFeature) {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) => {
   const url = new URL(request.url);
-  const query = (url.searchParams.get('q') ?? '').trim();
+  const { query, zip, error } = normalizeLocationQuery(url.searchParams.get('q') ?? '');
   if (query.length < 3 || query.length > 120) return Response.json({ suggestions: [] }, { headers: { 'Cache-Control': 'public, max-age=60' } });
-
-  const key = new Request(`${url.origin}/api/suggest?q=${encodeURIComponent(query.toLowerCase())}`);
+  if (error) return Response.json({ suggestions: [], error }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+  const houseNumber = /^(\d{1,6}[A-Za-z]?)\s+\S/.exec(query)?.[1];
+  const cityState = !zip && !houseNumber ? cityStateQuery(query) : null;
+  const key = new Request(`${url.origin}/api/suggest?v=5&q=${encodeURIComponent(query.toLowerCase())}`);
   const cache = typeof caches === 'undefined' ? undefined : caches.default;
   const cached = await readEdgeCache(cache, key);
   if (cached) return cached;
@@ -44,7 +48,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) =
     });
     if (!response.ok) return Response.json({ error: 'Place suggestions are temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     const data = await response.json() as { features?: PhotonFeature[] };
-    const suggestions = (data.features ?? []).map(toSuggestion).filter((item): item is NonNullable<typeof item> => item !== null);
+    const suggestions = (data.features ?? []).filter(feature => (!zip || String(feature.properties?.postcode ?? '') === zip)
+      && (!houseNumber || String(feature.properties?.housenumber ?? '').toLowerCase() === houseNumber.toLowerCase())
+      && (!cityState || (String(feature.properties?.state ?? '').toLowerCase() === cityState.state
+        && [feature.properties?.city, feature.properties?.locality].some(name => String(name ?? '').toLowerCase() === cityState.city))))
+      .map(toSuggestion).filter((item): item is NonNullable<typeof item> => item !== null);
     const result = Response.json({ suggestions }, { headers: { 'Cache-Control': 'public, max-age=3600' } });
     writeEdgeCache(cache, key, result, waitUntil);
     return result;

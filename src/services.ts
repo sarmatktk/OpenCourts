@@ -1,5 +1,6 @@
 import type { Access, Court, DailyPlayWindows, Forecast, Lighting, Place, PlaceSuggestion, PlayWindow, RainAssessment, WeatherAlertData, WeatherData } from './types';
 import { estimatedSunrise, estimatedSunset } from './sun';
+import { normalizeLocationQuery } from './zip-query';
 
 export function classifyLighting(tags: Record<string, string | undefined>): Lighting {
   if (tags.lit === 'yes' || tags.lighting === 'yes') return 'yes';
@@ -137,7 +138,10 @@ async function readApiJson<T>(response: Response, fallbackMessage: string): Prom
   catch { throw new Error(fallbackMessage); }
 }
 export async function findPlace(query: string, signal?: AbortSignal): Promise<Place> {
-  const key = `opencourts-place-${query.trim().toLowerCase()}`;
+  const normalized = normalizeLocationQuery(query);
+  if (normalized.error) throw new Error(normalized.error);
+  query = normalized.query;
+  const key = `opencourts-place-v5-${query.toLowerCase()}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
@@ -157,6 +161,9 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   return place;
 }
 export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const normalized = normalizeLocationQuery(query);
+  if (normalized.error) return [];
+  query = normalized.query;
   const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query);
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error('Place suggestions are temporarily unavailable.');
