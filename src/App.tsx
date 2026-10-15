@@ -7,6 +7,11 @@ import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessm
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
 
 const INITIAL: Place = { label: 'Fairfax, Virginia', lat: 38.8462, lon: -77.3064 };
+const PARK_PRESETS: Record<string, Place> = {
+  'van-dyck': { label: 'Van Dyck Park, Fairfax, Virginia', lat: 38.8525992, lon: -77.2983025 },
+  'providence': { label: 'Providence Park, Fairfax, Virginia', lat: 38.8392492, lon: -77.3173656 },
+  'greenbriar': { label: 'Greenbriar Park, Fairfax County, Virginia', lat: 38.8653902, lon: -77.4038761 },
+};
 function TennisBall({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" strokeWidth="1.5"/></svg>; }
 function distanceMiles(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (b.lat-a.lat)*rad; const dLon = (b.lon-a.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
 function sampleRainCourts<T extends { id: string; lat: number; lon: number }>(courts: T[], place: Place, limit = 50): T[] {
@@ -95,7 +100,15 @@ function WindowScoreFactors({ forecast }: { forecast: Forecast }) {
 }
 
 function App() {
-  const [place, setPlace] = useState<Place>(() => { try { return JSON.parse(localStorage.getItem('opencourts-place-v2') || 'null') ?? INITIAL; } catch { return INITIAL; } });
+  const [highlightedPark, setHighlightedPark] = useState(() => {
+    const slug = new URLSearchParams(window.location.search).get('park');
+    return slug && PARK_PRESETS[slug] ? slug : null;
+  });
+  const [place, setPlace] = useState<Place>(() => {
+    const park = new URLSearchParams(window.location.search).get('park');
+    if (park && PARK_PRESETS[park]) return PARK_PRESETS[park];
+    try { return JSON.parse(localStorage.getItem('opencourts-place-v2') || 'null') ?? INITIAL; } catch { return INITIAL; }
+  });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const localWeatherDemo = import.meta.env.DEV ? (() => {
@@ -163,6 +176,14 @@ function App() {
   }
 
   const load = useCallback(async (p: Place) => {
+    const parkSlug = new URLSearchParams(window.location.search).get('park');
+    const park = parkSlug ? PARK_PRESETS[parkSlug] : undefined;
+    if (parkSlug && (!park || p.lat !== park.lat || p.lon !== park.lon)) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('park');
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      setHighlightedPark(null);
+    }
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
     setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place-v2', JSON.stringify(p)); } catch { /* storage optional */ }
     setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError(''); setHourlyForecast([]); setWeatherAlerts([]); setWeatherAlertStatus('loading');
@@ -193,6 +214,12 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [loading, place]);
   useEffect(() => { void load(place); return () => request.current?.abort(); }, []);
+  useEffect(() => {
+    const targetId = window.location.hash.slice(1);
+    if (!['explore', 'conditions', 'rain-planner-title'].includes(targetId)) return;
+    const frame = window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView());
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
   useEffect(() => {
     if (!mapEl.current || map.current) return;
     let disposed = false;
@@ -241,6 +268,28 @@ function App() {
   useEffect(() => { const m = map.current; const src = m?.getSource('courts') as GeoJSONSource | undefined; if (!src) return;
     src.setData({ type: 'FeatureCollection', features: filtered.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lon, c.lat] }, properties: { id: c.id, lit: c.lighting, confidence: rainAssessments.find(assessment => assessment.courtId === c.id)?.confidence ?? 'Unknown' } })) as any });
   }, [filtered, rainAssessments, mapReady]);
+  useEffect(() => {
+    const park = highlightedPark ? PARK_PRESETS[highlightedPark] : undefined;
+    if (!mapReady || !map.current || !park) return;
+    let removed = false;
+    let marker: import('maplibre-gl').Marker | undefined;
+    void import('maplibre-gl').then(({ default: ml }) => {
+      if (removed || !map.current) return;
+      const element = document.createElement('div');
+      element.className = 'park-focus-marker';
+      element.setAttribute('role', 'img');
+      element.setAttribute('aria-label', `Selected park: ${park.label}`);
+      const label = document.createElement('span');
+      label.className = 'park-focus-label';
+      label.textContent = park.label.split(',')[0];
+      const pin = document.createElement('span');
+      pin.className = 'park-focus-pin';
+      pin.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+      element.append(label, pin);
+      marker = new ml.Marker({ element, anchor: 'bottom' }).setLngLat([park.lon, park.lat]).addTo(map.current);
+    }).catch(() => { /* The court map still works without the park marker. */ });
+    return () => { removed = true; marker?.remove(); };
+  }, [highlightedPark, mapReady]);
   useEffect(() => { if (map.current) map.current.flyTo({ center: [place.lon, place.lat], zoom: 12, duration: 900 }); }, [place]);
 
   const displayed = filtered.slice(0, visibleCount);
@@ -401,6 +450,7 @@ function App() {
         {weatherLoading ? <div className="weather-grid">{[0,1,2,3].map(n => <div className="weather-card skeleton-weather" key={n}/>)}</div> : bestWindows.length ? <div className="weather-grid weekly-grid">{bestWindows.map((day, i) => <article className={`weather-card ${i === bestWindowDay ? 'best-window' : ''}`} key={day.date}><div className="weather-time"><span>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })}</span>{i === bestWindowDay && <span className="best-window-tag">BEST DAY</span>}</div><div className="window-list">{day.windows.map(window => <div className="window-item" key={window.time}><div className="window-details"><strong>{formatLocalTimeRange(window.time, window.endTime, timeZone)}</strong><span>{window.short}</span><small>{Math.round(window.temp)}°F · {window.wind} mph wind · {window.precip}% rain</small>{window.winterRisk && <small className={`winter-weather-note winter-risk-${window.winterRisk}`}>{window.winterRisk === 'ice' ? <ThermometerSnowflake size={13} aria-hidden="true"/> : <Snowflake size={13} aria-hidden="true"/>}{window.winterCaution?.lingering ? `${window.winterRisk === 'ice' ? 'Ice' : 'Snow'} may linger · check conditions` : window.winterRisk === 'ice' ? 'Ice risk · likely poor playing conditions' : 'Snow in forecast · likely poor playing conditions'}</small>}{heatIndexLabel(window) && <small className={`heat-index-note ${window.heatIndex! >= 103 ? 'heat-index-high' : 'heat-index-caution'}`}><ThermometerSun size={13} aria-hidden="true"/>{heatIndexLabel(window)}</small>}<WindowWeatherLabels forecast={window}/><WindowScoreFactors forecast={window}/></div><span className="window-score">{window.score}<small>score</small></span></div>)}</div></article>)}</div> : <p className="weather-error">Daytime hourly forecast is unavailable.</p>}
         <div className="score-explainer"><span className="score-mark"><Clock3 size={17}/></span><p><strong>Play score</strong> rates the available daylight forecast from estimated sunrise to sunset using temperature, wind, and rain probability. Temperatures from 60°F to 78°F have no temperature penalty. Colder temperatures lower the score progressively. Light wind up to 8 mph has no wind penalty. A low chance of rain has a small effect, while a high chance lowers the score much more. When humidity data is available, hot-weather scoring uses the estimated heat index instead of counting heat and air temperature separately; a heat index above {HEAT_INDEX_DISPLAY_THRESHOLD_F}°F continues to lower the score. The two strongest meaningful score factors appear beneath each forecast, and adjacent hours are grouped into two-hour blocks when possible. The current area heat caution also appears beside courts, while the per-court radar score remains a precipitation estimate. Heat index assumes shade; direct sun on a court may feel hotter. Snow or ice forecast during either hour caps the window score at 20/100. The caution can carry into later hours, up to 24 hours for snow or 36 hours for ice, and clear sooner after six consecutive warm, relatively dry forecast hours. It is based on the area forecast, not a court observation. NWS alerts appear separately. The nearby-court radar scores compare recent rainfall and do not include forecast snow or ice; neither score confirms actual court conditions.</p><span className="weather-source">U.S. National Weather Service</span></div>
       </section>
+      <section className="guide-links" aria-label="Explore OpenCourts guides"><span className="section-kicker">MORE WAYS TO PLAN</span><div><a href="/best-time-to-play-tennis.html"><CloudSun size={18} aria-hidden="true"/>Best time to play<ArrowUpRight size={15} aria-hidden="true"/></a><a href="/tennis-courts-after-rain.html"><CloudRain size={18} aria-hidden="true"/>Courts after rain<ArrowUpRight size={15} aria-hidden="true"/></a><a href="/public-tennis-courts-fairfax-va.html"><MapPin size={18} aria-hidden="true"/>Fairfax courts<ArrowUpRight size={15} aria-hidden="true"/></a></div></section>
       <section className="about-strip" id="about"><div><span className="section-kicker">ABOUT OPENCOURTS</span><h2>A local guide to tennis.</h2></div><div><p>Court locations and amenities come from OpenStreetMap. Access and opening hours can change; check with the venue before visiting.</p><a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Explore the source<ExternalLink size={14}/></a></div></section>
       <section className="support-strip" id="support" aria-labelledby="support-title"><div className="support-copy"><span className="section-kicker">SUPPORT THE PROJECT</span><h2 id="support-title">Help keep OpenCourts available.</h2><p>OpenCourts is free to use. If it has helped you find a court or plan around the weather, you can help pay for hosting and data costs. Contributions are optional and are not tax-deductible.</p></div><a className="support-qr" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer" aria-label="Scan the QR code to support OpenCourts on Buy Me a Coffee"><img src="/qr-code.png" alt="QR code for OpenCourts on Buy Me a Coffee"/><span>Scan to support</span></a><a className="support-button" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer">Support OpenCourts<ExternalLink size={15}/></a></section>
     </main>

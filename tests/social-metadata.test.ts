@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+const landingPages = [
+  ['best-time-to-play-tennis.html', 'social-play-weather.png'],
+  ['tennis-courts-after-rain.html', 'social-after-rain.png'],
+  ['public-tennis-courts-fairfax-va.html', 'social-fairfax-courts.png'],
+] as const;
+
 const pages = [
   ['index.html', 'https://opencourts.us/'],
   ['public/about.html', 'https://opencourts.us/about.html'],
@@ -11,6 +17,51 @@ const pages = [
 ] as const;
 
 describe('social share metadata', () => {
+  it('gives each landing page a distinct, correctly sized preview and shared site icons', () => {
+    for (const [file, imageName] of landingPages) {
+      const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
+      const url = `https://opencourts.us/${file}`;
+      const imageUrl = `https://opencourts.us/${imageName}`;
+      expect(html).toContain(`rel="canonical" href="${url}"`);
+      expect(html).toContain(`property="og:url" content="${url}"`);
+      expect(html).toContain(`property="og:image" content="${imageUrl}"`);
+      expect(html).toContain(`name="twitter:image" content="${imageUrl}"`);
+      expect(html).toContain('rel="icon" type="image/x-icon" href="/favicon.ico"');
+      expect(html).toContain('rel="manifest" href="/site.webmanifest"');
+      expect(html).toContain('data-theme-toggle');
+      expect(html).toContain('https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410');
+      expect(html).toContain("gtag('config', 'G-7T3S2D1410')");
+      expect(html).toContain('src="/landing-analytics.js"');
+      expect((html.match(/data-analytics-event="landing_cta_click"/g) || []).length).toBe(2);
+      const image = readFileSync(resolve(process.cwd(), 'public', imageName));
+      expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([1200, 630]);
+    }
+  });
+  it('tracks landing actions and preserves the Fairfax destination without changing the main page', () => {
+    const tracking = readFileSync(resolve(process.cwd(), 'public/landing-analytics.js'), 'utf8');
+    const fairfax = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-fairfax-va.html'), 'utf8');
+    expect(tracking).toContain("window.gtag('event'");
+    expect(tracking).toContain('landing_page: window.location.pathname');
+    expect(fairfax).toContain('data-city-preset="fairfax-va"');
+    expect(fairfax).toContain('href="/#explore"');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const slug of ['van-dyck', 'providence', 'greenbriar']) {
+      expect(fairfax).toContain(`href="/?park=${slug}#explore"`);
+      expect(app).toContain(`'${slug}': { label:`);
+    }
+    expect((fairfax.match(/class="landing-park-link"/g) || []).length).toBe(3);
+    expect((fairfax.match(/class="landing-source-link"/g) || []).length).toBe(3);
+  });
+  it('uses optimized page photography and clear links on all landing pages', () => {
+    const photos = ['landing-weather.webp', 'landing-after-rain.webp', 'landing-fairfax.webp'];
+    for (const [index, [file]] of landingPages.entries()) {
+      const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
+      const photo = readFileSync(resolve(process.cwd(), 'public', photos[index]));
+      expect(html).toContain(`src="/${photos[index]}"`);
+      expect(photo.subarray(8, 12).toString('ascii')).toBe('WEBP');
+      expect(html).not.toMatch(/↗|→/);
+    }
+  });
   for (const [file, canonicalUrl] of pages) {
     it(`${file} has a page URL and the shared preview image`, () => {
       const html = readFileSync(resolve(process.cwd(), file), 'utf8');

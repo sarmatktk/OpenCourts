@@ -16,6 +16,7 @@
 @media(max-width:620px){.topbar{height:68px}.nav{top:67px}.intro{margin:0;padding:24px 20px 22px}.intro h1{font-size:32px;letter-spacing:-.8px}.intro-copy{margin:0;font-size:14px;max-width:330px}.searchbox{width:100%;height:58px;padding-left:12px;gap:4px;margin-top:18px}.search-submit{height:46px;padding:0 12px}.intro-foot{font-size:11px}.explore{margin:0 12px;border:1px solid var(--line);border-radius:8px;height:auto;min-height:0;max-height:none;display:flex;flex-direction:column}.results-panel{position:relative;transform:none;max-height:none;height:auto;width:100%;order:2;border:0;border-radius:0;box-shadow:none;overflow:visible}.map-panel{position:relative;inset:auto;height:300px;min-height:300px;order:1;width:100%}.court-card{padding:19px 18px}.mobile-list-toggle{display:none}.map-label{font-size:8px;top:12px}.map-locate{top:10px;height:36px}.map-legend{bottom:34px;font-size:9px}.map-popover{bottom:68px}.weather-section{padding:44px 0}.weather-title h2{font-size:29px}.weather-card{padding:16px;min-height:168px}.weather-condition{margin-top:14px}.weather-bottom{flex-wrap:wrap}.about-strip{margin:0 20px 36px;grid-template-columns:1fr;gap:12px;padding:28px 0}.about-strip h2{font-size:30px}.about-strip p{font-size:13px}.filter-toolbar{padding-top:14px;padding-bottom:14px}.active-filters{padding-left:18px;padding-right:18px}footer{height:auto;min-height:135px}.results-head h2{max-width:260px}.score-explainer{padding-top:15px}}
 
 /* Dark-mode foregrounds stay distinct from deep green surfaces. */
+.guide-links{max-width:1240px;margin:0 auto 48px;border-top:1px solid var(--line);padding:23px 0 0}.guide-links>div{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}.guide-links a{min-height:46px;display:inline-flex;align-items:center;gap:9px;padding:0 13px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:12px;font-weight:600}.guide-links a:hover{border-color:#91ac71}.guide-links a svg:first-child{color:#6e8d42}.guide-links a svg:last-child{color:var(--muted)}.dark .guide-links a svg:first-child{color:#dce9af}@media(max-width:1300px){.guide-links{margin-left:5.5%;margin-right:5.5%}}@media(max-width:620px){.guide-links{margin:0 20px 36px}.guide-links>div{display:grid;grid-template-columns:1fr}}
 .app.dark{color-scheme:dark;--muted:#b9c7bd;--line:#405348;--icon:#d9e5dc;--icon-accent:#e1f2ae}
 .dark .search-pin,.dark .search-locate,.dark .theme-toggle,.dark .mobile-menu,
 .dark .filter-trigger svg,.dark .quick-filter svg,.dark .filter-panel-heading button,
@@ -114,6 +115,13 @@
 .dark .place-suggestion:hover,.dark .place-suggestion.active{background:#26382d}
 
 /* Rain confidence is independent of the lighting fill shown on each court marker. */
+.park-focus-marker{display:flex;flex-direction:column;align-items:center;padding-bottom:6px;filter:drop-shadow(0 3px 8px #10241c55);pointer-events:none}
+.park-focus-label{max-width:180px;padding:7px 10px;border:1px solid #bdd0b7;border-radius:6px;background:#fff;color:#173d30;font:700 12px/1.3 'DM Sans',sans-serif;text-align:center;white-space:nowrap}
+.park-focus-pin{position:relative;display:grid;place-items:center;width:40px;height:40px;margin-top:5px;border:2px solid #fff;border-radius:50%;background:#1b6046;color:#fff}
+.park-focus-pin::after{position:absolute;left:calc(50% - 5px);bottom:-5px;width:10px;height:10px;background:#1b6046;transform:rotate(45deg);content:''}
+.park-focus-pin svg{position:relative;z-index:1}
+.dark .park-focus-label{border-color:#79926d;background:#20392d;color:#edf5df}
+.dark .park-focus-pin,.dark .park-focus-pin::after{background:#dce9af;color:#17382e}
 .map-legend{max-width:calc(100% - 28px);flex-wrap:wrap;gap:6px 9px}
 .legend-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .legend-label{color:var(--muted);font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
