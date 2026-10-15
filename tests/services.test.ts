@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assessRainfall, classifyAccess, classifyLighting, currentHeatCaution, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, heatIndexFahrenheit, normalizeCourt, playScore, weeklyPlayWindows, withWinterSurfaceCaution } from '../src/services';
+import { assessRainfall, classifyAccess, classifyLighting, currentHeatCaution, distinguishCourtNames, enrichNearbyCourtDetails, getRainAssessments, groupCourtsByVenue, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, heatIndexFahrenheit, normalizeCourt, playScore, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution } from '../src/services';
 import type { Forecast } from '../src/types';
 import { estimatedSunrise, estimatedSunset } from '../src/sun';
 
@@ -131,12 +131,32 @@ describe('PlayScore', () => {
     expect(playScore(forecast(70, 4, 0))).toBeGreaterThan(playScore(forecast(70, 20, 80)));
     expect(playScore(forecast(70, 4, 0))).toBe(100);
   });
+  it('penalizes low rain chances gently and high chances much more strongly', () => {
+    expect(playScore(forecast(70, 4, 15))).toBe(96);
+    expect(playScore(forecast(70, 4, 33))).toBe(87);
+    expect(playScore(forecast(70, 4, 90))).toBe(40);
+    expect(playScore(forecast(63, 4, 33))).toBe(71);
+    expect(playScore(forecast(63, 4, 80))).toBeLessThan(40);
+  });
+  it('ranks score explanations by the actual penalty and prioritizes winter risk', () => {
+    expect(playScoreFactors(forecast(50, 12, 30)).map(factor => factor.type)).toEqual(['cold', 'rain', 'wind']);
+    expect(playScoreFactors(forecast(70, 4, 15))).toEqual([]);
+    expect(playScoreFactors({ ...forecast(50, 12, 30), winterRisk: 'snow' })).toMatchObject([{ type: 'snow' }]);
+  });
   it('keeps humidity optional and lowers scores when humidity raises heat index', () => {
     const dryForecast = forecast(90, 4, 0);
     expect(HEAT_INDEX_DISPLAY_THRESHOLD_F).toBe(90);
     expect(heatIndexFahrenheit(90, 70)).toBeGreaterThanOrEqual(105);
     expect(playScore({ ...dryForecast, humidity: 70 })).toBeLessThan(playScore(dryForecast));
     expect(playScore({ ...dryForecast, humidity: undefined })).toBe(playScore(dryForecast));
+  });
+  it('uses apparent temperature once above the comfort range and keeps cold based on air temperature', () => {
+    const hot = forecast(90, 4, 0);
+    expect(playScore(hot)).toBe(56);
+    expect(playScore({ ...hot, humidity: 70 })).toBe(
+      playScore(forecast(heatIndexFahrenheit(90, 70), 4, 0)),
+    );
+    expect(playScore({ ...forecast(50, 4, 0), humidity: 90 })).toBe(playScore(forecast(50, 4, 0)));
   });
   it('uses the NWS simple heat-index step before the full regression', () => {
     expect(heatIndexFahrenheit(80, 10)).toBe(79);

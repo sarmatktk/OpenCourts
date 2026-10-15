@@ -443,12 +443,34 @@ export function currentHeatCaution(period?: Forecast, alertEvent?: string): { la
     high: /warning|emergency|excessive heat/i.test(alertEvent || '') || (index !== undefined ? index >= 103 : validTemp && temp >= 103),
   };
 }
+function rainChancePenalty(chance: number): number {
+  const probability = Math.max(0, Math.min(100, chance)) / 100;
+  return 70 * probability ** 1.5;
+}
+
+function temperaturePenalty(f: Forecast): number {
+  if (f.temp <= 70) return (70 - f.temp) * 2.2;
+  const apparent = f.humidity === undefined ? f.temp : heatIndexFahrenheit(f.temp, f.humidity);
+  return Math.max(0, Math.min(apparent, HEAT_INDEX_DISPLAY_THRESHOLD_F) - 70) * 2.2
+    + Math.max(0, apparent - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5;
+}
+
+export type PlayScoreFactor = { type: 'ice' | 'snow' | 'rain' | 'wind' | 'heat' | 'cold'; penalty: number };
+export function playScoreFactors(f: Forecast): PlayScoreFactor[] {
+  if (f.winterRisk || f.winterCaution) return [{ type: f.winterRisk || f.winterCaution!.type, penalty: 80 }];
+  const factors: PlayScoreFactor[] = [
+    { type: f.temp > 70 ? 'heat' : 'cold', penalty: temperaturePenalty(f) },
+    { type: 'wind', penalty: Math.min(40, Math.max(0, f.wind - 8) * 2.2) },
+    { type: 'rain', penalty: rainChancePenalty(f.precip) },
+  ];
+  return factors.filter(factor => factor.penalty >= 5).sort((a, b) => b.penalty - a.penalty);
+}
+
 export function playScore(f: Forecast): number {
-  const comfortable = Math.max(0, 100 - Math.abs(f.temp - 70) * 2.2);
+  const comfortable = Math.max(0, 100 - temperaturePenalty(f));
   const windPenalty = Math.min(40, Math.max(0, f.wind - 8) * 2.2);
-  const rainPenalty = Math.min(60, f.precip * 1.5);
-  const heatPenalty = f.humidity === undefined ? 0 : Math.min(55, Math.max(0, heatIndexFahrenheit(f.temp, f.humidity) - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5);
-  const score = Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty - heatPenalty)));
+  const rainPenalty = rainChancePenalty(f.precip);
+  const score = Math.round(Math.max(0, Math.min(100, comfortable - windPenalty - rainPenalty)));
   return f.winterRisk || f.winterCaution ? Math.min(20, score) : score;
 }
 export type WinterCautionSeed = { type: 'snow' | 'ice'; until: number };
@@ -521,13 +543,12 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
       if (playScore(period) >= 55) return null;
       if (period.winterRisk?.includes('ice') || period.winterCaution?.type === 'ice') return 'ice';
       if (period.winterRisk === 'snow' || period.winterCaution?.type === 'snow') return 'snow';
-      const temperaturePenalty = Math.abs(period.temp - 70) * 2.2;
+      const thermalPenalty = temperaturePenalty(period);
       const windPenalty = Math.min(40, Math.max(0, period.wind - 8) * 2.2);
-      const rainPenalty = Math.min(60, period.precip * 1.5);
-      const heatPenalty = period.humidity === undefined ? 0 : Math.min(55, Math.max(0, heatIndexFahrenheit(period.temp, period.humidity) - HEAT_INDEX_DISPLAY_THRESHOLD_F) * 2.5);
-      const largest = Math.max(temperaturePenalty, windPenalty, rainPenalty, heatPenalty);
+      const rainPenalty = rainChancePenalty(period.precip);
+      const largest = Math.max(thermalPenalty, windPenalty, rainPenalty);
       if (rainPenalty === largest) return 'rain';
-      if (heatPenalty === largest || temperaturePenalty === largest && period.temp > 70) return 'heat';
+      if (thermalPenalty === largest && period.temp > 70) return 'heat';
       if (windPenalty === largest) return 'wind';
       return 'cold';
     };
