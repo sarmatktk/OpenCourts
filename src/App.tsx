@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
-import { currentHeatCaution, findPlace, getCourts, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution } from './services';
+import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution } from './services';
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
@@ -145,6 +145,17 @@ function App() {
       map.current?.flyTo({ center: [court.lon, court.lat], zoom: 15 });
     });
   }
+
+  useEffect(() => {
+    if (!selected || selected.contextCached) return;
+    const controller = new AbortController();
+    getSelectedCourtContext(selected, place.label, controller.signal).then(enriched => {
+      if (!enriched || controller.signal.aborted) return;
+      setSelected(current => current?.id === enriched.id ? enriched : current);
+      setCourts(current => current.map(court => court.id === enriched.id ? enriched : court));
+    }).catch(() => { /* Retain the existing court details when context is unavailable. */ });
+    return () => controller.abort();
+  }, [selected, place.label]);
 
   function showMapView() {
     setMobileList(false);

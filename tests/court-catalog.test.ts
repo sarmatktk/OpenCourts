@@ -128,6 +128,6 @@ describe('D1 court catalog', () => {
     expect(counts).toMatchObject({ courts: 1, withPlace: 1, withRoad: 1 });
     expect(enriched.properties['opencourts:nearby_place']).toBe('Greenbriar Park');
     expect(enriched.properties['opencourts:nearby_street']).toBe('Cedar Lane');
-    expect(enriched.properties['opencourts:context_version']).toBe('1');
+    expect(enriched.properties['opencourts:context_version']).toBe('2');
   });
 });

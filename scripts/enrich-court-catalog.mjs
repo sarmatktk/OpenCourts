@@ -92,7 +92,7 @@ async function* readGeoJSONSeq(filePath) {
 function updateTags(feature, values) {
   const properties = feature.properties || (feature.properties = {});
   const tags = properties.tags && typeof properties.tags === 'object' ? properties.tags : properties;
-  tags['opencourts:context_version'] = '1';
+  tags['opencourts:context_version'] = '2';
   if (values.place) {
     tags['opencourts:nearby_place'] = values.place.name;
     tags['opencourts:nearby_place_miles'] = values.place.distance.toFixed(3);

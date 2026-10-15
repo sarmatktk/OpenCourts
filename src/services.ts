@@ -23,8 +23,10 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   let addressApprox = false;
   const catalogRoad = tags['opencourts:nearby_street'];
   const catalogPlace = tags['opencourts:nearby_place'];
+  const catalogPlaceDistance = Number(tags['opencourts:nearby_place_miles']);
+  const catalogParkAddress = catalogPlace && Number.isFinite(catalogPlaceDistance) && catalogPlaceDistance <= 0.05;
   if (!address && (catalogRoad || catalogPlace)) {
-    address = `Near ${catalogRoad || catalogPlace}${cityLine ? `, ${cityLine}` : ''}`;
+    address = `${catalogParkAddress ? 'At' : 'Near'} ${catalogParkAddress ? catalogPlace : catalogRoad || catalogPlace}${cityLine ? `, ${cityLine}` : ''}`;
     addressApprox = true;
   }
   if (!address && Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -52,7 +54,7 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
     name = 'Tennis courts';
     contextName = placeLabel;
   }
-  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextName, contextCached: tags['opencourts:context_version'] === '1', sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts: Number(tags.count || tags['courts:count'] || tags.courts) || undefined, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextName, contextCached: tags['opencourts:context_version'] === '2', sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
 }
 export function distinguishCourtNames(courts: Court[]): Court[] {
   const groups = new Map<string, Court[]>();
@@ -234,7 +236,11 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
     let name = genericName ? 'Tennis courts' : court.name;
     let contextName = court.contextName;
     const placeName = nearestPlace?.feature.tags.name || nearestPlace?.feature.tags['name:en'];
-    if (!address && placeName) {
+    const associatedPlace = nearestPlace && nearestPlace.distance <= 0.05 && placeName;
+    if (associatedPlace && (!address || addressApprox)) {
+      address = `At ${placeName}${localityLabel ? `, ${localityLabel}` : ''}`;
+      addressApprox = true;
+    } else if (!address && placeName) {
       address = `Near ${placeName}${localityLabel ? `, ${localityLabel}` : ''}`;
       addressApprox = true;
     }
@@ -243,6 +249,17 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
     else if (numberedCourtName && placeName) contextName = `${nearestPlace!.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;
     return { ...court, name, contextName, address, addressApprox };
   }));
+}
+export async function getSelectedCourtContext(court: Court, locality: string, signal?: AbortSignal): Promise<Court | null> {
+  const response = await fetch('/api/court-context', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ courts: [{ lat: court.lat, lon: court.lon }] }), signal,
+  });
+  if (!response.ok) return null;
+  const data = await readApiJson<{ elements?: any[] }>(response, 'Nearby court context could not be read.');
+  if (!Array.isArray(data.elements)) return null;
+  const enriched = enrichNearbyCourtDetails([court], data.elements, locality)[0];
+  return enriched ? { ...enriched, contextCached: true } : null;
 }
 function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void) {
   if (courts.length > 0 && courts.every(court => court.contextCached)) return;
@@ -266,13 +283,15 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     const data = await response.json();
     if (!Array.isArray(data.elements)) return;
     if (data.elements.length === 0) console.info('[OpenCourts] Nearby map data returned no named context features.');
-    const enriched = groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality));
-    try { sessionStorage.setItem(`opencourts-courts-v12-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    const requestedIds = new Set(nearbyCourts.map(court => court.id));
+    const enriched = groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality)
+      .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court));
+    try { sessionStorage.setItem(`opencourts-courts-v13-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v12-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v13-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
