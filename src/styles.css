@@ -120,6 +120,15 @@
 .forecast-rain-note a{color:var(--text);font-weight:700;text-decoration:underline;text-decoration-color:#9ab48f;text-underline-offset:3px}
 .forecast-rain-note a:hover{color:#506d3d}
 .dark .forecast-rain-note a{color:#dce9af}
+.overnight-weather-warning{display:flex;align-items:flex-start;gap:7px;margin:11px 0 0;padding:9px 10px;border:1px solid;border-left-width:3px;border-radius:5px;font-size:10px;line-height:1.5}
+.overnight-weather-warning svg{flex:none;margin-top:1px}
+.overnight-weather-warning strong{font-weight:700}
+.overnight-weather-rain{border-color:#b8dbea;border-left-color:#3786a8;background:#edf8fc;color:#205c78}
+.overnight-weather-snow{border-color:#c5dfe9;border-left-color:#4c91ae;background:#eff8fc;color:#245878}
+.overnight-weather-ice{border-color:#a5dce4;border-left-color:#27a4ba;background:#e0f7fa;color:#155e75}
+.dark .overnight-weather-rain{border-color:#355d70;border-left-color:#62b6d4;background:#192f3a;color:#b9e5f4}
+.dark .overnight-weather-snow{border-color:#395866;border-left-color:#72b9d5;background:#1e3038;color:#a8d8f2}
+.dark .overnight-weather-ice{border-color:#2c6670;border-left-color:#4bc5d4;background:#15333a;color:#a8edf3}
 .park-focus-label{max-width:180px;padding:7px 10px;border:1px solid #bdd0b7;border-radius:6px;background:#fff;color:#173d30;font:700 12px/1.3 'DM Sans',sans-serif;text-align:center;white-space:nowrap}
 .park-focus-pin{position:relative;display:grid;place-items:center;width:40px;height:40px;margin-top:5px;border:2px solid #fff;border-radius:50%;background:#1b6046;color:#fff}
 .park-focus-pin::after{position:absolute;left:calc(50% - 5px);bottom:-5px;width:10px;height:10px;background:#1b6046;transform:rotate(45deg);content:''}

@@ -312,6 +312,23 @@ describe('PlayScore', () => {
     expect(winter.at(-1)?.endTime).toBe(estimatedSunset(lat, lon, zone, new Date('2026-01-21T12:00:00Z'))?.toISOString());
     expect(summer.length).toBeGreaterThan(winter.length);
   });
+  it('flags rain before sunrise on the following daylight card without changing its play score', () => {
+    const periods = Array.from({ length: 36 }, (_, hour) => ({
+      ...forecast(70, 4, hour === 9 ? 65 : 0),
+      time: new Date(Date.UTC(2026, 5, 20, 18 + hour)).toISOString(),
+      endTime: new Date(Date.UTC(2026, 5, 20, 19 + hour)).toISOString(),
+      short: hour === 9 ? 'Rain showers' : 'Clear',
+    }));
+    const days = weeklyPlayWindows(periods, 'America/New_York', 38.8462, -77.3064);
+    const saturday = days.find(day => day.date === '2026-06-21');
+    expect(saturday?.overnightPrecipitation).toEqual({ type: 'rain', chance: 65 });
+    expect(saturday?.windows[0].score).toBe(100);
+    expect(days.find(day => day.date === '2026-06-20')?.overnightPrecipitation).toBeUndefined();
+    const overnight = (short: string, winterRisk?: 'snow' | 'ice') => weeklyPlayWindows(periods.map(period => period.short === 'Rain showers' ? { ...period, short, winterRisk, precip: short === 'Clear' ? 0 : 65 } : period), 'America/New_York', 38.8462, -77.3064).find(day => day.date === '2026-06-21')?.overnightPrecipitation;
+    expect(overnight('Clear')).toBeUndefined();
+    expect(overnight('Snow showers', 'snow')).toEqual({ type: 'snow', chance: 65 });
+    expect(overnight('Freezing rain', 'ice')).toEqual({ type: 'ice', chance: 65 });
+  });
 });
 describe('rain API errors', () => {
   it('shows a plain visitor message when the endpoint returns HTML instead of JSON', async () => {

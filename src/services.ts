@@ -565,6 +565,29 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
   };
   return [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(0, 7).map(([date, hours]) => {
     hours.sort((a, b) => a.time.localeCompare(b.time));
+    const sunrise = daylightByDate.get(date)?.sunrise ?? new Date(hours[0].time).getTime();
+    const previousSunset = lat !== undefined && lon !== undefined
+      ? estimatedSunset(lat, lon, timeZone, new Date(sunrise - 24 * 60 * 60_000))?.getTime()
+      : sunrise - 14 * 60 * 60_000;
+    const overnightPeriods = localParts.filter(({ period }) => {
+      const start = Date.parse(period.time);
+      const end = period.endTime ? Date.parse(period.endTime) : start + 60 * 60_000;
+      return previousSunset !== undefined && Number.isFinite(start) && Number.isFinite(end)
+        && start < sunrise && end > previousSunset;
+    });
+    const overnightConditions = overnightPeriods.map(({ period }) => ({
+      period,
+      type: period.winterRisk === 'ice' || /\b(?:freezing rain|freezing drizzle|freezing fog|sleet|ice pellets|wintry mix)\b/i.test(period.short) ? 'ice'
+        : period.winterRisk === 'snow' || /\b(?:snow|flurries)\b/i.test(period.short) ? 'snow'
+        : period.precip >= 30 || /\b(?:rain|showers|drizzle|thunderstorms?)\b/i.test(period.short) ? 'rain' : undefined,
+    }));
+    const overnightType: 'ice' | 'snow' | 'rain' | undefined = overnightConditions.some(item => item.type === 'ice') ? 'ice'
+      : overnightConditions.some(item => item.type === 'snow') ? 'snow'
+      : overnightConditions.some(item => item.type === 'rain') ? 'rain' : undefined;
+    const overnightPrecipitation = overnightType ? {
+      type: overnightType,
+      chance: Math.max(...overnightConditions.filter(item => item.type === overnightType).map(item => item.period.precip)),
+    } : undefined;
     type PoorCondition = 'ice' | 'snow' | 'rain' | 'wind' | 'heat' | 'cold';
     const poorCondition = (period: Forecast): PoorCondition | null => {
       if (playScore(period) >= 55) return null;
@@ -634,6 +657,6 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
       windows.push(window);
       i += 2;
     }
-    return { date, windows };
+    return { date, windows, ...(overnightPrecipitation === undefined ? {} : { overnightPrecipitation }) };
   });
 }
