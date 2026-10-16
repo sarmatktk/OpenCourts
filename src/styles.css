@@ -135,6 +135,9 @@
 .park-focus-pin svg{position:relative;z-index:1}
 .dark .park-focus-label{border-color:#79926d;background:#20392d;color:#edf5df}
 .dark .park-focus-pin,.dark .park-focus-pin::after{background:#dce9af;color:#17382e}
+.search-origin-marker{display:block;pointer-events:auto;cursor:pointer;filter:drop-shadow(0 2px 3px #10241c88)}
+.search-origin-ball,.search-origin-ball svg{display:block;width:27px;height:27px}
+.search-origin-popup .maplibregl-popup-content{padding:7px 10px;border-radius:5px;background:#fff;color:#17221e;font:600 12px/1.35 'DM Sans',sans-serif;box-shadow:0 2px 8px #10241c33}
 .map-legend{max-width:calc(100% - 28px);flex-wrap:wrap;gap:6px 9px}
 .legend-item{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .legend-label{color:var(--muted);font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}

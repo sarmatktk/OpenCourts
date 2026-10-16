@@ -278,7 +278,7 @@ function App() {
       if (removed || !map.current) return;
       const element = document.createElement('div');
       element.className = 'park-focus-marker';
-      element.setAttribute('role', 'img');
+      element.setAttribute('role', 'button');
       element.setAttribute('aria-label', `Selected park: ${park.label}`);
       const label = document.createElement('span');
       label.className = 'park-focus-label';
@@ -291,6 +291,29 @@ function App() {
     }).catch(() => { /* The court map still works without the park marker. */ });
     return () => { removed = true; marker?.remove(); };
   }, [highlightedPark, mapReady]);
+  useEffect(() => {
+    if (!mapReady || !map.current || highlightedPark) return;
+    let removed = false;
+    let marker: import('maplibre-gl').Marker | undefined;
+    void import('maplibre-gl').then(({ default: ml }) => {
+      if (removed || !map.current) return;
+      const element = document.createElement('div');
+      element.className = 'search-origin-marker';
+      element.setAttribute('role', 'img');
+      const markerLabel = place.label === 'Your location' ? 'Your location' : `Search center: ${place.label}`;
+      element.setAttribute('aria-label', markerLabel);
+      element.setAttribute('title', markerLabel);
+      const ball = document.createElement('span');
+      ball.className = 'search-origin-ball';
+      ball.innerHTML = '<svg width="27" height="27" viewBox="0 0 27 27" fill="none" aria-hidden="true"><circle cx="13.5" cy="13.5" r="12" fill="#fff" stroke="#263b32" stroke-width="2"/><circle cx="13.5" cy="13.5" r="9.5" fill="#d96332"/><path d="M8 5.5c2.7 2.4 4.1 5 4.1 8s-1.4 5.6-4.1 8M19 5.5c-2.7 2.4-4.1 5-4.1 8s1.4 5.6 4.1 8" stroke="#fff" stroke-width="1.5"/></svg>';
+      element.append(ball);
+      marker = new ml.Marker({ element, anchor: 'center' })
+        .setLngLat([place.lon, place.lat])
+        .setPopup(new ml.Popup({ offset: 18, closeButton: false, className: 'search-origin-popup', maxWidth: '220px' }).setText(markerLabel))
+        .addTo(map.current);
+    }).catch(() => { /* Court results remain available if the marker cannot load. */ });
+    return () => { removed = true; marker?.remove(); };
+  }, [place, mapReady, highlightedPark]);
   useEffect(() => { if (map.current) map.current.flyTo({ center: [place.lon, place.lat], zoom: 12, duration: 900 }); }, [place]);
 
   const displayed = filtered.slice(0, visibleCount);
