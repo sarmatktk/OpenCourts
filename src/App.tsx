@@ -5,6 +5,7 @@ import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getW
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
 import { estimatedSunset, formatLocalTime, formatLocalTimeRange } from './sun';
+import InstallPrompt from './InstallPrompt';
 
 const INITIAL: Place = { label: 'Fairfax, Virginia', lat: 38.8462, lon: -77.3064 };
 const PARK_PRESETS: Record<string, Place> = {
@@ -455,6 +456,7 @@ function App() {
       <section className="about-strip" id="about"><div><span className="section-kicker">ABOUT OPENCOURTS</span><h2>A local guide to tennis.</h2></div><div><p>Court locations and amenities come from OpenStreetMap. Access and opening hours can change; check with the venue before visiting.</p><a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">Explore the source<ExternalLink size={14}/></a></div></section>
       <section className="support-strip" id="support" aria-labelledby="support-title"><div className="support-copy"><span className="section-kicker">SUPPORT THE PROJECT</span><h2 id="support-title">Help keep OpenCourts available.</h2><p>OpenCourts is free to use. If it has helped you find a court or plan around the weather, you can help pay for hosting and data costs. Contributions are optional and are not tax-deductible.</p></div><a className="support-qr" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer" aria-label="Scan the QR code to support OpenCourts on Buy Me a Coffee"><img src="/qr-code.png" alt="QR code for OpenCourts on Buy Me a Coffee"/><span>Scan to support</span></a><a className="support-button" href="https://buymeacoffee.com/OpenCourts" target="_blank" rel="noreferrer">Support OpenCourts<ExternalLink size={15}/></a></section>
     </main>
+    <InstallPrompt courtOpen={Boolean(selected)} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
     <footer><a className="brand footer-brand" href="#top"><span className="brand-mark"><TennisBall size={18}/></span><span>open<span className="brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><div><a href="/support.html">Support</a><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact.html">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
   </div>;
 }
