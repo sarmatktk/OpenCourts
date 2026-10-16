@@ -4,6 +4,12 @@ import { resolve } from 'node:path';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const ball = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" stroke-width="1.5"/></svg>';
+const guideIcons = {
+  'best-time-to-play-tennis.html': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2m4.93.93-1.41 1.41M20 12h2M2 12h2m4-7.07L6.59 6.34"/><path d="M12 9a4 4 0 0 1 4 4"/><path d="M7 18a4 4 0 0 1 1.8-7.6A6 6 0 0 1 19 15a3 3 0 0 1-1 5H8a3 3 0 0 1-1-2Z"/></svg>',
+  'tennis-courts-after-rain.html': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 16.6A4.5 4.5 0 0 0 18 8a6 6 0 0 0-11.6 1.6A4.5 4.5 0 0 0 6 18"/><path d="M9 15v5m4-7v5m4-3v5"/></svg>',
+  'public-tennis-courts-fairfax-va.html': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+};
+const guideArrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>';
 const pages = [
   {
     file: 'best-time-to-play-tennis.html', title: 'Best Time to Play Tennis | Seven-Day Weather Planner | OpenCourts',
@@ -143,7 +149,7 @@ function render(page) {
     <section class="landing-practical" aria-labelledby="practical-title"><div class="landing-practical-heading"><p class="landing-kicker">${page.practicalKicker}</p><h2 id="practical-title">${page.practicalTitle}</h2></div><div class="landing-steps">${page.practical.map(([title, body], index) => `<article><span>0${index + 1}</span><div><h3>${title}</h3><p>${body}${page.cityRulesUrl && index === 2 ? ` <a class="landing-text-link" href="${page.cityRulesUrl}" target="_blank" rel="noopener noreferrer" data-analytics-event="landing_official_link_click" data-analytics-label="city_court_rules">Read city court guidance</a>.` : ''}</p></div></article>`).join('')}</div></section>
     <p class="landing-caveat">${page.note}</p>
     <section class="landing-next"><div><p class="landing-kicker">PLAN WITH OPENCOURTS</p><h2>${page.closing}</h2></div><a href="${page.secondaryHref}" ${cityPreset} data-analytics-event="landing_cta_click" data-analytics-label="secondary">${page.secondary}</a></section>
-    <nav class="landing-related" aria-label="More OpenCourts guides"><span>More guides</span>${pages.filter(other => other.file !== page.file).map(other => `<a href="/${other.file}" data-analytics-event="landing_related_click" data-analytics-label="${other.file}">${other.relatedLabel}</a>`).join('')}</nav>
+    <nav class="landing-related" aria-label="More OpenCourts guides"><span class="landing-related-label">More guides</span><div class="landing-related-links">${pages.filter(other => other.file !== page.file).map(other => `<a href="/${other.file}" data-analytics-event="landing_related_click" data-analytics-label="${other.file}">${guideIcons[other.file]}<span>${other.relatedLabel}</span>${guideArrow}</a>`).join('')}</div></nav>
   </main>
   <footer class="page-footer"><a class="page-brand" href="/" aria-label="OpenCourts home"><span class="page-brand-mark">${ball}</span><span>open<span class="page-brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><nav class="page-footer-nav" aria-label="Footer"><a href="/support.html">Support</a><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact.html">Contact</a></nav><span class="page-copyright">© 2026 OpenCourts</span></footer>
 </body>
