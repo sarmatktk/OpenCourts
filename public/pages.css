@@ -45,3 +45,16 @@ a{color:inherit;text-decoration:none}
 :root[data-theme="dark"] .page-inline-link,:root[data-theme="dark"] .page-footer a:hover{color:#dce9af}
 :root[data-theme="dark"] .support-page-button{background:#dce9af;color:#17382e}
 :root[data-theme="dark"] .support-page-button:hover{background:#e8f2c6}
+.support-page .page-header{height:82px;background:var(--bg)}
+.support-page .page-header-inner{max-width:none;padding:0 max(calc((100% - 1240px)/2),5.5%)}
+.support-page .page-header .page-brand{font-size:22px}
+.support-page .page-brand-mark{background:transparent;border:1px solid var(--line)}
+.support-page .page-header .page-brand-mark{width:36px;height:36px}
+.support-page .page-footer{min-height:90px}
+.support-header-actions{display:flex;align-items:center;gap:10px}
+.support-theme-toggle{width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);cursor:pointer}
+.support-theme-toggle .support-sun,:root[data-theme="dark"] .support-theme-toggle .support-moon{display:none}
+:root[data-theme="dark"] .support-theme-toggle .support-sun{display:block}
+.support-theme-toggle:focus-visible,.support-page .page-brand:focus-visible,.support-page-button:focus-visible,.support-page-qr:focus-visible{outline:3px solid #86a946;outline-offset:3px}
+:root[data-theme="dark"] .support-page .page-brand-mark{color:#dce9af}
+@media(max-width:700px){.support-page .page-header{height:68px}.support-page .page-header-inner{padding:0 18px}.support-page .page-header .page-brand{font-size:18px}.support-page .page-header .page-brand-mark{width:36px;height:36px}.support-theme-toggle{width:44px;height:44px}.support-header-actions{gap:6px}}
