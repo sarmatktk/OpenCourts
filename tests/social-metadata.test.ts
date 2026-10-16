@@ -10,17 +10,17 @@ const landingPages = [
 
 const pages = [
   ['index.html', 'https://opencourts.us/'],
-  ['public/about.html', 'https://opencourts.us/about.html'],
-  ['public/contact.html', 'https://opencourts.us/contact.html'],
-  ['public/privacy.html', 'https://opencourts.us/privacy.html'],
-  ['public/support.html', 'https://opencourts.us/support.html'],
+  ['public/about.html', 'https://opencourts.us/about'],
+  ['public/contact.html', 'https://opencourts.us/contact'],
+  ['public/privacy.html', 'https://opencourts.us/privacy'],
+  ['public/support.html', 'https://opencourts.us/support'],
 ] as const;
 
 describe('social share metadata', () => {
   it('gives each landing page a distinct, correctly sized preview and shared site icons', () => {
     for (const [file, imageName] of landingPages) {
       const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
-      const url = `https://opencourts.us/${file}`;
+      const url = `https://opencourts.us/${file.replace(/\.html$/, '')}`;
       const imageUrl = `https://opencourts.us/${imageName}`;
       expect(html).toContain(`rel="canonical" href="${url}"`);
       expect(html).toContain(`property="og:url" content="${url}"`);
@@ -71,6 +71,18 @@ describe('social share metadata', () => {
       expect(html).toContain('name="twitter:image" content="https://opencourts.us/social-preview.png"');
     });
   }
+  it('lists only direct canonical page URLs in the sitemap and internal links', () => {
+    const allPages = [...pages.map(([file, url]) => [file, url]), ...landingPages.map(([file]) => [`public/${file}`, `https://opencourts.us/${file.replace(/\.html$/, '')}`])];
+    const sitemap = readFileSync(resolve(process.cwd(), 'public/sitemap.xml'), 'utf8');
+    const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+    expect(sitemapUrls.sort()).toEqual(allPages.map(([, url]) => url).sort());
+    for (const [file, url] of allPages) {
+      const html = readFileSync(resolve(process.cwd(), file), 'utf8');
+      expect(html).toContain(`rel="canonical" href="${url}"`);
+      expect(html).toContain(`property="og:url" content="${url}"`);
+      expect(html).not.toMatch(/href="\/[a-z-]+\.html"/);
+    }
+  });
   it('describes the court finder and weather planner in crawlable page metadata', () => {
     const home = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
     const about = readFileSync(resolve(process.cwd(), 'public/about.html'), 'utf8');

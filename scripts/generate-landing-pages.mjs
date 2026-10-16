@@ -10,6 +10,7 @@ const guideIcons = {
   'public-tennis-courts-fairfax-va.html': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
 };
 const guideArrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>';
+const pagePath = file => `/${file.replace(/\.html$/, '')}`;
 const pages = [
   {
     file: 'best-time-to-play-tennis.html', title: 'Best Time to Play Tennis | Seven-Day Weather Planner | OpenCourts',
@@ -98,7 +99,7 @@ function detailMarkup(page) {
 }
 
 function render(page) {
-  const url = `https://opencourts.us/${page.file}`;
+  const url = `https://opencourts.us${pagePath(page.file)}`;
   const image = `https://opencourts.us/${page.social}`;
   const cityPreset = page.cityPreset ? 'data-city-preset="fairfax-va"' : '';
   return `<!doctype html>
@@ -139,7 +140,7 @@ function render(page) {
 <body>
   <header class="page-header landing-header"><div class="page-header-inner">
     <a class="page-brand" href="/" aria-label="OpenCourts home" data-analytics-event="landing_nav_click" data-analytics-label="home"><span class="page-brand-mark">${ball}</span><span>open<span class="page-brand-light">courts</span></span></a>
-    <nav id="landing-nav" class="landing-nav" aria-label="Main navigation"><a href="/#explore" data-analytics-event="landing_nav_click" data-analytics-label="explore">Explore courts</a><a href="/#conditions" data-analytics-event="landing_nav_click" data-analytics-label="weather">Weather</a><a href="/#about" data-analytics-event="landing_nav_click" data-analytics-label="about">About</a><a href="/support.html" data-analytics-event="landing_nav_click" data-analytics-label="support">Support</a></nav>
+    <nav id="landing-nav" class="landing-nav" aria-label="Main navigation"><a href="/#explore" data-analytics-event="landing_nav_click" data-analytics-label="explore">Explore courts</a><a href="/#conditions" data-analytics-event="landing_nav_click" data-analytics-label="weather">Weather</a><a href="/#about" data-analytics-event="landing_nav_click" data-analytics-label="about">About</a><a href="/support" data-analytics-event="landing_nav_click" data-analytics-label="support">Support</a></nav>
     <div class="landing-actions"><button type="button" data-near-me data-analytics-event="landing_near_me_click" data-analytics-label="near_me" class="landing-near"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg><span>Near me</span></button><button type="button" data-theme-toggle data-analytics-event="landing_theme_click" data-analytics-label="toggle" class="landing-theme" aria-label="Switch to dark mode"><svg class="landing-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="landing-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg></button><button type="button" data-menu-toggle class="landing-menu" aria-label="Toggle menu" aria-expanded="false" aria-controls="landing-nav"><svg class="landing-menu-open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><svg class="landing-menu-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   </div></header>
   <main class="landing-main">
@@ -149,9 +150,9 @@ function render(page) {
     <section class="landing-practical" aria-labelledby="practical-title"><div class="landing-practical-heading"><p class="landing-kicker">${page.practicalKicker}</p><h2 id="practical-title">${page.practicalTitle}</h2></div><div class="landing-steps">${page.practical.map(([title, body], index) => `<article><span>0${index + 1}</span><div><h3>${title}</h3><p>${body}${page.cityRulesUrl && index === 2 ? ` <a class="landing-text-link" href="${page.cityRulesUrl}" target="_blank" rel="noopener noreferrer" data-analytics-event="landing_official_link_click" data-analytics-label="city_court_rules">Read city court guidance</a>.` : ''}</p></div></article>`).join('')}</div></section>
     <p class="landing-caveat">${page.note}</p>
     <section class="landing-next"><div><p class="landing-kicker">PLAN WITH OPENCOURTS</p><h2>${page.closing}</h2></div><a href="${page.secondaryHref}" ${cityPreset} data-analytics-event="landing_cta_click" data-analytics-label="secondary">${page.secondary}</a></section>
-    <nav class="landing-related" aria-label="More OpenCourts guides"><span class="landing-related-label">More guides</span><div class="landing-related-links">${pages.filter(other => other.file !== page.file).map(other => `<a href="/${other.file}" data-analytics-event="landing_related_click" data-analytics-label="${other.file}">${guideIcons[other.file]}<span>${other.relatedLabel}</span>${guideArrow}</a>`).join('')}</div></nav>
+    <nav class="landing-related" aria-label="More OpenCourts guides"><span class="landing-related-label">More guides</span><div class="landing-related-links">${pages.filter(other => other.file !== page.file).map(other => `<a href="${pagePath(other.file)}" data-analytics-event="landing_related_click" data-analytics-label="${other.file}">${guideIcons[other.file]}<span>${other.relatedLabel}</span>${guideArrow}</a>`).join('')}</div></nav>
   </main>
-  <footer class="page-footer"><a class="page-brand" href="/" aria-label="OpenCourts home"><span class="page-brand-mark">${ball}</span><span>open<span class="page-brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><nav class="page-footer-nav" aria-label="Footer"><a href="/support.html">Support</a><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact.html">Contact</a></nav><span class="page-copyright">© 2026 OpenCourts</span></footer>
+  <footer class="page-footer"><a class="page-brand" href="/" aria-label="OpenCourts home"><span class="page-brand-mark">${ball}</span><span>open<span class="page-brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><nav class="page-footer-nav" aria-label="Footer"><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact">Contact</a></nav><span class="page-copyright">© 2026 OpenCourts</span></footer>
 </body>
 </html>
 `;
