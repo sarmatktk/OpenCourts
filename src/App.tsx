@@ -14,6 +14,39 @@ const PARK_PRESETS: Record<string, Place> = {
   'greenbriar': { label: 'Greenbriar Park, Fairfax County, Virginia', lat: 38.8653902, lon: -77.4038761 },
 };
 function TennisBall({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" strokeWidth="1.5"/></svg>; }
+function courtBallImage(highlight: string, shade: string, seam: string): ImageData {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 48;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(2, 2);
+  ctx.beginPath(); ctx.arc(12, 12, 9.3, 0, Math.PI * 2);
+  ctx.save();
+  ctx.shadowColor = '#173d3077'; ctx.shadowBlur = 2.5; ctx.shadowOffsetY = 1;
+  const fill = ctx.createRadialGradient(9, 8, 1, 12, 12, 12);
+  fill.addColorStop(0, highlight); fill.addColorStop(1, shade);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = '#123d32'; ctx.lineWidth = 1.25; ctx.stroke();
+  ctx.save(); ctx.clip();
+  ctx.translate(12, 12); ctx.rotate(-Math.PI / 8); ctx.translate(-12, -12);
+  ctx.beginPath();
+  ctx.moveTo(4, 2); ctx.bezierCurveTo(10, 7, 10, 17, 4, 22);
+  ctx.moveTo(20, 2); ctx.bezierCurveTo(14, 7, 14, 17, 20, 22);
+  ctx.strokeStyle = seam; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.restore();
+  return ctx.getImageData(0, 0, 48, 48);
+}
+const BALL_COLORS = {
+  lit: ['#efff94', '#c3dd42', '#36543b'],
+  unconfirmed: ['#fff', '#e7ece5', '#8fa48d'],
+  search: ['#f29a6a', '#cd5f2f', '#f7ecd9'],
+} as const;
+function ballImageUrl(colors: readonly [string, string, string]): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 48;
+  canvas.getContext('2d')!.putImageData(courtBallImage(...colors), 0, 0);
+  return canvas.toDataURL('image/png');
+}
 function distanceMiles(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (b.lat-a.lat)*rad; const dLon = (b.lon-a.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
 function sampleRainCourts<T extends { id: string; lat: number; lon: number }>(courts: T[], place: Place, limit = 50): T[] {
   const ranked = [...courts].sort((a, b) => distanceMiles(a, place) - distanceMiles(b, place));
@@ -101,6 +134,11 @@ function WindowScoreFactors({ forecast }: { forecast: Forecast }) {
 }
 
 function App() {
+  const legendBalls = useMemo(() => ({
+    lit: ballImageUrl(BALL_COLORS.lit),
+    unconfirmed: ballImageUrl(BALL_COLORS.unconfirmed),
+    search: ballImageUrl(BALL_COLORS.search),
+  }), []);
   const [highlightedPark, setHighlightedPark] = useState(() => {
     const slug = new URLSearchParams(window.location.search).get('park');
     return slug && PARK_PRESETS[slug] ? slug : null;
@@ -251,14 +289,17 @@ function App() {
       m.addSource('courts', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, cluster: true, clusterMaxZoom: 13, clusterRadius: 45 });
       m.addLayer({ id: 'clusters', type: 'circle', source: 'courts', filter: ['has', 'point_count'], paint: { 'circle-color': '#123d32', 'circle-radius': ['step', ['get', 'point_count'], 18, 10, 23, 30, 29], 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
       m.addLayer({ id: 'cluster-count', type: 'symbol', source: 'courts', filter: ['has', 'point_count'], layout: { 'text-field': '{point_count_abbreviated}', 'text-font': ['Open Sans Regular'], 'text-size': 12 }, paint: { 'text-color': '#fff' } });
-      m.addLayer({ id: 'court-points', type: 'circle', source: 'courts', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': ['case', ['==', ['get', 'lit'], 'yes'], '#d5f36a', '#fff'], 'circle-radius': 8, 'circle-stroke-color': ['match', ['get', 'confidence'], 'High', '#84a92d', 'Moderate', '#c08a2e', 'Low', '#b65c58', '#123d32'], 'circle-stroke-width': 2.5 } });
+      m.addImage('court-ball-lit', courtBallImage(...BALL_COLORS.lit), { pixelRatio: 2 });
+      m.addImage('court-ball-unconfirmed', courtBallImage(...BALL_COLORS.unconfirmed), { pixelRatio: 2 });
+      m.addLayer({ id: 'court-ball-icons', type: 'symbol', source: 'courts', filter: ['!', ['has', 'point_count']], layout: { 'icon-image': ['case', ['==', ['get', 'lit'], 'yes'], 'court-ball-lit', 'court-ball-unconfirmed'], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+      m.addLayer({ id: 'court-radar-quality', type: 'circle', source: 'courts', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': ['match', ['get', 'confidence'], 'High', '#84a92d', 'Moderate', '#c08a2e', 'Low', '#b65c58', 'rgba(0,0,0,0)'], 'circle-radius': ['match', ['get', 'confidence'], 'High', 3, 'Moderate', 3, 'Low', 3, 0], 'circle-translate': [8, 8], 'circle-stroke-color': '#fff', 'circle-stroke-width': ['match', ['get', 'confidence'], 'High', 1, 'Moderate', 1, 'Low', 1, 0] } });
       m.on('click', 'clusters', e => { const f = m.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0]; const id = f.properties?.cluster_id; (m.getSource('courts') as GeoJSONSource).getClusterExpansionZoom(id).then(z => m.easeTo({ center: (f.geometry as any).coordinates, zoom: z })).catch(() => undefined); });
-      m.on('click', 'court-points', e => { const f = m.queryRenderedFeatures(e.point, { layers: ['court-points'] })[0]; const id = f.properties?.id; const court = courtsRef.current.find(c => c.id === id); if (court) { setSelected(court); m.flyTo({ center: [court.lon, court.lat], zoom: Math.max(14, m.getZoom()) }); } });
+      m.on('click', 'court-ball-icons', e => { const f = m.queryRenderedFeatures(e.point, { layers: ['court-ball-icons'] })[0]; const id = f.properties?.id; const court = courtsRef.current.find(c => c.id === id); if (court) { setSelected(court); m.flyTo({ center: [court.lon, court.lat], zoom: Math.max(14, m.getZoom()) }); } });
       const source = m.getSource('courts') as GeoJSONSource;
       source.setData({ type: 'FeatureCollection', features: filteredRef.current.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lon, c.lat] }, properties: { id: c.id, lit: c.lighting } })) as any });
       setMapReady(true);
       m.on('mouseenter', 'clusters', () => { m.getCanvas().style.cursor = 'pointer'; }); m.on('mouseleave', 'clusters', () => { m.getCanvas().style.cursor = ''; });
-      m.on('mouseenter', 'court-points', () => { m.getCanvas().style.cursor = 'pointer'; }); m.on('mouseleave', 'court-points', () => { m.getCanvas().style.cursor = ''; });
+      m.on('mouseenter', 'court-ball-icons', () => { m.getCanvas().style.cursor = 'pointer'; }); m.on('mouseleave', 'court-ball-icons', () => { m.getCanvas().style.cursor = ''; });
     });
     }).catch(error => { console.error('[OpenCourts] Map failed to initialize', error); setMapError('The map could not load. Court results are still available in the list.'); });
     return () => { disposed = true; map.current?.remove(); map.current = null; };
@@ -267,7 +308,8 @@ function App() {
   const filteredRef = useRef(filtered); filteredRef.current = filtered;
   const courtsRef = useRef(courts); useEffect(() => { courtsRef.current = courts; }, [courts]);
   useEffect(() => { const m = map.current; const src = m?.getSource('courts') as GeoJSONSource | undefined; if (!src) return;
-    src.setData({ type: 'FeatureCollection', features: filtered.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lon, c.lat] }, properties: { id: c.id, lit: c.lighting, confidence: rainAssessments.find(assessment => assessment.courtId === c.id)?.confidence ?? 'Unknown' } })) as any });
+    const qualityByCourt = new Map(rainAssessments.map(assessment => [assessment.courtId, assessment.confidence]));
+    src.setData({ type: 'FeatureCollection', features: filtered.map(c => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [c.lon, c.lat] }, properties: { id: c.id, lit: c.lighting, confidence: qualityByCourt.get(c.id) ?? 'Unknown' } })) as any });
   }, [filtered, rainAssessments, mapReady]);
   useEffect(() => {
     const park = highlightedPark ? PARK_PRESETS[highlightedPark] : undefined;
@@ -303,9 +345,10 @@ function App() {
       const markerLabel = place.label === 'Your location' ? 'Your location' : `Search center: ${place.label}`;
       element.setAttribute('aria-label', markerLabel);
       element.setAttribute('title', markerLabel);
-      const ball = document.createElement('span');
+      const ball = document.createElement('img');
       ball.className = 'search-origin-ball';
-      ball.innerHTML = '<svg width="27" height="27" viewBox="0 0 27 27" fill="none" aria-hidden="true"><circle cx="13.5" cy="13.5" r="12" fill="#fff" stroke="#263b32" stroke-width="2"/><circle cx="13.5" cy="13.5" r="9.5" fill="#d96332"/><path d="M8 5.5c2.7 2.4 4.1 5 4.1 8s-1.4 5.6-4.1 8M19 5.5c-2.7 2.4-4.1 5-4.1 8s1.4 5.6 4.1 8" stroke="#fff" stroke-width="1.5"/></svg>';
+      ball.alt = '';
+      ball.src = legendBalls.search;
       element.append(ball);
       marker = new ml.Marker({ element, anchor: 'center' })
         .setLngLat([place.lon, place.lat])
@@ -313,7 +356,7 @@ function App() {
         .addTo(map.current);
     }).catch(() => { /* Court results remain available if the marker cannot load. */ });
     return () => { removed = true; marker?.remove(); };
-  }, [place, mapReady, highlightedPark]);
+  }, [place, mapReady, highlightedPark, legendBalls.search]);
   useEffect(() => { if (map.current) map.current.flyTo({ center: [place.lon, place.lat], zoom: 12, duration: 900 }); }, [place]);
 
   const displayed = filtered.slice(0, visibleCount);
@@ -451,7 +494,7 @@ function App() {
         </div>
         <div className="map-panel"><div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div><div className="map-alert-stack">{areaRainAlert && <div className="map-weather-alert" role="status"><CloudRain size={14} aria-hidden="true"/><span>Recent rain nearby. Check court conditions.</span></div>}{alertsForDisplay.slice(0, 2).map(alert => <div className={`map-heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={alert.id}><strong><WeatherAlertIcon alert={alert} size={13}/>{alert.event}</strong>{alert.headline}</div>)}{showWinterForecastAlert && <div className={`map-winter-alert winter-risk-${showWinterForecastAlert}`} role="status">{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={14} aria-hidden="true"/> : <Snowflake size={14} aria-hidden="true"/>}{winterMapMessage}</div>}{courtHeatCaution && !activeHeatAlert && <div className={`map-heat-alert ${courtHeatCaution.high ? "heat-alert-warning" : "heat-alert-advisory"}`} role="status"><strong><ThermometerSun size={13} aria-hidden="true"/>{courtHeatCaution.label}</strong></div>}</div><button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
           {selected && <div className="map-popover"><button className="popover-close" aria-label="Close selected court" onClick={() => setSelected(null)}><X size={16}/></button><span className="popover-label">COURT DETAILS</span><strong>{selected.name}</strong>{selected.contextName && <span className="popover-context">{selected.contextName}</span>}<span className="popover-address">{selected.address || 'Address not listed'}{selected.addressApprox && selected.address ? ' · approximate' : ''}</span><span>{selected.courts ? `${selected.courts} courts` : 'Court count not listed'}{selected.surface ? ` · ${selected.surface} surface` : ''} · {selected.access === 'public' ? 'Public access listed' : 'Access not listed'} · {selected.lighting === 'yes' ? 'Lights listed' : selected.lighting === 'no' ? 'No lights listed' : 'Lighting not listed'}</span><div className="popover-rain"><span className="popover-label">RECENT PRECIPITATION · RADAR ESTIMATE</span>{selectedRain ? <><strong>{hasRadarReading(selectedRain) ? selectedRain.score : '—'}{hasRadarReading(selectedRain) && <small>/100</small>}<i className={`rain-confidence confidence-${selectedRain.confidence.toLowerCase()}`}>Radar quality: {selectedRain.confidence}</i></strong>{selectedRainCondition && <span className={`rain-condition rain-condition-${selectedRainCondition.tone}`}><CloudRain size={13} aria-hidden="true"/>{selectedRainCondition.label}</span>}{areaRainAlert && rainCandidateIds.has(selected.id) && hasRadarReading(selectedRain) && selectedRain.score > 80 && <span className="rain-condition rain-condition-moderate"><CloudRain size={13} aria-hidden="true"/>Rain nearby · check current conditions</span>}<span>{selectedRain.summary}</span><span>{rainfallDetail(selectedRain)}</span></> : selectedRainLoading || rainLoading ? <span>Checking recent radar near this court…</span> : selectedRainError || rainError ? <span>{selectedRainError || rainError}</span> : <span>No radar estimate available for this court.</span>}</div>{currentWinterCaution && <span className={`winter-weather-note winter-risk-${currentWinterCaution.type}`}>{currentWinterCaution.type === 'ice' ? <ThermometerSnowflake size={13} aria-hidden="true"/> : <Snowflake size={13} aria-hidden="true"/>}{courtWinterLabel}</span>}{courtHeatCaution && <span className={`court-heat-note ${courtHeatCaution.high ? "heat-note-high" : "heat-note-caution"}`}><ThermometerSun size={13} aria-hidden="true"/>{courtHeatCaution.label}</span>}<a className="court-source-link" href={selected.sourceUrl} target="_blank" rel="noreferrer">Check or edit OpenStreetMap data <ExternalLink size={13}/></a><button className="directions" onClick={() => directions(selected)}>Get directions <ArrowUpRight size={15}/></button></div>}
-          <div className="map-legend" aria-label="Map legend"><span className="legend-item"><span className="legend-dot lime"/>Lighted</span><span className="legend-item"><span className="legend-dot white"/>Lighting unknown</span><span className="legend-label">Radar quality</span><span className="legend-item"><span className="legend-ring confidence-high"/>High</span><span className="legend-item"><span className="legend-ring confidence-moderate"/>Moderate</span><span className="legend-item"><span className="legend-ring confidence-low"/>Low</span></div>
+          <div className="map-legend" aria-label="Map legend"><span className="legend-item"><img className="legend-ball-image" src={legendBalls.lit} alt=""/>Lights listed</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unconfirmed} alt=""/>Lights not confirmed</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.search} alt=""/>Search center</span><span className="legend-label">Radar quality</span><span className="legend-item"><span className="legend-quality high"/>High</span><span className="legend-item"><span className="legend-quality moderate"/>Moderate</span><span className="legend-item"><span className="legend-quality low"/>Low</span></div>
           <button className="mobile-list-toggle" onClick={() => setMobileList(!mobileList)}>{mobileList ? <><ArrowDown size={16}/> Show map</> : <><ArrowLeft size={16}/> View {filtered.length} courts</>}</button>
         </div>
       </section>
