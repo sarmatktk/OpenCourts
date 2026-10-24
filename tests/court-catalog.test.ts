@@ -78,7 +78,7 @@ describe('D1 court catalog', () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it('builds a replace-safe SQL import from Overpass JSON and excludes non-tennis facilities', async () => {
+  it('writes only changed courts and removals from Overpass JSON', async () => {
     const dir = await mkdtemp(path.join(process.cwd(), '.wrangler', 'opencourts-catalog-'));
     temporaryDirectories.push(dir);
     const output = path.join(dir, 'sql');
@@ -87,16 +87,21 @@ describe('D1 court catalog', () => {
       { type: 'node', id: 18, lat: 40.7, lon: -74, tags: { leisure: 'pitch', sport: 'basketball' } },
     ] };
     const records = normalizeCourtRecords(parseOverpassResponse(data));
-    const files = await writeCatalogFiles(records, output);
+    const files = await writeCatalogFiles(records, output, 250, [
+      { osm_type: 'way', osm_id: 17, lat: 40.7, lon: -74, tags_json: JSON.stringify(records[0].tags) },
+      { osm_type: 'node', osm_id: 19, lat: 40, lon: -74, tags_json: '{}' },
+    ]);
     const insert = await readFile(path.join(output, '0001-courts.sql'), 'utf8');
-    const finalize = await readFile(path.join(output, '999-publish.sql'), 'utf8');
 
     expect(records).toHaveLength(1);
     expect(files.chunks).toBe(1);
-    expect(insert).toContain("O''Brien Courts");
-    expect(insert).not.toContain('18, 40.7');
-    expect(finalize).toContain('INSERT OR REPLACE INTO tennis_courts');
-    expect(finalize).toContain('DELETE FROM tennis_courts WHERE NOT EXISTS');
+    expect(files.changed).toBe(0);
+    expect(files.removed).toBe(1);
+    expect(insert).toContain('DELETE FROM tennis_courts WHERE osm_type=\'node\' AND osm_id=19');
+    expect(insert).not.toContain('way');
+    const changed = await writeCatalogFiles(records, output, 250, []);
+    expect(changed.changed).toBe(1);
+    expect(await readFile(path.join(output, '0001-courts.sql'), 'utf8')).toContain("O''Brien Courts");
   });
 
   it('reads OSM type and id attributes from GeoJSON and derives a court center', () => {

@@ -78,6 +78,8 @@ jobs:
       - name: Import and publish court records
         shell: bash
         run: |
+          set -euo pipefail
+          # The importer reads the live catalog and writes only changed courts.
           regions=(us-northeast us-midwest us-south us-west us-pacific)
           inputs=()
           for region in "${regions[@]}"; do

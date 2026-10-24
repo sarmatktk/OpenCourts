@@ -79,29 +79,69 @@ function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 
-export async function writeCatalogFiles(records, outputDir, rowsPerFile = ROWS_PER_FILE) {
+export function diffCourtRecords(records, existing) {
+  const current = new Map(existing.map(row => [`${row.osm_type}/${row.osm_id}`, row]));
+  const changed = [];
+  for (const record of records) {
+    const key = `${record.type}/${record.id}`;
+    const old = current.get(key);
+    const tags = JSON.stringify(record.tags);
+    if (!old || Number(old.lat) !== record.lat || Number(old.lon) !== record.lon || old.tags_json !== tags) changed.push(record);
+    current.delete(key);
+  }
+  return { changed, removed: [...current.values()] };
+}
+
+export async function writeCatalogFiles(records, outputDir, rowsPerFile = ROWS_PER_FILE, existing = []) {
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
-  const prep = path.join(outputDir, '000-prepare.sql');
-  await writeFile(prep, `DROP TABLE IF EXISTS tennis_courts_staging;\nCREATE TABLE tennis_courts_staging (osm_type TEXT NOT NULL, osm_id INTEGER NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL, tags_json TEXT NOT NULL, PRIMARY KEY (osm_type, osm_id));\n`);
+  const { changed, removed } = diffCourtRecords(records, existing);
 
   const columns = '(osm_type, osm_id, lat, lon, tags_json)';
-  for (let start = 0, part = 1; start < records.length; start += rowsPerFile, part++) {
-    const batch = records.slice(start, start + rowsPerFile);
+  let part = 0;
+  for (let start = 0; start < changed.length; start += rowsPerFile) {
+    const batch = changed.slice(start, start + rowsPerFile);
     const inserts = batch.map(item => `(${sqlString(item.type)}, ${item.id}, ${item.lat}, ${item.lon}, ${sqlString(JSON.stringify(item.tags))})`);
     const statements = [];
     for (let offset = 0; offset < inserts.length; offset += 50) {
-      statements.push(`INSERT OR REPLACE INTO tennis_courts_staging ${columns} VALUES\n${inserts.slice(offset, offset + 50).join(',\n')};`);
+      statements.push(`INSERT INTO tennis_courts ${columns} VALUES\n${inserts.slice(offset, offset + 50).join(',\n')}\nON CONFLICT(osm_type, osm_id) DO UPDATE SET lat=excluded.lat, lon=excluded.lon, tags_json=excluded.tags_json;`);
     }
-    await writeFile(path.join(outputDir, `${String(part).padStart(4, '0')}-courts.sql`), `${statements.join('\n')}\n`);
+    await writeFile(path.join(outputDir, `${String(++part).padStart(4, '0')}-courts.sql`), `${statements.join('\n')}\n`);
   }
+  for (let start = 0; start < removed.length; start += rowsPerFile) {
+    const batch = removed.slice(start, start + rowsPerFile);
+    await writeFile(path.join(outputDir, `${String(++part).padStart(4, '0')}-courts.sql`), `${batch.map(row => `DELETE FROM tennis_courts WHERE osm_type=${sqlString(row.osm_type)} AND osm_id=${row.osm_id};`).join('\n')}\n`);
+  }
+  return { chunks: part, changed: changed.length, removed: removed.length };
+}
 
-  const finalize = path.join(outputDir, '999-publish.sql');
-  // D1 remote SQL execution does not provide a persistent transaction across
-  // statements. Upsert first, then remove stale rows as the final operation;
-  // a failed publish therefore keeps the existing catalog available.
-  await writeFile(finalize, `INSERT OR REPLACE INTO tennis_courts (osm_type, osm_id, lat, lon, tags_json) SELECT osm_type, osm_id, lat, lon, tags_json FROM tennis_courts_staging;\nDELETE FROM tennis_courts WHERE NOT EXISTS (SELECT 1 FROM tennis_courts_staging WHERE tennis_courts_staging.osm_type = tennis_courts.osm_type AND tennis_courts_staging.osm_id = tennis_courts.osm_id);\nDROP TABLE tennis_courts_staging;\n`);
-  return { prep, finalize, chunks: Math.ceil(records.length / rowsPerFile) };
+async function cloudflareRequest(url, body) {
+  const response = await fetch(url, { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const data = await response.json();
+  if (!response.ok || !data.success) throw new Error(`Cloudflare D1 request failed: ${JSON.stringify(data.errors ?? response.status)}`);
+  return data;
+}
+
+export async function readRemoteCatalog(database) {
+  const account = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!account || !process.env.CLOUDFLARE_API_TOKEN) throw new Error('CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required for --execute.');
+  const base = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/d1/database`;
+  const list = await cloudflareRequest(`${base}?name=${encodeURIComponent(database)}`);
+  const matches = list.result.filter(item => item.name === database);
+  if (matches.length !== 1) throw new Error(`Expected exactly one D1 database named ${database}; found ${matches.length}.`);
+  const url = `${base}/${matches[0].uuid}/query`;
+  const rows = [];
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const response = await cloudflareRequest(url, { sql: 'SELECT osm_type, osm_id, lat, lon, tags_json FROM tennis_courts ORDER BY osm_type, osm_id LIMIT ? OFFSET ?', params: [pageSize, offset] });
+    const result = response.result?.[0];
+    if (!result?.success || !Array.isArray(result.results)) throw new Error('Invalid D1 catalog query response.');
+    rows.push(...result.results);
+    if (result.results.length < pageSize) break;
+    offset += pageSize;
+  }
+  return rows;
 }
 
 async function readCandidates(inputPaths) {
@@ -149,16 +189,15 @@ export async function importCatalog(args = process.argv.slice(2)) {
   const outputDir = path.resolve(option(args, '--output-dir', '.court-catalog-import'));
   const database = option(args, '--database', 'opencourts-courts');
   const records = normalizeCourtRecords(await readCandidates(inputPaths));
-  const generated = await writeCatalogFiles(records, outputDir);
+  const existing = args.includes('--execute') ? await readRemoteCatalog(database) : [];
+  const generated = await writeCatalogFiles(records, outputDir, ROWS_PER_FILE, existing);
 
   console.log(`Prepared ${records.length} unique tennis court records in ${outputDir}.`);
-  console.log('The current catalog remains live until the final publish step.');
+  console.log(`${generated.changed} additions/updates and ${generated.removed} removals; unchanged courts require no writes.`);
   if (args.includes('--execute')) {
-    runWrangler(database, generated.prep);
     for (let index = 1; index <= generated.chunks; index++) {
       runWrangler(database, path.join(outputDir, `${String(index).padStart(4, '0')}-courts.sql`));
     }
-    runWrangler(database, generated.finalize);
     console.log(`Published ${records.length} records to the remote D1 database “${database}”.`);
   } else {
     console.log(`To upload with the Wrangler login already configured, rerun with --execute --database ${database}.`);
