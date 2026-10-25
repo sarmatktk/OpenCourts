@@ -3,7 +3,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestGet as getCourts } from '../functions/api/courts';
 import { findCourtsInCatalog, type D1Database } from '../functions/lib/court-catalog';
-import { normalizeCourtRecords, parseGeoJSONFeature, parseOverpassResponse, writeCatalogFiles } from '../scripts/import-court-catalog.mjs';
+import { normalizeCourtRecords, parseGeoJSONFeature, parseOverpassResponse, readRemoteCatalog, writeCatalogFiles } from '../scripts/import-court-catalog.mjs';
 import { enrichCourtCatalog } from '../scripts/enrich-court-catalog.mjs';
 
 const temporaryDirectories: string[] = [];
@@ -13,6 +13,33 @@ afterEach(async () => {
 });
 
 describe('D1 court catalog', () => {
+  it('reads the remote catalog with keyset pages instead of rescanning offsets', async () => {
+    const previousAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const previousToken = process.env.CLOUDFLARE_API_TOKEN;
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    const queries: any[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url, options) => {
+      if (!options?.body) return Response.json({ success: true, result: [{ name: 'courts', uuid: 'test-db' }] });
+      const body = JSON.parse(options.body);
+      queries.push(body);
+      const results = queries.length === 1
+        ? Array.from({ length: 1000 }, (_, index) => ({ osm_type: 'node', osm_id: index + 1, lat: 1, lon: 2, tags_json: '{}' }))
+        : [{ osm_type: 'node', osm_id: 1001, lat: 1, lon: 2, tags_json: '{}' }];
+      return Response.json({ success: true, result: [{ success: true, results }] });
+    }));
+    try {
+      expect(await readRemoteCatalog('courts')).toHaveLength(1001);
+      expect(queries[0].sql).toContain('WHERE (osm_type, osm_id) > (?, ?)');
+      expect(queries[0].sql).not.toContain('OFFSET');
+      expect(queries[1].params).toEqual(['node', 1000, 1000]);
+    } finally {
+      if (previousAccount === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
+      else process.env.CLOUDFLARE_ACCOUNT_ID = previousAccount;
+      if (previousToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
+      else process.env.CLOUDFLARE_API_TOKEN = previousToken;
+    }
+  });
   it('returns normalized Overpass-shaped results from an indexed bounding-box query', async () => {
     const all = vi.fn(async () => ({ success: true, results: [
       { osm_type: 'way', osm_id: 42, lat: 40.72, lon: -73.99, tags_json: '{"leisure":"pitch","sport":"tennis"}' },

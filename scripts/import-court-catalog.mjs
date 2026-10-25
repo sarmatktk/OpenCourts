@@ -131,15 +131,19 @@ export async function readRemoteCatalog(database) {
   if (matches.length !== 1) throw new Error(`Expected exactly one D1 database named ${database}; found ${matches.length}.`);
   const url = `${base}/${matches[0].uuid}/query`;
   const rows = [];
-  let offset = 0;
+  let lastType = '';
+  let lastId = 0;
   const pageSize = 1000;
   while (true) {
-    const response = await cloudflareRequest(url, { sql: 'SELECT osm_type, osm_id, lat, lon, tags_json FROM tennis_courts ORDER BY osm_type, osm_id LIMIT ? OFFSET ?', params: [pageSize, offset] });
+    const response = await cloudflareRequest(url, { sql: 'SELECT osm_type, osm_id, lat, lon, tags_json FROM tennis_courts WHERE (osm_type, osm_id) > (?, ?) ORDER BY osm_type, osm_id LIMIT ?', params: [lastType, lastId, pageSize] });
     const result = response.result?.[0];
     if (!result?.success || !Array.isArray(result.results)) throw new Error('Invalid D1 catalog query response.');
     rows.push(...result.results);
     if (result.results.length < pageSize) break;
-    offset += pageSize;
+    const last = result.results.at(-1);
+    if (last.osm_type < lastType || (last.osm_type === lastType && last.osm_id <= lastId)) throw new Error('D1 catalog pagination did not advance.');
+    lastType = last.osm_type;
+    lastId = last.osm_id;
   }
   return rows;
 }
