@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "us.opencourts.app",
+      "sha256_cert_fingerprints": [
+        "DF:B6:C2:18:D7:52:E5:F0:3F:2E:AC:6B:A4:82:00:44:C7:E9:BC:EA:2D:00:5B:4D:E6:37:D8:11:FD:BF:06:DC"
+      ]
+    }
+  }
+]
