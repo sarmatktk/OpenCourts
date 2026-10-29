@@ -14,6 +14,7 @@
     "import:courts": "node scripts/import-court-catalog.mjs"
   },
   "dependencies": {
+    "@mmmike/web-push": "^1.5.0",
     "lucide-react": "^0.468.0",
     "maplibre-gl": "^5.0.0",
     "react": "^18.3.1",
