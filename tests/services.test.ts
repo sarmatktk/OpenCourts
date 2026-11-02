@@ -29,7 +29,7 @@ describe('court normalization', () => {
     } }, [], 'Fairfax');
     expect(court.name).toBe('Tennis courts');
     expect(court.contextName).toBe('At Greenbriar Park');
-    expect(court.address).toBe('At Greenbriar Park, Fairfax');
+    expect(court.address).toBe('At Greenbriar Park');
     expect(court.addressApprox).toBe(true);
     expect(court.contextCached).toBe(true);
   });
@@ -155,7 +155,15 @@ describe('venue court grouping', () => {
       type: 'node', id: 100 + index, lat: 38.8462 + index * 0.0001, lon: -77.3064,
       tags: { name, 'opencourts:nearby_place': 'Fox Valley Park', 'opencourts:nearby_place_miles': '0.02' },
     }));
-    expect(groupCourtsByVenue(elements)).toMatchObject([{ name: 'Fox Valley Park', courts: 2 }]);
+    expect(groupCourtsByVenue(elements)).toMatchObject([{ name: 'Fox Valley Park', address: 'At Fox Valley Park', courts: 2 }]);
+  });
+  it('uses the catalog venue name and At label even when its edge is farther than 0.02 miles', () => {
+    const court = normalizeCourt({ type: 'way', id: 401, lat: 38.88, lon: -77.43, tags: {
+      leisure: 'pitch', sport: 'tennis', name: 'Tennis courts',
+      'opencourts:context_version': '2', 'opencourts:nearby_place': 'Fox Valley Park',
+      'opencourts:nearby_place_miles': '0.11',
+    } }, [], 'Your location');
+    expect(court).toMatchObject({ name: 'Tennis courts', contextName: 'At Fox Valley Park', address: 'At Fox Valley Park', contextCached: true });
   });
   it('groups courts before assigning display suffixes after live context arrives', () => {
     const courts = [1, 2].map(id => ({ id: `osm-node-${id}`, name: 'Court', lat: 38.8462 + id * 0.0001, lon: -77.3064,

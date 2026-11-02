@@ -21,13 +21,10 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   const cityLine = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']].filter(Boolean).join(', ') || usefulLocality(locality);
   let address = addressLine ? [addressLine, cityLine].filter(Boolean).join(', ') : undefined;
   let addressApprox = false;
-  const catalogRoadDistance = Number(tags['opencourts:nearby_street_miles']);
-  const catalogRoad = Number.isFinite(catalogRoadDistance) && catalogRoadDistance <= 0.12 ? tags['opencourts:nearby_street'] : undefined;
+  const catalogRoad = tags['opencourts:nearby_street'];
   const catalogPlace = tags['opencourts:nearby_place'];
-  const catalogPlaceDistance = Number(tags['opencourts:nearby_place_miles']);
-  const associatedPlace = catalogPlace && Number.isFinite(catalogPlaceDistance) && catalogPlaceDistance <= 0.02 ? catalogPlace : undefined;
-  if (!address && (catalogRoad || associatedPlace)) {
-    address = `${associatedPlace ? 'At' : 'Near'} ${associatedPlace || catalogRoad}${cityLine ? `, ${cityLine}` : ''}`;
+  if (!address && (catalogPlace || catalogRoad)) {
+    address = `${catalogPlace ? 'At' : 'Near'} ${catalogPlace || catalogRoad}`;
     addressApprox = true;
   }
   if (!address && Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -41,13 +38,13 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   const placeName = nearbyPlace?.place.tags?.name || nearbyPlace?.place.tags?.['name:en'];
   const placeLabel = nearbyPlace ? `${nearbyPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}` : undefined;
   let name = mappedName || 'Tennis courts';
-  let contextName: string | undefined = associatedPlace ? `At ${associatedPlace}` : undefined;
-  if (genericMappedName && associatedPlace) {
+  let contextName: string | undefined = catalogPlace ? `At ${catalogPlace}` : undefined;
+  if (genericMappedName && catalogPlace) {
     name = 'Tennis courts';
-    contextName = `At ${associatedPlace}`;
+    contextName = `At ${catalogPlace}`;
   } else if (genericMappedName && catalogRoad) name = 'Tennis courts';
-  else if (numberedCourtName && associatedPlace) {
-    contextName = `At ${associatedPlace}`;
+  else if (numberedCourtName && catalogPlace) {
+    contextName = `At ${catalogPlace}`;
   }
   else if (genericMappedName && nearbyPlace) {
     name = 'Tennis courts';
@@ -310,13 +307,13 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
       .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court)));
     const missingDetails = enriched.filter(court => !court.address && !court.contextName).length;
     if (enriched.length === 0 || missingDetails < enriched.length * 0.8) {
-      try { sessionStorage.setItem(`opencourts-courts-v19-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+      try { sessionStorage.setItem(`opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v19-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
