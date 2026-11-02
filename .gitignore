@@ -6,3 +6,9 @@ test-results/
 .env
 .court-catalog-import/
 court-data.json
+
+# Xcode user-specific and generated files
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.xcresult
