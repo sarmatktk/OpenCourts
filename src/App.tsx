@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, LoaderCircle, LocateFixed, MapPin, Menu, Moon, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Moon, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
 import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution } from './services';
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
@@ -463,13 +463,15 @@ function App() {
       <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
     <nav className="mobile-bottom-nav" aria-label="Quick navigation">
-      <a href="#explore"><Compass size={19} aria-hidden="true"/><span>Courts</span></a>
-      <a href="#conditions"><CloudSun size={19} aria-hidden="true"/><span>Weather</span></a>
-      <a href="#about"><TennisBall size={19}/><span>About</span></a>
+      <button type="button" className={!mobileList ? 'active' : ''} aria-label="Show court map" aria-pressed={!mobileList} onClick={() => { showMapView(); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><MapIcon size={21} strokeWidth={1.9} aria-hidden="true"/><span>Map</span></button>
+      <button type="button" className={mobileList ? 'active' : ''} aria-label="Show court list" aria-pressed={mobileList} onClick={() => { setMobileList(true); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><ListIcon size={21} strokeWidth={1.9} aria-hidden="true"/><span>Courts</span></button>
+      <a className="mobile-nav-search" href="#search" onClick={e => { e.preventDefault(); document.getElementById('search')?.scrollIntoView({ behavior: 'smooth' }); document.querySelector<HTMLInputElement>('#search input')?.focus({ preventScroll: true }); }} aria-label="Search courts"><span className="mobile-nav-search-icon"><Search size={23} strokeWidth={2.2} aria-hidden="true"/></span><span>Search</span></a>
+      <a href="#rain-planner-title"><CloudRain size={21} strokeWidth={1.9} aria-hidden="true"/><span>Dry courts</span></a>
+      <a href="#conditions"><CloudSun size={21} strokeWidth={1.9} aria-hidden="true"/><span>Weather</span></a>
     </nav>
     <main id="top">
       <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Compare nearby courts, check recent rain, and plan your next match around the seven-day forecast.</p>
-        <div className="search-wrap" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
+        <div className="search-wrap" id="search" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
           <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{(placeLookupLoading || loading) && <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/>}</button></form>
           {suggestionsOpen && query.trim().length >= 3 && <div className="place-suggestions" id="place-suggestions" role="listbox" aria-label="Address suggestions">
             {suggestionsLoading && <div className="suggestion-message" role="status">Searching places…</div>}

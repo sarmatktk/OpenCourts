@@ -219,8 +219,14 @@
 .mobile-bottom-nav{display:none}
 @media(max-width:620px){
   .app{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
-  .mobile-bottom-nav{position:fixed;z-index:19;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));display:flex;justify-content:space-around;width:min(340px,calc(100vw - 32px));padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 28px #0d241d44;transform:translateX(-50%)}
-  .mobile-bottom-nav a{display:flex;flex:1;flex-direction:column;align-items:center;gap:2px;padding:7px 4px;color:var(--text);font-size:10px;font-weight:700;text-decoration:none;border-radius:12px}
-  .mobile-bottom-nav a:hover,.mobile-bottom-nav a:focus-visible{background:var(--bg)}
+  .mobile-bottom-nav{position:fixed;z-index:19;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));display:flex;align-items:end;justify-content:space-around;width:min(390px,calc(100vw - 24px));padding:7px 5px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);border-radius:22px;box-shadow:0 8px 28px #0d241d33;transform:translateX(-50%);backdrop-filter:blur(14px)}
+  .mobile-bottom-nav a,.mobile-bottom-nav button{display:flex;flex:1;min-width:0;min-height:52px;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 1px;border:0;background:transparent;color:var(--muted);font-size:9px;font-weight:700;text-decoration:none;border-radius:15px;white-space:nowrap}
+  .mobile-bottom-nav a:hover,.mobile-bottom-nav a:focus-visible,.mobile-bottom-nav button:hover,.mobile-bottom-nav button:focus-visible{background:var(--bg)}
+  .mobile-bottom-nav button.active{background:color-mix(in srgb,var(--lime) 18%,var(--surface));color:var(--green)}
+  .mobile-bottom-nav .mobile-nav-search{position:relative;min-height:59px;color:var(--green)}
+  .mobile-nav-search-icon{display:grid;place-items:center;width:48px;height:48px;margin-top:-20px;background:var(--green);color:#fff;border:4px solid var(--surface);border-radius:50%;box-shadow:0 4px 14px #0d241d33}
+  .mobile-bottom-nav .mobile-nav-search:hover,.mobile-bottom-nav .mobile-nav-search:focus-visible{background:transparent}
+  .mobile-view-switch{display:none}
   .review-prompt{bottom:calc(94px + env(safe-area-inset-bottom))}
 }
+.dark .mobile-bottom-nav button.active{color:var(--lime)}
