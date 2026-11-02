@@ -271,7 +271,7 @@
 .dark .court-list-badge.condition-loading,.dark .court-list-badge.condition-limited,.dark .court-list-badge.condition-unavailable{background:#2b3531;color:#b6c0b8}
 @media(prefers-color-scheme:dark){html,body{background:#101a16}}
 @media(max-width:620px){.court-list-card{width:calc(100% - 20px);margin:7px 10px;padding:14px}.court-list-heading strong{font-size:13px}.court-list-distance strong{font-size:16px}}
-.weather-overview{display:grid;gap:14px;margin:24px 0 28px}
+.weather-overview{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin:24px 0 28px}
 .current-weather-hero{display:flex;align-items:center;gap:17px;min-height:150px;padding:24px;background:linear-gradient(115deg,#123d32,#688a41);border-radius:20px;color:#fff;box-shadow:0 10px 24px #123d3230}
 .current-weather-icon{display:grid;place-items:center;flex:none;width:64px;height:64px;border-radius:50%;background:#ffffff24}
 .current-weather-main{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
@@ -288,7 +288,7 @@
 .best-play-copy>span,.daily-best-copy>span{font-size:11px;color:var(--muted)}
 .best-play-score,.daily-best-score{display:flex;flex:none;flex-direction:column;align-items:center;gap:2px;color:var(--green)}
 .best-play-score strong{font:800 25px/1.1 Manrope,sans-serif}.best-play-score small,.daily-best-score small{font-size:8px;font-weight:800;color:var(--muted);white-space:nowrap}
-.daily-best{display:grid;gap:8px}.daily-best-heading,.forecast-windows-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 2px}.daily-best-heading span,.forecast-windows-heading span{font-size:10px;color:var(--muted)}
+.daily-best{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.daily-best-heading,.forecast-windows-heading{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 2px}.daily-best-heading span,.forecast-windows-heading span{min-width:0;font-size:10px;color:var(--muted);text-align:right}
 .daily-best-row{display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--surface);border:1px solid var(--line);border-radius:15px}
 .daily-best-row.overall{border-color:#aaca82}.daily-best-icon{width:42px;height:42px;background:var(--bg);color:#7b9d48}.daily-best-copy strong{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:700 12px/1.3 Manrope,sans-serif}.daily-best-copy em{padding:3px 5px;border-radius:5px;background:#e1edb2;color:#123d32;font:800 8px Manrope,sans-serif;white-space:nowrap}.daily-best-copy small{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10px}.daily-best-score{min-width:52px;padding:9px 5px;border-radius:11px;background:var(--bg)}.daily-best-score strong{font:800 19px/1.1 Manrope,sans-serif}
 .forecast-windows-heading{margin:28px 0 12px}.forecast-windows-heading strong{font-size:10px;font-weight:800;letter-spacing:1.1px;color:#628540}
@@ -396,6 +396,13 @@
   .court-list-badge{min-height:29px;padding:5px 9px;font-size:11px}
   .court-list-footer{font-size:11px}
   .weather-section{margin:0 16px;padding:52px 0 62px}
+  .weather-title,.weather-overview,.current-weather-hero,.best-play-card,.daily-best-row{min-width:0;max-width:100%}
+  .weather-title>div{min-width:0}
+  .current-weather-stats{min-width:0;max-width:38%;font-size:10px}
+  .current-weather-stats>span{white-space:nowrap}
+  .daily-best-heading strong{min-width:0}
+  .daily-best-heading span{max-width:44%;line-height:1.3}
+  .daily-best-copy>span,.daily-best-copy small{flex-wrap:wrap}
   .weather-title h2{font-size:31px;line-height:1.15}
   .weather-overview{gap:16px;margin-top:25px}
   .current-weather-hero{min-height:150px;padding:19px;border-radius:22px}

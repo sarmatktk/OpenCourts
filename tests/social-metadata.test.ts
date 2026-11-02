@@ -28,7 +28,7 @@ describe('social share metadata', () => {
       expect(html).toContain(`name="twitter:image" content="${imageUrl}"`);
       expect(html).toContain('rel="icon" type="image/x-icon" href="/favicon.ico"');
       expect(html).toContain('rel="manifest" href="/site.webmanifest"');
-      expect(html).toContain('data-theme-toggle');
+      expect(html).toContain('src="/theme.js"');
       expect(html).toContain('https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410');
       expect(html).toContain("gtag('config', 'G-7T3S2D1410')");
       expect(html).toContain('src="/landing-analytics.js"');
