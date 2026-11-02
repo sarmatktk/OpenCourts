@@ -31,3 +31,5 @@ The package ID is `us.opencourts.app`. Change it before the first Play upload if
 5. Finish the Play listing, screenshots, privacy policy, Data safety form, content rating, and app access declarations. Upload the signed `.aab` to an internal testing track first. Review the donation link and analytics disclosures against current Play policies before production release.
 
 The app uses no Android location permission itself. The website asks for browser geolocation only when a user taps the location control. External destinations such as Google Maps and OpenStreetMap open from the hosted site.
+
+The hosted site offers a Google Play review link inside the TWA after a user requests court directions twice and returns to the app. Dismissing it pauses the suggestion for 90 days; opening the link stops future suggestions on that device. Test this with the app installed from a Play testing track, since a normal browser visit will not show the review suggestion. This is a website card that opens the Play listing, not the native Play in-app review sheet.
