@@ -462,6 +462,11 @@ function App() {
       <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support" onClick={() => setMenuOpen(false)}>Support</a></nav>
       <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
+    <nav className="mobile-bottom-nav" aria-label="Quick navigation">
+      <a href="#explore"><Compass size={19} aria-hidden="true"/><span>Courts</span></a>
+      <a href="#conditions"><CloudSun size={19} aria-hidden="true"/><span>Weather</span></a>
+      <a href="#about"><TennisBall size={19}/><span>About</span></a>
+    </nav>
     <main id="top">
       <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Compare nearby courts, check recent rain, and plan your next match around the seven-day forecast.</p>
         <div className="search-wrap" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>

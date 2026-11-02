@@ -10,6 +10,7 @@ const COOLDOWN = 90 * 24 * 60 * 60 * 1000;
 
 function inPlayApp() {
   if (!/Android/.test(navigator.userAgent)) return false;
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
   try {
     if (document.referrer.startsWith('android-app://us.opencourts.app')) {
       sessionStorage.setItem(APP_SESSION_KEY, '1');
@@ -27,6 +28,7 @@ export default function ReviewPrompt({ busy }: { busy: boolean }) {
 
   useEffect(() => {
     if (!inPlayApp()) return;
+    try { if (Number(localStorage.getItem(USES_KEY) || '0') >= 2) setReady(true); } catch { /* Optional storage. */ }
     const onDirections = () => {
       try {
         const uses = Number(localStorage.getItem(USES_KEY) || '0') + 1;
@@ -72,7 +74,7 @@ export default function ReviewPrompt({ busy }: { busy: boolean }) {
   }
 
   if (!visible || busy) return null;
-  return <aside className="install-prompt" aria-labelledby="review-title">
+  return <aside className="install-prompt review-prompt" aria-labelledby="review-title">
     <button type="button" className="install-close" aria-label="Close review suggestion" onClick={dismiss}><X size={18}/></button>
     <div className="install-heading"><img src="/apple-touch-icon.png" width="44" height="44" alt=""/><strong id="review-title">Review Open Courts</strong></div>
     <p>Your review on Google Play can help other players find Open Courts.</p>
