@@ -7,6 +7,20 @@ const pagesApiDev = {
       try {
         const url = new URL(req.url || '/', 'http://localhost');
         if (!url.pathname.startsWith('/api/')) return next();
+        // Vite does not provide the production D1 binding. Use the same court
+        // catalog as the iOS app so local list and map counts match production.
+        if (url.pathname === '/api/courts' && req.method === 'GET') {
+          try {
+            const upstream = await fetch(`https://opencourts.us/api/courts${url.search}`, { signal: AbortSignal.timeout(12000) });
+            if (upstream.ok && upstream.headers.get('content-type')?.includes('application/json')) {
+              res.statusCode = upstream.status;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.setHeader('Cache-Control', 'no-store');
+              res.end(await upstream.text());
+              return;
+            }
+          } catch { /* Fall back to the local Pages function below. */ }
+        }
         const endpoint = url.pathname === '/api/courts' ? '/functions/api/courts.ts' : url.pathname === '/api/court-context' ? '/functions/api/court-context.ts' : url.pathname === '/api/weather' ? '/functions/api/weather.ts' : url.pathname === '/api/weather-alerts' ? '/functions/api/weather-alerts.ts' : url.pathname === '/api/geocode' ? '/functions/api/geocode.ts' : url.pathname === '/api/suggest' ? '/functions/api/suggest.ts' : url.pathname === '/api/rain' ? '/functions/api/rain.ts' : null;
         if (!endpoint) return next();
         const module = await server.ssrLoadModule(endpoint);

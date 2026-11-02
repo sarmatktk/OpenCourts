@@ -16,6 +16,12 @@ describe('court normalization', () => {
     const c = normalizeCourt({ type: 'way', id: 123, center: { lat: 38.8, lon: -77.3 }, tags: { name: 'Neighborhood Courts', lit: 'yes' } });
     expect(c.id).toBe('osm-way-123'); expect(c.name).toBe('Neighborhood Courts'); expect(c.lat).toBe(38.8); expect(c.lighting).toBe('yes');
   });
+  it('counts an individual tennis pitch as one court unless a count is tagged', () => {
+    const element = { type: 'way', id: 124, lat: 38.8, lon: -77.3, tags: { leisure: 'pitch', sport: 'tennis' } };
+    expect(normalizeCourt(element).courts).toBe(1);
+    expect(normalizeCourt({ ...element, tags: { ...element.tags, count: '3' } }).courts).toBe(3);
+    expect(normalizeCourt({ ...element, tags: { leisure: 'sports_centre', sport: 'tennis' } }).courts).toBeUndefined();
+  });
   it('uses cataloged nationwide context without a live context lookup', () => {
     const court = normalizeCourt({ type: 'way', id: 500, lat: 38.8, lon: -77.3, tags: {
       name: 'Tennis courts', 'opencourts:context_version': '2', 'opencourts:nearby_place': 'Greenbriar Park',
@@ -35,7 +41,7 @@ describe('court normalization', () => {
   });
   it('does not append the generic current-location label to a street address', () => {
     const court = normalizeCourt({ type: 'node', id: 501, lat: 38.8, lon: -77.3, tags: {
-      name: 'Tennis courts', 'opencourts:context_version': '1', 'opencourts:nearby_street': 'Four Ponds Trail',
+      name: 'Tennis courts', 'opencourts:context_version': '1', 'opencourts:nearby_street': 'Four Ponds Trail', 'opencourts:nearby_street_miles': '0.04',
     } }, [], 'Your location');
     expect(court.address).toBe('Near Four Ponds Trail');
   });
@@ -114,17 +120,36 @@ describe('court normalization', () => {
     expect(enriched[0].address).toBe('123 Oak Road');
     expect(enriched[0].addressApprox).toBe(false);
   });
-  it('finds a named street when its mapped way center is farther than 0.12 miles', () => {
+  it('does not attach a street more than 0.12 miles away', () => {
     const court = { id: 'osm-way-15', name: 'Court 1', lat: 38.8462, lon: -77.3064 } as any;
     const enriched = enrichNearbyCourtDetails([court], [
       { type: 'way', id: 16, center: { lat: 38.85, lon: -77.3064 }, tags: { highway: 'residential', name: 'Cedar Lane' } },
     ], 'Fairfax');
     expect(enriched[0].name).toBe('Court 1');
-    expect(enriched[0].address).toBe('Near Cedar Lane, Fairfax');
-    expect(enriched[0].addressApprox).toBe(true);
+    expect(enriched[0].address).toBeUndefined();
+  });
+  it('does not label a nearby school as the court location', () => {
+    const court = normalizeCourt({ type: 'way', id: 23, lat: 38.8462, lon: -77.3064, tags: { leisure: 'pitch', sport: 'tennis' } });
+    const enriched = enrichNearbyCourtDetails([court], [
+      { type: 'node', id: 24, lat: 38.847, lon: -77.3064, tags: { amenity: 'school', name: 'Nearby School' } },
+    ], 'Fairfax');
+    expect(enriched[0].contextName).toBeUndefined();
+    expect(enriched[0].address).toBeUndefined();
   });
 });
 describe('venue court grouping', () => {
+  it('groups the four mapped Van Dyck Park courts into one count', () => {
+    const records = [
+      [1115813705, 38.8539812, -77.29884865],
+      [1115813706, 38.85404685, -77.29869895],
+      [1115813707, 38.8541238, -77.29850795],
+      [1115813708, 38.8541891, -77.2983672],
+    ].map(([id, lat, lon]) => normalizeCourt({ type: 'way', id, lat, lon, tags: {
+      leisure: 'pitch', sport: 'tennis', surface: 'concrete', lit: 'yes', access: 'yes',
+      'opencourts:nearby_place': 'Van Dyck Park', 'opencourts:nearby_place_miles': '0.000',
+    } }));
+    expect(groupCourtsByVenue(records)).toMatchObject([{ name: 'Van Dyck Park', courts: 4 }]);
+  });
   it('counts differently named courts at one cataloged park, as iOS does', () => {
     const elements = ['Court A', 'Court B'].map((name, index) => normalizeCourt({
       type: 'node', id: 100 + index, lat: 38.8462 + index * 0.0001, lon: -77.3064,

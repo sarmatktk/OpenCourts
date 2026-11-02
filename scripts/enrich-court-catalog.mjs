@@ -97,7 +97,10 @@ function updateTags(feature, values) {
     tags['opencourts:nearby_place'] = values.place.name;
     tags['opencourts:nearby_place_miles'] = values.place.distance.toFixed(3);
   }
-  if (values.road) tags['opencourts:nearby_street'] = values.road.name;
+  if (values.road) {
+    tags['opencourts:nearby_street'] = values.road.name;
+    tags['opencourts:nearby_street_miles'] = values.road.distance.toFixed(3);
+  }
 }
 
 export async function enrichCourtCatalog(inputPath, outputPath) {

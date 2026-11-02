@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Moon, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
 import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution } from './services';
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment } from './types';
@@ -158,7 +158,7 @@ function App() {
   const [query, setQuery] = useState(''); const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]); const [suggestionsOpen, setSuggestionsOpen] = useState(false); const [suggestionsLoading, setSuggestionsLoading] = useState(false); const [suggestionsError, setSuggestionsError] = useState(''); const [activeSuggestion, setActiveSuggestion] = useState(-1); const [courts, setCourts] = useState<Court[]>([]); const [hourlyForecast, setHourlyForecast] = useState<Forecast[]>([]); const [timeZone, setTimeZone] = useState('America/New_York'); const [visibleCount, setVisibleCount] = useState(30);
   const [loading, setLoading] = useState(true); const [searchSlow, setSearchSlow] = useState(false); const [placeLookupLoading, setPlaceLookupLoading] = useState(false); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
   const [mapError, setMapError] = useState(''); const [mapReady, setMapReady] = useState(false);
-  const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(() => { try { return localStorage.getItem('opencourts-theme') === 'dark'; } catch { return false; } }); const [selected, setSelected] = useState<Court | null>(null);
+  const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false); const [selected, setSelected] = useState<Court | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [radius, setRadius] = useState('all'); const [publicOnly, setPublicOnly] = useState(false); const [surface, setSurface] = useState('all');
   const activeFilters = Number(litOnly) + Number(publicOnly) + Number(radius !== 'all') + Number(surface !== 'all');
@@ -166,7 +166,14 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false); const [mobileList, setMobileList] = useState(false); const [sort, setSort] = useState<'near' | 'lighted'>('near');
   const mapEl = useRef<HTMLDivElement>(null); const map = useRef<MapLibreMap | null>(null); const request = useRef<AbortController | null>(null); const suggestionRequest = useRef<AbortController | null>(null); const placeRef = useRef(place); placeRef.current = place;
 
-  function toggleTheme() { setDark(current => { const next = !current; try { localStorage.setItem('opencourts-theme', next ? 'dark' : 'light'); } catch { /* storage optional */ } return next; }); }
+  useEffect(() => {
+    const preference = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!preference) return;
+    const updateTheme = () => setDark(preference.matches);
+    preference.addEventListener('change', updateTheme);
+    updateTheme();
+    return () => preference.removeEventListener('change', updateTheme);
+  }, []);
 
   useEffect(() => {
     const search = query.trim();
@@ -457,7 +464,7 @@ function App() {
   return <div className={dark ? 'app dark' : 'app'}>
     <header className="topbar"><a className="brand" href="#top" aria-label="OpenCourts home"><span className="brand-mark"><TennisBall size={20}/></span><span>open<span className="brand-light">courts</span></span></a>
       <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support" onClick={() => setMenuOpen(false)}>Support</a></nav>
-      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="theme-toggle" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
+      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
     <nav className="mobile-bottom-nav" aria-label="Quick navigation">
       <button type="button" className={!mobileList ? 'active' : ''} aria-label="Show court map" aria-pressed={!mobileList} onClick={() => { showMapView(); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><MapIcon size={21} strokeWidth={1.9} aria-hidden="true"/><span>Map</span></button>
