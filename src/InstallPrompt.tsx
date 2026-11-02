@@ -6,6 +6,7 @@ const DISMISSED_KEY = 'opencourts-install-dismissed';
 const SESSION_KEY = 'opencourts-install-shown';
 const INSTALL_TRACKED_KEY = 'opencourts-install-tracked';
 const COOLDOWN = 14 * 24 * 60 * 60 * 1000;
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=us.opencourts.app';
 
 function trackInstall(eventName: string) {
   if (!import.meta.env.PROD) return;
@@ -33,7 +34,7 @@ export default function InstallPrompt({ courtOpen, busy }: { courtOpen: boolean;
   const ua = navigator.userAgent;
   const apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const safari = apple && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-  const android = /Android/.test(ua) && /Chrome|SamsungBrowser|EdgA/.test(ua) && !/Firefox|OPR/.test(ua);
+  const android = /Android/.test(ua);
   const mobile = apple || android;
 
   useEffect(() => {
@@ -101,8 +102,8 @@ export default function InstallPrompt({ courtOpen, busy }: { courtOpen: boolean;
   return <aside className="install-prompt" aria-labelledby="install-title">
     <button type="button" className="install-close" aria-label="Close installation suggestion" onClick={dismiss}><X size={18}/></button>
     <div className="install-heading"><img src="/apple-touch-icon.png" width="44" height="44" alt=""/><strong id="install-title">Keep Open Courts handy</strong></div>
-    <p>Add Open Courts to your home screen for quick access anytime. No app store needed.</p>
-    {instructions && (safari ? <ol><li>Tap the Share button in Safari.</li><li>Select “Add to Home Screen.”</li><li>If offered, turn on “Open as Web App,” then tap “Add.”</li></ol> : <p className="install-steps">Open your browser menu, then choose “Add to Home screen” or “Install app.”</p>)}
-    <div className="install-actions"><button type="button" className="install-primary" onClick={add}>Add to Home Screen</button><button type="button" className="install-later" onClick={dismiss}>Maybe Later</button></div>
+    <p>{android ? 'Download Open Courts from Google Play for quick access anytime.' : 'Add Open Courts to your home screen for quick access anytime. No app store needed.'}</p>
+    {!android && instructions && (safari ? <ol><li>Tap the Share button in Safari.</li><li>Select “Add to Home Screen.”</li><li>If offered, turn on “Open as Web App,” then tap “Add.”</li></ol> : <p className="install-steps">Open your browser menu, then choose “Add to Home screen” or “Install app.”</p>)}
+    <div className="install-actions">{android ? <a className="install-primary" href={PLAY_STORE_URL} onClick={() => setVisible(false)}>Get it on Google Play</a> : <button type="button" className="install-primary" onClick={add}>Add to Home Screen</button>}<button type="button" className="install-later" onClick={dismiss}>Maybe Later</button></div>
   </aside>;
 }
