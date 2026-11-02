@@ -125,6 +125,19 @@ describe('court normalization', () => {
   });
 });
 describe('venue court grouping', () => {
+  it('counts differently named courts at one cataloged park, as iOS does', () => {
+    const elements = ['Court A', 'Court B'].map((name, index) => normalizeCourt({
+      type: 'node', id: 100 + index, lat: 38.8462 + index * 0.0001, lon: -77.3064,
+      tags: { name, 'opencourts:nearby_place': 'Fox Valley Park', 'opencourts:nearby_place_miles': '0.02' },
+    }));
+    expect(groupCourtsByVenue(elements)).toMatchObject([{ name: 'Fox Valley Park', courts: 2 }]);
+  });
+  it('groups courts before assigning display suffixes after live context arrives', () => {
+    const courts = [1, 2].map(id => ({ id: `osm-node-${id}`, name: 'Court', lat: 38.8462 + id * 0.0001, lon: -77.3064,
+      lighting: 'unknown', access: 'unknown', sheltered: false, sourceUrl: `https://www.openstreetmap.org/node/${id}` } as any));
+    const nearby = [{ type: 'node', id: 99, lat: 38.8463, lon: -77.3064, tags: { leisure: 'park', name: 'Fox Valley Park' } }];
+    expect(groupCourtsByVenue(enrichNearbyCourtDetails(courts, nearby, 'Fairfax'))).toMatchObject([{ name: 'Fox Valley Park', courts: 2 }]);
+  });
   const court = (id: number, surface?: string) => ({
     id: `osm-node-${id}`, name: `Court ${id}`, lat: 38.97 + id * 0.0001, lon: -77.38,
     contextName: 'At Herndon High School', lighting: 'unknown', access: 'unknown', sheltered: false,

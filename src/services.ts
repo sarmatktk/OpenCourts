@@ -40,7 +40,7 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   const placeName = nearbyPlace?.place.tags?.name || nearbyPlace?.place.tags?.['name:en'];
   const placeLabel = nearbyPlace ? `${nearbyPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}` : undefined;
   let name = mappedName || 'Tennis courts';
-  let contextName: string | undefined;
+  let contextName: string | undefined = catalogPlace ? `${catalogParkAddress ? 'At' : 'Near'} ${catalogPlace}` : undefined;
   if (genericMappedName && catalogPlace) {
     name = 'Tennis courts';
     const distance = Number(tags['opencourts:nearby_place_miles']);
@@ -222,7 +222,7 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
   // actual road or park edge, which used to make valid nearby context disappear.
   const roads = elements.filter(item => item.tags?.highway && item.tags?.name);
   const places = elements.filter(item => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
-  return distinguishCourtNames(courts.map(court => {
+  return courts.map(court => {
     const nearestRoad = roads.map(feature => ({ feature, distance: distanceToFeature(court, feature, false) }))
       .filter((item): item is { feature: any; distance: number } => item.distance !== undefined && item.distance <= 0.35)
       .sort((a, b) => a.distance - b.distance)[0];
@@ -248,11 +248,12 @@ export function enrichNearbyCourtDetails(courts: Court[], elements: any[], local
       address = `Near ${placeName}${localityLabel ? `, ${localityLabel}` : ''}`;
       addressApprox = true;
     }
-    if (genericName && nearestPlace) contextName = `${nearestPlace.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;
+    if (associatedPlace) contextName = `At ${placeName}`;
+    else if (genericName && nearestPlace) contextName = `Near ${placeName}`;
     else if (genericName && address) name = 'Tennis courts';
     else if (numberedCourtName && placeName) contextName = `${nearestPlace!.distance <= 0.05 ? 'At' : 'Near'} ${placeName}`;
     return { ...court, name, contextName, address, addressApprox };
-  }));
+  });
 }
 export async function getSelectedCourtContext(court: Court, locality: string, signal?: AbortSignal): Promise<Court | null> {
   const response = await fetch('/api/court-context', {
@@ -288,14 +289,14 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     if (!Array.isArray(data.elements)) return;
     if (data.elements.length === 0) console.info('[OpenCourts] Nearby map data returned no named context features.');
     const requestedIds = new Set(nearbyCourts.map(court => court.id));
-    const enriched = groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality)
-      .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court));
-    try { sessionStorage.setItem(`opencourts-courts-v14-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    const enriched = distinguishCourtNames(groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality)
+      .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court)));
+    try { sessionStorage.setItem(`opencourts-courts-v15-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v14-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v15-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
