@@ -14,7 +14,7 @@ The package ID is `us.opencourts.app`. Change it before the first Play upload if
 
 1. In Android Studio, use **Build > Generate Signed Bundle / APK > Android App Bundle**. Create an upload keystore and keep it outside this repository. The project ignores keystore files in `android-app/`.
 2. Enable Play App Signing in Play Console. Copy the **app signing certificate SHA-256 fingerprint** from Play Console's App signing page. This is generally different from the upload key fingerprint.
-3. The website's `public/.well-known/assetlinks.json` currently includes the local debug signing certificate used for emulator testing. Before Play release, add the **Play app signing** SHA-256 fingerprint to its `sha256_cert_fingerprints` array and deploy the website. Do not replace the debug fingerprint if you still want local debug builds to verify. The file must retain this structure:
+3. The website's `public/.well-known/assetlinks.json` includes both the local debug signing certificate and the Play app signing certificate read from the Play-installed emulator app. Deploy the website after changing this file. Keep both fingerprints so local debug builds and Play installs can verify. The file must retain this structure:
 
    ```json
    [{
