@@ -141,6 +141,16 @@ describe('venue court grouping', () => {
     expect(grouped).toHaveLength(2);
     expect(grouped.map(item => item.surface)).toEqual(['hard', 'clay']);
   });
+  it('shows one venue for nearby named court records in both list and map data', () => {
+    const named = [court(1), court(2)].map(item => ({ ...item, name: 'Fox Valley Park', contextName: undefined }));
+    const grouped = groupCourtsByVenue(named);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]).toMatchObject({ name: 'Fox Valley Park', courts: 2 });
+  });
+  it('keeps conflicting lighting statuses separate instead of hiding uncertainty', () => {
+    const grouped = groupCourtsByVenue([court(1), { ...court(2), lighting: 'yes' }]);
+    expect(grouped).toHaveLength(2);
+  });
 });
 describe('PlayScore', () => {
   const forecast = (temp: number, wind: number, precip: number): Forecast => ({ time: '', temp, wind, precip, short: '', icon: '' });

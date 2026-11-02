@@ -85,15 +85,19 @@ export function distinguishCourtNames(courts: Court[]): Court[] {
 }
 export function groupCourtsByVenue(courts: Court[]): Court[] {
   const groups: Court[][] = [];
-  const venueFor = (court: Court) => court.contextName?.match(/^At\s+(.+)$/i)?.[1].trim().toLocaleLowerCase();
-  const canGroup = (court: Court) => /^(?:tennis courts?(?:\s+·\s+\d+)?|court\s*#?\s*\d+(?:\s+·\s+\d+)?)$/i.test(court.name.trim()) && venueFor(court);
+  const venueFor = (court: Court) => {
+    const context = court.contextName?.match(/^At\s+(.+)$/i)?.[1].trim();
+    if (context) return context.toLocaleLowerCase();
+    const name = court.name.trim();
+    return /^(?:tennis courts?|court\s*#?\s*\d+)$/i.test(name) ? undefined : name.toLocaleLowerCase();
+  };
 
   for (const court of courts) {
     const venue = venueFor(court);
-    if (!venue || !canGroup(court)) { groups.push([court]); continue; }
+    if (!venue) { groups.push([court]); continue; }
     const group = groups.find(members => {
       const first = members[0];
-      if (venueFor(first) !== venue || !canGroup(first)) return false;
+      if (venueFor(first) !== venue) return false;
       if ((first.surface || '').trim().toLowerCase() !== (court.surface || '').trim().toLowerCase()) return false;
       if (first.lighting !== court.lighting || first.access !== court.access || first.sheltered !== court.sheltered) return false;
       const center = members.reduce((point, member) => ({ lat: point.lat + member.lat / members.length, lon: point.lon + member.lon / members.length }), { lat: 0, lon: 0 });
@@ -105,7 +109,7 @@ export function groupCourtsByVenue(courts: Court[]): Court[] {
   return groups.map(members => {
     if (members.length === 1) return members[0];
     const first = members[0];
-    const venue = first.contextName!.replace(/^At\s+/i, '').trim();
+    const venue = first.contextName?.replace(/^At\s+/i, '').trim() || first.name;
     const multiCourtCounts = members.map(member => member.courts ?? 0).filter(count => count > 1);
     const courtsCount = multiCourtCounts.length
       ? Math.max(members.length, ...multiCourtCounts)
@@ -286,12 +290,12 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     const requestedIds = new Set(nearbyCourts.map(court => court.id));
     const enriched = groupCourtsByVenue(enrichNearbyCourtDetails(courts, data.elements, locality)
       .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court));
-    try { sessionStorage.setItem(`opencourts-courts-v13-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+    try { sessionStorage.setItem(`opencourts-courts-v14-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
 export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v13-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  const key = `opencourts-courts-v14-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
@@ -311,7 +315,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const elements = Array.isArray(data.elements) ? data.elements : []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
   const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
   const courtElements = elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || ''));
-  const courts = groupCourtsByVenue(distinguishCourtNames(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
+  const courts = distinguishCourtNames(groupCourtsByVenue(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
     .filter(({ element, court }: { element: any; court: Court }) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, element.tags))
     .map(({ court }: { court: Court }) => court)));
   try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
