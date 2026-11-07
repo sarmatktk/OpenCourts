@@ -1,23 +1,12 @@
 (() => {
-  const readTheme = () => {
-    try { return localStorage.getItem('opencourts-theme') === 'dark' ? 'dark' : 'light'; }
-    catch { return 'light'; }
-  };
+  const preference = window.matchMedia?.('(prefers-color-scheme: dark)');
+  const readTheme = () => preference?.matches ? 'dark' : 'light';
   const setTheme = (theme) => {
     document.documentElement.dataset.theme = theme;
-    document.querySelectorAll('[data-theme-toggle]').forEach(button => {
-      button.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
-      if (!button.querySelector('svg')) button.textContent = theme === 'dark' ? '☀' : '☾';
-    });
   };
   setTheme(readTheme());
+  preference?.addEventListener('change', () => setTheme(readTheme()));
   document.addEventListener('DOMContentLoaded', () => {
-    setTheme(readTheme());
-    document.querySelectorAll('[data-theme-toggle]').forEach(button => button.addEventListener('click', () => {
-      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem('opencourts-theme', next); } catch { /* Optional storage. */ }
-      setTheme(next);
-    }));
     document.querySelectorAll('[data-menu-toggle]').forEach(button => button.addEventListener('click', () => {
       const nav = document.getElementById('landing-nav');
       const open = nav?.classList.toggle('open') ?? false;

@@ -6,6 +6,7 @@ This is a separate Android app project. It opens the hosted OpenCourts website a
 
 1. Install Android Studio, Android SDK 36, and JDK 17. Open `android-app/` as a Gradle project and let Android Studio sync dependencies. The project uses Android Gradle Plugin 9.4 with Gradle 9.6.
 2. Run the `app` configuration on an Android device or emulator with Chrome installed. Full-screen mode requires the website's `/.well-known/assetlinks.json` to be deployed and to include the certificate fingerprint of the installed app.
+   The launcher now shows an OpenCourts splash while the Trusted Web Activity starts. Chrome still powers the app, and some Chrome versions can briefly show browser UI or a "running in Chrome" notice during a cold launch. That browser notice is controlled by Chrome, not by the website.
 3. Test court search, map/list switching, location permission, weather, directions, external links, and the Android Back button on a device. Also check that the site's home-screen installation prompt stays hidden inside the Play-installed app.
 
 The package ID is `us.opencourts.app`. Change it before the first Play upload if you want a different permanent ID; after publishing, Google Play does not permit changing it for that app.
@@ -32,4 +33,4 @@ The package ID is `us.opencourts.app`. Change it before the first Play upload if
 
 The app uses no Android location permission itself. The website asks for browser geolocation only when a user taps the location control. External destinations such as Google Maps and OpenStreetMap open from the hosted site.
 
-The hosted site offers a Google Play review link in an Android standalone session after a user requests court directions twice and returns to the app. Dismissing it pauses the suggestion for 90 days; opening the link stops future suggestions on that device. Test this with the app installed from a Play testing track, since a normal browser tab will not show the review suggestion. This is a website card that opens the Play listing, not the native Play in-app review sheet.
+The hosted site offers a Google Play review link in an Android standalone session after a user requests court directions twice, opens three different court details, or opens a court and then visits both Dry courts and Weather. The suggestion waits until other dialogs are closed. Dismissing it pauses the suggestion for 90 days; opening the link stops future suggestions on that device. Test this with the app installed from a Play testing track, since a normal browser tab will not show the review suggestion. This is a website card that opens the Play listing, not the native Play in-app review sheet.

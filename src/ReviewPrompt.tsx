@@ -3,10 +3,36 @@ import { X } from 'lucide-react';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=us.opencourts.app';
 const USES_KEY = 'opencourts-review-directions-uses';
+const ENGAGEMENT_KEY = 'opencourts-review-engagement';
 const DISMISSED_KEY = 'opencourts-review-dismissed';
 const REVIEWED_KEY = 'opencourts-review-link-opened';
 const APP_SESSION_KEY = 'opencourts-play-app-session';
 const COOLDOWN = 90 * 24 * 60 * 60 * 1000;
+
+type Engagement = { directions: number; courtIds: string[]; sections: string[] };
+
+export function eligibleForReview({ directions, courtIds, sections }: Engagement) {
+  return directions >= 2 || courtIds.length >= 3 ||
+    (courtIds.length >= 1 && sections.includes('dry') && sections.includes('weather'));
+}
+
+function readEngagement(): Engagement {
+  const saved = JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}') as Partial<Engagement>;
+  return {
+    directions: Math.max(Number(saved.directions) || 0, Number(localStorage.getItem(USES_KEY)) || 0),
+    courtIds: Array.isArray(saved.courtIds) ? saved.courtIds.filter(id => typeof id === 'string') : [],
+    sections: Array.isArray(saved.sections) ? saved.sections.filter(section => typeof section === 'string') : [],
+  };
+}
+
+function recordEngagement(action: { kind: 'directions' } | { kind: 'court'; id: string } | { kind: 'section'; section: string }) {
+  const engagement = readEngagement();
+  if (action.kind === 'directions') engagement.directions += 1;
+  if (action.kind === 'court' && !engagement.courtIds.includes(action.id)) engagement.courtIds = [...engagement.courtIds, action.id].slice(-20);
+  if (action.kind === 'section' && !engagement.sections.includes(action.section)) engagement.sections.push(action.section);
+  localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify(engagement));
+  return eligibleForReview(engagement);
+}
 
 function inPlayApp() {
   if (!/Android/.test(navigator.userAgent)) return false;
@@ -22,23 +48,34 @@ function inPlayApp() {
   }
 }
 
-export default function ReviewPrompt({ busy }: { busy: boolean }) {
+export default function ReviewPrompt({ busy, courtId }: { busy: boolean; courtId?: string }) {
   const [visible, setVisible] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!inPlayApp()) return;
-    try { if (Number(localStorage.getItem(USES_KEY) || '0') >= 2) setReady(true); } catch { /* Optional storage. */ }
+    try { if (eligibleForReview(readEngagement())) setReady(true); } catch { /* Optional storage. */ }
     const onDirections = () => {
-      try {
-        const uses = Number(localStorage.getItem(USES_KEY) || '0') + 1;
-        localStorage.setItem(USES_KEY, String(uses));
-        if (uses >= 2) setReady(true);
-      } catch { /* Reviews are optional when storage is unavailable. */ }
+      try { if (recordEngagement({ kind: 'directions' })) setReady(true); } catch { /* Reviews are optional when storage is unavailable. */ }
+    };
+    const onSection = () => {
+      const section = window.location.hash === '#conditions' ? 'weather' : window.location.hash === '#rain-planner-title' ? 'dry' : '';
+      if (!section) return;
+      try { if (recordEngagement({ kind: 'section', section })) setReady(true); } catch { /* Optional storage. */ }
     };
     window.addEventListener('opencourts:directions-used', onDirections);
-    return () => window.removeEventListener('opencourts:directions-used', onDirections);
+    window.addEventListener('hashchange', onSection);
+    onSection();
+    return () => {
+      window.removeEventListener('opencourts:directions-used', onDirections);
+      window.removeEventListener('hashchange', onSection);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!courtId || !inPlayApp()) return;
+    try { if (recordEngagement({ kind: 'court', id: courtId })) setReady(true); } catch { /* Optional storage. */ }
+  }, [courtId]);
 
   useEffect(() => {
     if (!ready || busy) return;
