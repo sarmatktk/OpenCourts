@@ -11,6 +11,7 @@ import CourtListItem from './CourtListItem';
 import WeatherOverview from './WeatherOverview';
 import DryCourtCard from './DryCourtCard';
 import CourtDetailSheet from './CourtDetailSheet';
+import { StoreBadge } from './StoreBadge';
 
 const INITIAL: Place = { label: 'Fairfax, Virginia', lat: 38.8462, lon: -77.3064 };
 const PARK_PRESETS: Record<string, Place> = {
@@ -18,6 +19,15 @@ const PARK_PRESETS: Record<string, Place> = {
   'providence': { label: 'Providence Park, Fairfax, Virginia', lat: 38.8392492, lon: -77.3173656 },
   'greenbriar': { label: 'Greenbriar Park, Fairfax County, Virginia', lat: 38.8653902, lon: -77.4038761 },
 };
+function GetAppLink() {
+  const ua = navigator.userAgent;
+  const apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  // Android Trusted Web Activity launches expose an android-app:// referrer.
+  const runningAndroidApp = android && document.referrer.startsWith('android-app://');
+  if (runningAndroidApp || (!apple && !android)) return null;
+  return <StoreBadge store={apple ? 'apple' : 'google'} />;
+}
 function TennisBall({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" strokeWidth="1.5"/></svg>; }
 function courtBallImage(highlight: string, shade: string, seam: string): ImageData {
   const canvas = document.createElement('canvas');
@@ -539,7 +549,7 @@ function App() {
     </main>
     <InstallPrompt courtOpen={Boolean(selected)} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
     <ReviewPrompt courtId={selected?.id} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
-    <footer><a className="brand footer-brand" href="#top"><span className="brand-mark"><TennisBall size={18}/></span><span>open<span className="brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
+    <footer><a className="brand footer-brand" href="#top"><span className="brand-mark"><TennisBall size={18}/></span><span>open<span className="brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><GetAppLink/><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
   </div>;
 }
 export default App;
