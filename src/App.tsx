@@ -214,7 +214,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (!selected || selected.contextCached) return;
+    if (Boolean((place.countryCode || internationalCountryCode(place.label)) && (place.countryCode || internationalCountryCode(place.label)) !== 'us') || !selected || selected.contextCached) return;
     const controller = new AbortController();
     getSelectedCourtContext(selected, place.label, controller.signal).then(enriched => {
       if (!enriched || controller.signal.aborted) return;
@@ -222,7 +222,7 @@ function App() {
       setCourts(current => current.map(court => court.id === enriched.id ? enriched : court));
     }).catch(() => { /* Retain the existing court details when context is unavailable. */ });
     return () => controller.abort();
-  }, [selected, place.label]);
+  }, [selected, place.label, place.countryCode]);
 
   function showMapView() {
     setMobileList(false);
@@ -246,6 +246,7 @@ function App() {
     setWeatherLoading(true); setWeatherError(''); getWeather(p.lat, p.lon, controller.signal, resolvedCountryCode).then(data => { setHourlyForecast(data.periods); setTimeZone(data.timeZone); setWeatherSource(data.source || 'NWS'); }).catch(e => { if (e.name !== 'AbortError') { setHourlyForecast([]); setWeatherError(e.message); } }).finally(() => { if (!controller.signal.aborted) setWeatherLoading(false); });
   }, []);
   useEffect(() => {
+    if (Boolean((place.countryCode || internationalCountryCode(place.label)) && (place.countryCode || internationalCountryCode(place.label)) !== 'us')) { setWeatherAlerts([]); setWeatherAlertStatus('unsupported'); return; }
     const controller = new AbortController();
     let receivedResult = false;
     const refreshWeatherAlerts = () => {
@@ -261,7 +262,7 @@ function App() {
     refreshWeatherAlerts();
     const timer = window.setInterval(refreshWeatherAlerts, 60_000);
     return () => { window.clearInterval(timer); controller.abort(); };
-  }, [place.lat, place.lon]);
+  }, [place.lat, place.lon, place.label, place.countryCode]);
   useEffect(() => {
     if (!loading) { setSearchSlow(false); return; }
     setSearchSlow(false);
@@ -426,6 +427,7 @@ function App() {
     return bestIndex;
   }, [bestWindows]);
   const rainCandidates = useMemo(() => sampleRainCourts(courts, place), [courts, place]);
+  const internationalPlace = Boolean((place.countryCode || internationalCountryCode(place.label)) && (place.countryCode || internationalCountryCode(place.label)) !== 'us');
   const rainCandidateIds = useMemo(() => new Set(rainCandidates.map(court => court.id)), [rainCandidates]);
   const rainById = useMemo(() => new Map(rainAssessments.map(assessment => [assessment.courtId, assessment])), [rainAssessments]);
   const areaRainAlert = useMemo(() => hasWidespreadRecentRain(rainAssessments, rainCandidateIds), [rainAssessments, rainCandidateIds]);
@@ -442,12 +444,14 @@ function App() {
   const selectedRain = selected ? rainById.get(selected.id) : undefined;
   const recommendedCourts = useMemo(() => [...filtered].filter(court => rainCandidateIds.has(court.id) && court.access !== 'restricted' && rainById.get(court.id)?.confidence === 'High').sort((a, b) => (rainById.get(b.id)?.score ?? -1) - (rainById.get(a.id)?.score ?? -1) || distanceMiles(a, place) - distanceMiles(b, place)).slice(0, 3), [filtered, rainById, rainCandidateIds, place]);
   useEffect(() => {
+    if (internationalPlace) { setRainAssessments([]); setRainLoading(false); setRainError(''); return; }
     if (!rainCandidates.length) { setRainAssessments([]); return; }
     const controller = new AbortController(); setRainLoading(true); setRainError('');
     getRainAssessments(rainCandidates, controller.signal).then(setRainAssessments).catch(error => { if (error.name !== 'AbortError') { setRainAssessments([]); setRainError(error.message || 'Recent court-by-court radar data is unavailable right now.'); } }).finally(() => { if (!controller.signal.aborted) setRainLoading(false); });
     return () => controller.abort();
-  }, [rainCandidates]);
+  }, [rainCandidates, internationalPlace]);
   useEffect(() => {
+    if (internationalPlace) { setSelectedRainLoading(false); setSelectedRainError(''); return; }
     if (!selected || rainCandidateIds.has(selected.id) || rainById.has(selected.id)) { setSelectedRainLoading(false); setSelectedRainError(''); return; }
     const controller = new AbortController(); setSelectedRainLoading(true); setSelectedRainError('');
     getRainAssessments([selected], controller.signal).then(assessments => {
@@ -455,7 +459,7 @@ function App() {
       setRainAssessments(previous => [...previous.filter(item => item.courtId !== selected.id), ...assessments]);
     }).catch(error => { if (error.name !== 'AbortError') setSelectedRainError(error.message || 'Recent radar estimate unavailable for this court.'); }).finally(() => { if (!controller.signal.aborted) setSelectedRainLoading(false); });
     return () => controller.abort();
-  }, [selected, rainCandidateIds, rainById]);
+  }, [selected, rainCandidateIds, rainById, internationalPlace]);
 
   function chooseSuggestion(item: PlaceSuggestion) { setSuggestionsOpen(false); setSuggestions([]); setSuggestionsError(''); setActiveSuggestion(-1); setQuery(''); setSelected(null); setError(''); void load({ label: item.label, lat: item.lat, lon: item.lon, countryCode: item.countryCode }); }
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -522,7 +526,7 @@ function App() {
           {selected && <CourtDetailSheet court={selected} distance={distanceMiles(selected, place)} rain={selectedRain} rainLoading={selectedRainLoading || rainLoading} rainError={selectedRainError || rainError} caution={courtWinterLabel || courtHeatCaution?.label} nearbyRain={areaRainAlert && rainCandidateIds.has(selected.id) && Boolean(selectedRain && selectedRain.score > 80)} onClose={() => setSelected(null)} onDirections={() => directions(selected)}/>}
         </div>
       </section>
-      <section className="rain-planner" aria-labelledby="rain-planner-title"><div className="rain-planner-heading"><div><div className="section-kicker">RECENT PRECIPITATION · NEARBY COURTS</div><h2 id="rain-planner-title">Your best bets for a dry court.</h2><p>Radar estimates are compared across nearby public courts.</p></div><span className="rain-live"><i/> NOAA radar</span></div>
+      <section className="rain-planner" aria-labelledby="rain-planner-title"><div className="rain-planner-heading"><div><div className="section-kicker">RECENT PRECIPITATION · NEARBY COURTS</div><h2 id="rain-planner-title">Your best bets for a dry court.</h2><p>Radar estimates are compared across nearby public courts.</p></div>{!internationalPlace && <span className="rain-live"><i/> NOAA radar</span>}</div>
         {alertsForDisplay.slice(0, 2).map(alert => <div className={`heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={`rain-${alert.id}`}><span className="heat-alert-mark" aria-hidden="true"><WeatherAlertIcon alert={alert} size={17}/>{!WeatherAlertIcon({ alert }) && '!'}</span><div className="heat-alert-copy"><strong>{alert.event} in this area</strong><span>{alert.headline}</span><small>Check the alert before choosing a court or play time.</small></div>{alert.url && <a href={alert.url} target="_blank" rel="noreferrer">NWS details<ExternalLink size={13}/></a>}</div>)}
         {showWinterForecastAlert && <p className={`winter-forecast-alert winter-risk-${showWinterForecastAlert}`} role="status"><strong>{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={16} aria-hidden="true"/> : <Snowflake size={16} aria-hidden="true"/>}{winterBannerTitle}</strong><span>{winterBannerMessage}</span></p>}
         {rainLoading && <p className="rain-status" role="status">Checking recent rainfall near public courts…</p>}
