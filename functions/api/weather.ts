@@ -109,7 +109,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   if (u.searchParams.get('provider') === 'met') {
     if (env.WEATHERAPI_KEY) {
       try {
-        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${encodeURIComponent(env.WEATHERAPI_KEY)}&q=${lat},${lon}&days=7&aqi=no&alerts=no`, { signal: AbortSignal.timeout(12000) });
+        // WeatherAPI's free plan provides a three-day forecast. Keep this
+        // international-only request within that limit; the US NWS path is
+        // unchanged and still supplies its normal seven-day data.
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${encodeURIComponent(env.WEATHERAPI_KEY)}&q=${lat},${lon}&days=3&aqi=no&alerts=no`, { signal: AbortSignal.timeout(12000) });
         if (response.ok) {
           const data: any = await response.json(); const periods = (data.forecast?.forecastday ?? []).flatMap((day: any) => day.hour ?? []).map((h: any) => ({ time: h.time, temp: h.temp_f, wind: h.wind_mph, precip: h.chance_of_rain ?? 0, humidity: h.humidity, short: h.condition?.text || 'Forecast', icon: h.condition?.icon || '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
           return Response.json({ periods, outlook: [], timeZone: data.location?.tz_id || 'UTC', source: 'WeatherAPI', attributionUrl: 'https://www.weatherapi.com/' }, { headers: { 'Cache-Control': 'public, max-age=1800' } });

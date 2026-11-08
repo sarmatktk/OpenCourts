@@ -34,12 +34,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   try {
     if (international) {
       if (env.GEOAPIFY_API_KEY) {
-        const places = new URL('https://api.geoapify.com/v2/places');
-        places.search = new URLSearchParams({ categories: 'sport.tennis', filter: `circle:${lon},${lat},15000`, limit: '100', apiKey: env.GEOAPIFY_API_KEY }).toString();
-        const geo = await fetch(places, { signal: AbortSignal.timeout(10000) });
-        if (geo.ok) {
-          const body: any = await geo.json();
-          const elements = (body.features ?? []).map((feature: any, index: number) => {
+        const requestPlaces = async (categories: string) => {
+          const places = new URL('https://api.geoapify.com/v2/places');
+          places.search = new URLSearchParams({ categories, filter: `circle:${lon},${lat},15000`, limit: '100', apiKey: env.GEOAPIFY_API_KEY! }).toString();
+          const geo = await fetch(places, { signal: AbortSignal.timeout(10000) });
+          return geo.ok ? await geo.json() as any : null;
+        };
+        const body = await requestPlaces('sport.tennis') || await requestPlaces('sport');
+        if (body) {
+          const elements = (body.features ?? []).filter((feature: any) => {
+            const p = feature.properties ?? {}; const text = JSON.stringify(p).toLowerCase();
+            return text.includes('tennis') || text.includes('court');
+          }).map((feature: any, index: number) => {
             const [x, y] = feature.geometry?.coordinates ?? []; const p = feature.properties ?? {};
             return { type: 'node', id: `geo-${index}`, lat: Number(y), lon: Number(x), tags: { leisure: 'pitch', sport: 'tennis', name: p.name || p.address_line1 || 'Tennis courts', 'addr:full': [p.address_line1, p.address_line2].filter(Boolean).join(', ') } };
           }).filter((item: any) => Number.isFinite(item.lat) && Number.isFinite(item.lon));
