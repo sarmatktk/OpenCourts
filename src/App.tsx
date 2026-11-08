@@ -428,6 +428,15 @@ function App() {
   }, [bestWindows]);
   const rainCandidates = useMemo(() => sampleRainCourts(courts, place), [courts, place]);
   const internationalPlace = Boolean((place.countryCode || internationalCountryCode(place.label)) && (place.countryCode || internationalCountryCode(place.label)) !== 'us');
+  useEffect(() => {
+    if (!internationalPlace || document.querySelector('script[data-opencourts-adsense]')) return;
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2862364216919326';
+    script.crossOrigin = 'anonymous';
+    script.dataset.opencourtsAdsense = 'true';
+    document.head.appendChild(script);
+  }, [internationalPlace]);
   const rainCandidateIds = useMemo(() => new Set(rainCandidates.map(court => court.id)), [rainCandidates]);
   const rainById = useMemo(() => new Map(rainAssessments.map(assessment => [assessment.courtId, assessment])), [rainAssessments]);
   const areaRainAlert = useMemo(() => hasWidespreadRecentRain(rainAssessments, rainCandidateIds), [rainAssessments, rainCandidateIds]);
@@ -444,12 +453,17 @@ function App() {
   const selectedRain = selected ? rainById.get(selected.id) : undefined;
   const recommendedCourts = useMemo(() => [...filtered].filter(court => rainCandidateIds.has(court.id) && court.access !== 'restricted' && rainById.get(court.id)?.confidence === 'High').sort((a, b) => (rainById.get(b.id)?.score ?? -1) - (rainById.get(a.id)?.score ?? -1) || distanceMiles(a, place) - distanceMiles(b, place)).slice(0, 3), [filtered, rainById, rainCandidateIds, place]);
   useEffect(() => {
-    if (internationalPlace) { setRainAssessments([]); setRainLoading(false); setRainError(''); return; }
+    if (internationalPlace) {
+      const forecast = hourlyForecast.slice(0, 6).map(period => period.precip).filter(value => Number.isFinite(value));
+      const precip = forecast.length ? Math.round(forecast.reduce((sum, value) => sum + value, 0) / forecast.length) : null;
+      setRainAssessments(rainCandidates.map(court => ({ courtId: court.id, rain1h: precip, rain3h: precip, rain6h: precip, score: precip === null ? 0 : Math.max(0, 100 - precip), confidence: precip === null ? 'Low' : 'Moderate', summary: precip === null ? 'Forecast unavailable' : `${precip}% average rain chance in the next 6 hours` })));
+      setRainLoading(false); setRainError(''); return;
+    }
     if (!rainCandidates.length) { setRainAssessments([]); return; }
     const controller = new AbortController(); setRainLoading(true); setRainError('');
     getRainAssessments(rainCandidates, controller.signal).then(setRainAssessments).catch(error => { if (error.name !== 'AbortError') { setRainAssessments([]); setRainError(error.message || 'Recent court-by-court radar data is unavailable right now.'); } }).finally(() => { if (!controller.signal.aborted) setRainLoading(false); });
     return () => controller.abort();
-  }, [rainCandidates, internationalPlace]);
+  }, [rainCandidates, internationalPlace, hourlyForecast]);
   useEffect(() => {
     if (internationalPlace) { setSelectedRainLoading(false); setSelectedRainError(''); return; }
     if (!selected || rainCandidateIds.has(selected.id) || rainById.has(selected.id)) { setSelectedRainLoading(false); setSelectedRainError(''); return; }
