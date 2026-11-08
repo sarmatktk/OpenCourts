@@ -18,9 +18,9 @@ nonisolated struct PlaceSuggestion: Codable, Identifiable, Sendable {
     var place: Place { Place(label: label, lat: lat, lon: lon) }
 }
 
-struct Court: Identifiable, Hashable, Sendable {
-    enum Lighting: String, Sendable { case yes, no, unknown }
-    enum Access: String, Sendable { case publicAccess = "public", restricted, unknown }
+struct Court: Identifiable, Codable, Hashable, Sendable {
+    enum Lighting: String, Codable, Sendable { case yes, no, unknown }
+    enum Access: String, Codable, Sendable { case publicAccess = "public", restricted, unknown }
     let id: String
     let name: String
     let lat: Double
@@ -49,9 +49,15 @@ nonisolated struct Forecast: Codable, Identifiable, Sendable {
     let humidity: Double?
     let heatIndex: Double?
     let winterRisk: String?
+    let winterCaution: WinterCaution?
     let short: String
     let icon: String
     var id: String { time }
+}
+
+nonisolated struct WinterCaution: Codable, Sendable {
+    let type: String
+    let lingering: Bool
 }
 
 nonisolated struct WeatherData: Codable, Sendable {

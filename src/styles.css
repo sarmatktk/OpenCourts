@@ -423,3 +423,9 @@
   .mobile-bottom-nav button.active{background:color-mix(in srgb,#698b42 15%,var(--surface));color:#5e8039}
   .mobile-nav-search-icon{width:54px;height:54px;margin-top:-23px;box-shadow:0 5px 14px #123d3250}
 }
+
+
+.get-app-link{display:inline-flex;align-items:center;gap:2px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;color:var(--green);font-size:11px;font-weight:700;white-space:nowrap}.get-app-link:hover{border-color:#91ac71;background:var(--surface)}.dark .get-app-link{color:#dce9af}
+.store-badge{width:154px;height:46px;display:inline-flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid #1f1f1f;border-radius:8px;background:#050505;color:#fff;box-shadow:0 2px 5px #0002;transition:transform .15s,box-shadow .15s}.store-badge:hover{transform:translateY(-1px);box-shadow:0 5px 12px #0003}.store-badge:focus-visible{outline:3px solid #89b33d;outline-offset:3px}.store-badge svg{display:block;flex:none;width:25px;height:29px}.store-badge-apple svg{width:25px;height:27px}.store-badge-copy{display:flex;min-width:0;flex-direction:column;align-items:flex-start;line-height:1}.store-badge-copy small{font:500 8px/1.15 Arial,sans-serif;letter-spacing:.1px;white-space:nowrap}.store-badge-copy strong{font:600 16px/1.08 Arial,sans-serif;letter-spacing:-.3px;white-space:nowrap}.store-badge-google .store-badge-copy strong{font-size:15px;letter-spacing:-.5px}.install-actions .store-badge{width:153px;height:44px}.install-actions>span{display:inline-flex}.dark .store-badge{border-color:#68766d;background:#020302;box-shadow:0 3px 10px #0006}.dark .store-badge:hover{box-shadow:0 5px 14px #0009}@media(max-width:620px){.get-app-link{grid-column:1/-1;grid-row:3;justify-self:start}footer>div{grid-row:4}}
+
+.store-badge:visited,.store-badge:active{color:#fff;background:#050505;text-decoration:none}.dark .store-badge:visited,.dark .store-badge:active{color:#fff;background:#020302}

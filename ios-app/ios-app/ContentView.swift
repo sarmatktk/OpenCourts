@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 import MapKit
 #if os(iOS) || os(tvOS) || os(visionOS)
 import UIKit
@@ -41,13 +42,24 @@ struct ContentView: View {
     @State private var store = OpenCourtsStore()
     @State private var destination: AppDestination = .map
     @State private var searchPresented = false
+    @State private var hasCompletedInitialLoad = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
 
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 AppHeader(store: store)
+                if let message = store.refreshErrorMessage {
+                    RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
+                        Task { await store.load() }
+                    }
+                }
                 AppScreen(destination: destination, store: store)
                     .safeAreaPadding(.bottom, 72)
+                    .refreshable {
+                        await store.load()
+                    }
             }
             BottomNavigation(selection: $destination) {
                 searchPresented = true
@@ -57,10 +69,68 @@ struct ContentView: View {
         }
         .background(Brand.background)
         .tint(Brand.accent)
-        .task { await store.load() }
+        .task {
+            guard !hasCompletedInitialLoad else { return }
+            await store.load()
+            hasCompletedInitialLoad = true
+        }
+        .onChange(of: destination) { _, newDestination in
+            if newDestination == .dryCourts || newDestination == .weather {
+                store.recordValueUse()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, hasCompletedInitialLoad, !store.isLoading else { return }
+            Task {
+                await store.load()
+                await requestReviewIfAppropriate()
+            }
+        }
         .sheet(isPresented: $searchPresented) {
             SearchSheet(store: store)
         }
+    }
+
+    private func requestReviewIfAppropriate() async {
+        guard store.shouldRequestReview else { return }
+        try? await Task.sleep(for: .seconds(1.5))
+        guard scenePhase == .active, !store.isLoading, store.shouldRequestReview else { return }
+        store.markReviewPrompted()
+        requestReview()
+    }
+}
+
+private struct RefreshStatusBanner: View {
+    let message: String
+    let lastUpdated: Date?
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "arrow.clockwise.circle")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(message)
+                    .font(.footnote.weight(.semibold))
+                if let lastUpdated {
+                    Text("Last updated \(lastUpdated, format: .dateTime.hour().minute())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 4)
+            Button("Retry", action: retry)
+                .font(.footnote.weight(.bold))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(.orange.opacity(0.3), lineWidth: 0.8)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
     }
 }
 
@@ -537,6 +607,7 @@ private struct ExploreMapView: View {
                     store.selectedCourt = previewCourt
                 }
                 .padding(12)
+                .padding(.bottom, 92)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -820,6 +891,7 @@ private struct CourtRow: View {
     let place: Place
     let rain: RainAssessment?
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -847,10 +919,10 @@ private struct CourtRow: View {
                     VStack(alignment: .trailing, spacing: 3) {
                         Text(court.distance(from: place), format: .number.precision(.fractionLength(1)))
                             .font(.headline.weight(.bold))
-                            .foregroundStyle(Brand.green)
+                            .foregroundStyle(colorScheme == .dark ? Brand.lime : Brand.green)
                         Text("MILES")
                             .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .secondary)
                     }
                 }
 
@@ -904,6 +976,7 @@ private struct CourtBadge: View {
     let text: String
     let systemImage: String
     var emphasized = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Label(text, systemImage: systemImage)
@@ -911,9 +984,9 @@ private struct CourtBadge: View {
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .foregroundStyle(emphasized ? Brand.green : .primary)
+            .foregroundStyle(emphasized ? (colorScheme == .dark ? Brand.green : Brand.green) : .primary)
             .background(
-                emphasized ? Brand.lime.opacity(0.75) : Brand.surface,
+                emphasized ? Brand.lime : Brand.surface,
                 in: Capsule()
             )
     }
@@ -1115,6 +1188,7 @@ private struct CourtRainCard: View {
 private struct CourtDetailActions: View {
     let sourceURL: URL
     let directionsAction: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 12) {
@@ -1179,6 +1253,7 @@ private struct DryCourtCard: View {
     let rain: RainAssessment
     let distance: Double
     let directionsAction: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1192,7 +1267,7 @@ private struct DryCourtCard: View {
                         .rotationEffect(.degrees(-90))
                     Text("\(rain.score)")
                         .font(.title3.weight(.bold))
-                        .foregroundStyle(Brand.green)
+                        .foregroundStyle(colorScheme == .dark ? Brand.lime : Brand.green)
                 }
                 .frame(width: 68, height: 68)
 
@@ -1203,7 +1278,7 @@ private struct DryCourtCard: View {
                             systemImage: rank == 1 ? "trophy.fill" : "medal.fill"
                         )
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(rank == 1 ? Brand.green : Brand.accent)
+                        .foregroundStyle(rank == 1 ? (colorScheme == .dark ? Brand.lime : Brand.green) : Brand.accent)
                     }
                     Text(court.name)
                         .font(.headline)
@@ -1225,23 +1300,24 @@ private struct DryCourtCard: View {
 
             Text(rain.score >= 70 ? "Likely dry" : "Check the surface")
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(rain.score >= 70 ? Brand.green : .orange)
+                .foregroundStyle(surfaceStatusColor)
 
             RainfallTimeline(rain: rain)
 
-            HStack(spacing: 8) {
-                CourtBadge(
-                    text: court.lighting == .yes ? "Lighted" : court.lighting == .no ? "Unlighted" : "Lights unknown",
-                    systemImage: court.lighting == .yes ? "lightbulb.fill" : "lightbulb.slash"
-                )
-                if let count = court.courts {
-                    CourtBadge(text: "\(count) courts", systemImage: "square.grid.2x2")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    courtBadges
+                    Spacer(minLength: 0)
+                    directionsButton
                 }
-                Spacer()
-                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill", action: directionsAction)
-                    .font(.caption.weight(.bold))
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+
+                VStack(alignment: .trailing, spacing: 10) {
+                    HStack(spacing: 8) {
+                        courtBadges
+                        Spacer(minLength: 0)
+                    }
+                    directionsButton
+                }
             }
         }
         .padding(17)
@@ -1251,6 +1327,42 @@ private struct DryCourtCard: View {
                 .stroke(rank == 1 ? Brand.accent.opacity(0.55) : Color.secondary.opacity(0.18), lineWidth: rank == 1 ? 1.2 : 0.7)
         }
         .shadow(color: .black.opacity(rank == 1 ? 0.10 : 0.05), radius: 12, y: 5)
+    }
+
+    @ViewBuilder
+    private var courtBadges: some View {
+        CourtBadge(
+            text: court.lighting == .yes ? "Lighted" : court.lighting == .no ? "Unlighted" : "Lights unknown",
+            systemImage: court.lighting == .yes ? "lightbulb.fill" : "lightbulb.slash"
+        )
+        if let count = court.courts {
+            CourtBadge(text: "\(count) courts", systemImage: "square.grid.2x2")
+        }
+    }
+
+    private var directionsButton: some View {
+        Button(action: directionsAction) {
+            Label("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
+                .font(.caption.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .foregroundStyle(Brand.green)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 8)
+                .background(Brand.lime, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var surfaceStatusColor: Color {
+        if rain.score >= 70 {
+            return colorScheme == .dark ? Brand.lime : Brand.green
+        }
+
+        return colorScheme == .dark
+            ? Color(red: 1.0, green: 0.72, blue: 0.28)
+            : Color(red: 0.70, green: 0.30, blue: 0.0)
     }
 }
 
@@ -1293,19 +1405,21 @@ private struct WeatherSection: View {
     @State private var hourlyForecastExpanded = true
 
     private var daytime: [Forecast] {
-        store.forecasts.filter { forecast in
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: store.weatherTimeZone) ?? .current
+        return WeatherWinterCaution.applying(to: store.forecasts).filter { forecast in
             guard let date = ISO8601DateFormatter().date(from: forecast.time) else { return false }
-            let hour = Calendar.current.component(.hour, from: date)
+            let hour = calendar.component(.hour, from: date)
             return hour >= 8 && hour <= 18
         }
     }
 
     private var dailyBest: [DailyBestForecast] {
-        DailyForecastPlanner.bestByDay(from: daytime)
+        DailyForecastPlanner.bestByDay(from: daytime, timeZoneIdentifier: store.weatherTimeZone)
     }
 
     private var forecastWindows: [ForecastWindow] {
-        ForecastWindowPlanner.windows(from: daytime)
+        ForecastWindowPlanner.windows(from: daytime, timeZoneIdentifier: store.weatherTimeZone)
     }
 
     private var bestForecast: Forecast? {
@@ -1489,14 +1603,7 @@ private struct BestPlayWindowCard: View {
 
             Spacer()
 
-            VStack(spacing: 1) {
-                Text("\(WeatherPlayScore.value(for: forecast))")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Brand.green)
-                Text("PLAY SCORE")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.secondary)
-            }
+            PlayScoreDisplay(score: WeatherPlayScore.value(for: forecast))
         }
         .padding(16)
         .background(Brand.background, in: RoundedRectangle(cornerRadius: 18))
@@ -1515,9 +1622,79 @@ private struct DailyBestForecast: Identifiable {
     var id: String { forecast.id }
 }
 
+private enum WeatherWinterCaution {
+    private struct Lingering {
+        let type: String
+        var until: Date
+        var warmHours: Double
+    }
+
+    static func applying(to forecasts: [Forecast]) -> [Forecast] {
+        guard !forecasts.contains(where: { $0.winterCaution != nil }) else { return forecasts }
+
+        var lingering: Lingering?
+        var previousEnd = Date.distantPast
+        let ordered = forecasts.sorted { $0.time < $1.time }
+        return ordered.map { forecast in
+            guard let start = ISO8601DateFormatter().date(from: forecast.time) else { return forecast }
+            let end = forecast.endTime.flatMap { ISO8601DateFormatter().date(from: $0) }
+                ?? start.addingTimeInterval(60 * 60)
+            guard end > start else { return forecast }
+
+            if let active = lingering,
+               (start >= active.until || start.timeIntervalSince(previousEnd) > 90 * 60) {
+                lingering = nil
+            }
+            previousEnd = end
+
+            if let winterRisk = forecast.winterRisk {
+                let type = winterRisk == "ice" || lingering?.type == "ice" ? "ice" : "snow"
+                lingering = Lingering(
+                    type: type,
+                    until: max(lingering?.until ?? .distantPast, end.addingTimeInterval((type == "ice" ? 36 : 24) * 60 * 60)),
+                    warmHours: 0
+                )
+                return forecast.withWinterCaution(type: type, lingering: false)
+            }
+
+            guard var active = lingering else { return forecast }
+            let warmThreshold = active.type == "ice" ? 50.0 : 45.0
+            let warm = forecast.temp.isFinite && forecast.temp >= warmThreshold
+                && forecast.precip.isFinite && forecast.precip < 20
+            let hours = min(2, max(0, end.timeIntervalSince(start) / 60 / 60))
+            active.warmHours = warm ? active.warmHours + hours : 0
+            if active.warmHours >= 6 {
+                lingering = nil
+                return forecast
+            }
+            lingering = active
+            return forecast.withWinterCaution(type: active.type, lingering: true)
+        }
+    }
+}
+
+private extension Forecast {
+    func withWinterCaution(type: String, lingering: Bool) -> Forecast {
+        Forecast(
+            time: time,
+            endTime: endTime,
+            temp: temp,
+            wind: wind,
+            precip: precip,
+            humidity: humidity,
+            heatIndex: heatIndex,
+            winterRisk: winterRisk,
+            winterCaution: WinterCaution(type: type, lingering: lingering),
+            short: short,
+            icon: icon
+        )
+    }
+}
+
 private enum DailyForecastPlanner {
-    static func bestByDay(from forecasts: [Forecast]) -> [DailyBestForecast] {
-        let calendar = Calendar.current
+    static func bestByDay(from forecasts: [Forecast], timeZoneIdentifier: String) -> [DailyBestForecast] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         var bestForecasts: [Date: Forecast] = [:]
 
         for forecast in forecasts {
@@ -1639,7 +1816,28 @@ private struct ForecastWindow: Identifiable {
 
     var id: String { forecasts[0].id }
     var representative: Forecast { forecasts[0] }
-    var score: Int { forecasts.map(WeatherPlayScore.value(for:)).min() ?? 0 }
+    var score: Int {
+        guard let first = forecasts.first else { return 0 }
+        guard forecasts.count > 1 else { return WeatherPlayScore.value(for: first) }
+
+        let averageHumidity = forecasts.compactMap(\.humidity)
+        let combined = Forecast(
+            time: first.time,
+            endTime: forecasts.last?.endTime,
+            temp: forecasts.map(\.temp).reduce(0, +) / Double(forecasts.count),
+            wind: forecasts.map(\.wind).reduce(0, +) / Double(forecasts.count),
+            precip: forecasts.map(\.precip).reduce(0, +) / Double(forecasts.count),
+            humidity: averageHumidity.count == forecasts.count
+                ? averageHumidity.reduce(0, +) / Double(averageHumidity.count)
+                : nil,
+            heatIndex: nil,
+            winterRisk: forecasts.first(where: { $0.winterRisk != nil })?.winterRisk,
+            winterCaution: forecasts.first(where: { $0.winterCaution != nil })?.winterCaution,
+            short: first.short,
+            icon: first.icon
+        )
+        return WeatherPlayScore.value(for: combined)
+    }
     var averageTemperature: Double {
         forecasts.map(\.temp).reduce(0, +) / Double(forecasts.count)
     }
@@ -1648,14 +1846,14 @@ private struct ForecastWindow: Identifiable {
 }
 
 private enum ForecastWindowPlanner {
-    static func windows(from forecasts: [Forecast]) -> [ForecastWindow] {
+    static func windows(from forecasts: [Forecast], timeZoneIdentifier: String) -> [ForecastWindow] {
         let sorted = forecasts.sorted { $0.time < $1.time }
         var groups: [[Forecast]] = []
 
         for forecast in sorted {
             if let lastGroup = groups.last,
                let previous = lastGroup.last,
-               canMerge(previous, with: forecast) {
+               canMerge(previous, with: forecast, timeZoneIdentifier: timeZoneIdentifier) {
                 groups[groups.count - 1].append(forecast)
             } else {
                 groups.append([forecast])
@@ -1665,11 +1863,13 @@ private enum ForecastWindowPlanner {
         return groups.map { ForecastWindow(forecasts: $0) }
     }
 
-    private static func canMerge(_ previous: Forecast, with next: Forecast) -> Bool {
+    private static func canMerge(_ previous: Forecast, with next: Forecast, timeZoneIdentifier: String) -> Bool {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         guard
             let previousDate = ISO8601DateFormatter().date(from: previous.time),
             let nextDate = ISO8601DateFormatter().date(from: next.time),
-            Calendar.current.isDate(previousDate, inSameDayAs: nextDate)
+            calendar.isDate(previousDate, inSameDayAs: nextDate)
         else {
             return false
         }
@@ -1840,12 +2040,43 @@ private struct WeatherEmptyCard: View {
 }
 
 private enum WeatherPlayScore {
+    nonisolated private static let heatIndexDisplayThreshold = 90.0
+
     nonisolated static func value(for forecast: Forecast) -> Int {
-        let temperaturePenalty = forecast.temp < 60 ? (60 - forecast.temp) * 4.2 : max(0, forecast.temp - 78) * 3.7
+        let temperaturePenalty: Double
+        if forecast.temp < 60 {
+            temperaturePenalty = (60 - forecast.temp) * 4.2
+        } else {
+            let apparent = forecast.humidity.map { heatIndex(forecast.temp, humidity: $0) } ?? forecast.temp
+            temperaturePenalty = max(0, min(apparent, heatIndexDisplayThreshold) - 78) * 3.7
+                + max(0, apparent - heatIndexDisplayThreshold) * 2.5
+        }
         let windPenalty = min(40, max(0, forecast.wind - 8) * 2.2)
         let rainPenalty = 70 * pow(max(0, min(100, forecast.precip)) / 100, 1.5)
         let raw = Int(max(0, min(100, 100 - temperaturePenalty - windPenalty - rainPenalty)).rounded())
-        return forecast.winterRisk == nil ? raw : min(20, raw)
+        return forecast.winterRisk == nil && forecast.winterCaution == nil ? raw : min(20, raw)
+    }
+
+    nonisolated private static func heatIndex(_ temperature: Double, humidity: Double) -> Double {
+        guard temperature.isFinite, humidity.isFinite, (0...100).contains(humidity) else { return temperature }
+
+        let simple = 0.5 * (temperature + 61 + (temperature - 68) * 1.2 + humidity * 0.094)
+        let initial = (simple + temperature) / 2
+        guard initial >= 80 else { return initial.rounded() }
+
+        let t = temperature
+        let rh = humidity
+        var index = -42.379 + 2.04901523 * t + 10.14333127 * rh
+            - 0.22475541 * t * rh - 0.00683783 * t * t
+            - 0.05481717 * rh * rh + 0.00122874 * t * t * rh
+            + 0.00085282 * t * rh * rh - 0.00000199 * t * t * rh * rh
+        if rh < 13, (80...112).contains(t) {
+            index -= ((13 - rh) / 4) * sqrt(max(0, (17 - abs(t - 95)) / 17))
+        }
+        if rh > 85, (80...87).contains(t) {
+            index += ((rh - 85) / 10) * ((87 - t) / 5)
+        }
+        return index.rounded()
     }
 }
 
