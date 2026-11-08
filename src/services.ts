@@ -14,6 +14,21 @@ export function classifyAccess(tags: Record<string, string | undefined>): Access
 }
 function milesBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (a.lat-b.lat)*rad; const dLon = (a.lon-b.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
 function usefulLocality(locality: string) { const value = locality.trim(); return /^(?:your|my|current) location$|^near me$/i.test(value) ? '' : value; }
+export function internationalCountryCode(query: string): string | undefined {
+  const last = query.split(',').at(-1)?.trim().toLowerCase() || '';
+  const countries: Record<string, string> = {
+    uk: 'gb', 'united kingdom': 'gb', england: 'gb', scotland: 'gb', wales: 'gb', 'northern ireland': 'gb',
+    canada: 'ca', france: 'fr', spain: 'es', germany: 'de', italy: 'it', australia: 'au', 'new zealand': 'nz',
+    japan: 'jp', ireland: 'ie', netherlands: 'nl', portugal: 'pt', mexico: 'mx', brazil: 'br', 'south africa': 'za',
+    india: 'in', singapore: 'sg', switzerland: 'ch', sweden: 'se', norway: 'no', denmark: 'dk', belgium: 'be',
+    austria: 'at', greece: 'gr', thailand: 'th', indonesia: 'id', philippines: 'ph', china: 'cn', 'south korea': 'kr',
+    turkey: 'tr', poland: 'pl', czechia: 'cz', finland: 'fi', iceland: 'is', argentina: 'ar', chile: 'cl', colombia: 'co',
+  };
+  if (countries[last]) return countries[last];
+  const code = last.toLowerCase();
+  const supportedCodes = new Set(['ae', 'at', 'au', 'be', 'br', 'ca', 'ch', 'cl', 'cn', 'co', 'cz', 'de', 'dk', 'es', 'fi', 'fr', 'gb', 'gr', 'id', 'ie', 'in', 'is', 'it', 'jp', 'kr', 'mx', 'nl', 'no', 'nz', 'ph', 'pl', 'pt', 'se', 'sg', 'th', 'tr', 'za']);
+  return supportedCodes.has(code) ? code : undefined;
+}
 export function normalizeCourt(element: any, roads: any[] = [], locality = '', nearbyPlaces: any[] = []): Court {
   const tags = element.tags ?? {};
   const lat = element.lat ?? element.center?.lat; const lon = element.lon ?? element.center?.lon;
@@ -145,22 +160,25 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   const normalized = normalizeLocationQuery(query);
   if (normalized.error) throw new Error(normalized.error);
   query = normalized.query;
-  const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6');
+  const internationalCountry = internationalCountryCode(query);
+  const globalSearch = Boolean(internationalCountry);
+  const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6'); if (globalSearch) { url.searchParams.set('scope', 'global'); url.searchParams.set('country', internationalCountry!); }
   const res = await fetch(url, { signal, cache: 'no-store' }); if (!res.ok) throw new Error(res.status === 429 ? 'Location search is busy. Please wait a moment and try again.' : 'Location search is unavailable. Try a city and state or ZIP code.');
-  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number; postcode?: string } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
+  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number; postcode?: string; country_code?: string } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
   const match = data.result;
-  if (!match) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
+  if (!match) throw new Error(globalSearch ? 'We couldn’t find that place. Try a city and country.' : 'We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
   const lat = Number(match.lat); const lon = Number(match.lon);
-  if (!match.display_name || (normalized.zip && match.postcode !== normalized.zip) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error('We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
-  const place = { label: match.display_name, lat, lon };
+  if (!match.display_name || (!globalSearch && normalized.zip && match.postcode !== normalized.zip) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error(globalSearch ? 'We couldn’t find that place. Try a city and country.' : 'We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
+  const place = { label: match.display_name, lat, lon, ...(match.country_code ? { countryCode: match.country_code } : {}) };
   return place;
 }
 export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
   const normalized = normalizeLocationQuery(query);
   if (normalized.error) return [];
   query = normalized.query;
-  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6');
-  const canGeocode = Boolean(normalized.zip) || /^\d{1,6}[A-Za-z]?\s+\S.*(?:,|\b[A-Za-z]{2}\b|\b\d{5}\b)/.test(query) || /^[^,]+,\s*[A-Za-z]{2}$/.test(query);
+  const internationalCountry = internationalCountryCode(query);
+  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '7'); if (internationalCountry) url.searchParams.set('country', internationalCountry);
+  const canGeocode = Boolean(internationalCountry) || (Boolean(normalized.zip) || /^\d{1,6}[A-Za-z]?\s+\S.*(?:,|\b[A-Za-z]{2}\b|\b\d{5}\b)/.test(query) || /^[^,]+,\s*[A-Za-z]{2}$/.test(query));
   try {
     const res = await fetch(url, { signal, cache: 'no-store' });
     if (!res.ok) throw new Error('Place suggestions are temporarily unavailable.');
@@ -280,7 +298,7 @@ export async function getSelectedCourtContext(court: Court, locality: string, si
   const enriched = enrichNearbyCourtDetails([court], data.elements, locality)[0];
   return enriched ? { ...enriched, contextCached: true } : null;
 }
-function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void) {
+function refreshCourtContext(courts: Court[], lat: number, lon: number, locality: string, signal?: AbortSignal, onUpdate?: (courts: Court[]) => void, countryCode?: string) {
   if (courts.length > 0 && courts.every(court => court.contextCached)) return;
   const url = new URL('/api/court-context', window.location.origin);
   const nearbyCourts = [...courts].filter(court => !court.contextCached)
@@ -307,26 +325,52 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
       .map(court => data.elements.length && requestedIds.has(court.id) ? { ...court, contextCached: true } : court)));
     const missingDetails = enriched.filter(court => !court.address && !court.contextName).length;
     if (enriched.length === 0 || missingDetails < enriched.length * 0.8) {
-      try { sessionStorage.setItem(`opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+      const cacheKey = countryCode && countryCode !== 'us'
+        ? `opencourts-courts-v21-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
+        : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
     }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
-export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void): Promise<Court[]> {
-  const key = `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void, selectedCountryCode?: string): Promise<Court[]> {
+  const countryCode = selectedCountryCode?.toLowerCase();
+  const international = Boolean(countryCode && countryCode !== 'us');
+  const key = international
+    ? `opencourts-courts-v21-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
+    : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+  // International Overpass is backed by shared public endpoints, so retain a
+  // successful result across visits for this user. The US catalog/cache path
+  // remains unchanged.
+  const persistentKey = international ? `${key}-local` : '';
+  const readCached = (storage: Storage) => {
+    const raw = storage.getItem(persistentKey);
+    if (!raw) return null;
+    try {
+      const entry = JSON.parse(raw) as { savedAt?: number; courts?: Court[] };
+      if (!entry.savedAt || Date.now() - entry.savedAt > 30 * 24 * 60 * 60 * 1000 || !Array.isArray(entry.courts)) { storage.removeItem(persistentKey); return null; }
+      return entry.courts;
+    } catch { storage.removeItem(persistentKey); return null; }
+  };
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
       const courts = JSON.parse(saved) as Court[];
       const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
       if (courts.length === 0 || missingDetails < courts.length * 0.8) {
-        refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
+        if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
         return courts;
       }
       sessionStorage.removeItem(key);
     }
   } catch { /* storage can be disabled */ }
-  const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal });
+  if (international) {
+    try {
+      const saved = readCached(localStorage);
+      if (saved && saved.length > 0) return saved;
+    } catch { /* storage can be disabled */ }
+  }
+  const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}${international ? `&country=${countryCode}` : ''}`, { signal });
   if (!res.ok) {
     const failure = await res.json().catch(() => ({} as Record<string, unknown>));
     const diagnostic = typeof failure.diagnostic === 'string' && failure.diagnostic ? ` (${failure.diagnostic})` : '';
@@ -343,8 +387,9 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
   if (courts.length === 0 || missingDetails < courts.length * 0.8) {
     try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
+    if (international) try { localStorage.setItem(persistentKey, JSON.stringify({ savedAt: Date.now(), courts })); } catch { /* storage can be disabled */ }
   }
-  refreshCourtContext(courts, lat, lon, locality, signal, onUpdate);
+  if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
   return courts;
 }
 export async function getRainAssessments(
@@ -449,10 +494,11 @@ export function hasWidespreadRecentRain(assessments: RainAssessment[], sampledCo
   }
   return readable >= 3 && wet / readable >= 0.6;
 }
-export async function getWeather(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherData> {
-  const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal }); if (!res.ok) throw new Error('Local forecast is temporarily unavailable. Please try again.');
+export async function getWeather(lat: number, lon: number, signal?: AbortSignal, countryCode?: string): Promise<WeatherData> {
+  const international = Boolean(countryCode && countryCode.toLowerCase() !== 'us');
+  const res = await fetch(`/api/weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}${international ? '&provider=met' : ''}`, { signal }); if (!res.ok) throw new Error('Local forecast is temporarily unavailable. Please try again.');
   const data = await readApiJson<Partial<WeatherData>>(res, 'Local forecast is temporarily unavailable. Please try again.');
-  return { periods: Array.isArray(data.periods) ? data.periods : [], outlook: Array.isArray(data.outlook) ? data.outlook : [], timeZone: data.timeZone || 'America/New_York' };
+  return { periods: Array.isArray(data.periods) ? data.periods : [], outlook: Array.isArray(data.outlook) ? data.outlook : [], timeZone: data.timeZone || 'America/New_York', source: data.source, attributionUrl: data.attributionUrl };
 }
 export async function getWeatherAlerts(lat: number, lon: number, signal?: AbortSignal): Promise<WeatherAlertData> {
   const res = await fetch(`/api/weather-alerts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, { signal });

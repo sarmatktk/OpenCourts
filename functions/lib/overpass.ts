@@ -12,19 +12,20 @@ export class OverpassUnavailableError extends Error {
 }
 
 /**
- * Race at most two public Overpass instances at a time. A fast complete result
- * wins; another pair is tried only if both providers in the current pair fail.
+ * Race a bounded batch of public Overpass instances. A complete response wins;
+ * another batch is tried only if every provider in the current batch fails.
  */
 export async function queryOverpass(
   endpoints: string[],
   query: string,
   timeoutMs: number,
+  maxConcurrent = 2,
 ): Promise<OverpassResponse> {
   const failures: string[] = [];
   let lastStatus: number | undefined;
 
-  for (let start = 0; start < endpoints.length; start += 2) {
-    const providers = endpoints.slice(start, start + 2);
+  for (let start = 0; start < endpoints.length; start += maxConcurrent) {
+    const providers = endpoints.slice(start, start + maxConcurrent);
     const controllers = providers.map(() => new AbortController());
     const attempts = providers.map(async (endpoint, index) => {
       const controller = controllers[index];

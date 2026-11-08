@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestGet as getCourts } from '../functions/api/courts';
 import { onRequestGet as getCourtContext, onRequestPost as postCourtContext } from '../functions/api/court-context';
 import { onRequestPost as getRain } from '../functions/api/rain';
-import { onRequestGet as getWeather } from '../functions/api/weather';
+import { mapMetNorwayForecast, onRequestGet as getWeather } from '../functions/api/weather';
 import { queryOverpass } from '../functions/lib/overpass';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -73,6 +73,17 @@ describe('Overpass requests', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('maps MET Norway hourly data into the shared forecast shape', () => {
+    const result = mapMetNorwayForecast({ properties: { meta: { timezone: 'Europe/London' }, timeseries: [
+      { time: '2026-11-08T10:00:00Z', data: { instant: { details: { air_temperature: 12, wind_speed: 4, relative_humidity: 65 } }, next_1_hours: { summary: { symbol_code: 'rain' }, details: { probability_of_precipitation: 45 } } } },
+      { time: '2026-11-08T11:00:00Z', data: { instant: { details: { air_temperature: 11, wind_speed: 3 } }, next_1_hours: { summary: { symbol_code: 'clearsky_day' }, details: { probability_of_precipitation: 0 } } } },
+    ] } });
+    expect(result.timeZone).toBe('Europe/London');
+    expect(result.source).toBe('MET Norway');
+    expect(result.periods[0]).toMatchObject({ temp: 12, wind: 4, precip: 45, humidity: 65, short: 'Rain' });
+    expect(result.periods[0].endTime).toBe('2026-11-08T11:00:00Z');
+  });
+
   it('returns 400 for malformed rain request JSON', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
@@ -92,6 +103,14 @@ describe('Overpass requests', () => {
     const result = await queryOverpass(['https://test.invalid/one', 'https://test.invalid/two', 'https://test.invalid/three'], 'out body;', 500);
     expect(result.elements).toEqual([{ id: 1 }]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('can race all configured providers for a latency-sensitive request', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => Promise.resolve(Response.json({ elements: [{ provider: String(input) }] })));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await queryOverpass(['https://test.invalid/a', 'https://test.invalid/b', 'https://test.invalid/c'], 'out body;', 500, 3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.elements).toHaveLength(1);
   });
 
   it('tries the next provider pair when both current providers fail', async () => {

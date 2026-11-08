@@ -16,26 +16,30 @@ export function cityStateQuery(query: string): { city: string; state: string } |
 }
 export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) => {
   const url = new URL(request.url); const input = (url.searchParams.get('q') ?? '').trim();
+  const globalSearch = url.searchParams.get('scope') === 'global';
+  const country = (url.searchParams.get('country') || '').toLowerCase();
+  if (globalSearch && !/^[a-z]{2}$/.test(country)) return Response.json({ error: 'A valid country code is required.' }, { status: 400 });
   const { query: q, zip, zipOnly, error } = normalizeLocationQuery(input);
   if (!q || q.length > 120) return Response.json({ error: 'Enter a city, state, or ZIP code.' }, { status: 400 });
   if (error) return Response.json({ error }, { status: 400 });
-  const key = new Request(`${url.origin}/api/geocode?v=5&q=${encodeURIComponent(q.toLowerCase())}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
+  const key = new Request(`${url.origin}/api/geocode?v=7&scope=${globalSearch ? country : 'us'}&q=${encodeURIComponent(q.toLowerCase())}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
   const cached = await readEdgeCache(cache, key); if (cached) return cached;
   try {
     const upstream = new URL('https://nominatim.openstreetmap.org/search');
-    upstream.search = new URLSearchParams({ ...(zipOnly ? { postalcode: zip!, country: 'United States' } : { q }), format: 'jsonv2', countrycodes: 'us', limit: '5', addressdetails: '1' }).toString();
+    upstream.search = new URLSearchParams({ ...(zipOnly && !globalSearch ? { postalcode: zip!, country: 'United States' } : { q }), format: 'jsonv2', ...(globalSearch ? { countrycodes: country } : { countrycodes: 'us' }), limit: '5', addressdetails: '1' }).toString();
     const response = await fetch(upstream, { headers: { 'Accept': 'application/json', 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us; hello@opencourts.us)' }, signal: AbortSignal.timeout(12000) });
     if (response.status === 429) return Response.json({ error: 'Location search is busy.' }, { status: 429, headers: { 'Cache-Control': 'no-store' } });
     if (!response.ok) return Response.json({ error: 'Location search is unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     const data: any[] = await response.json();
     const houseNumber = !zipOnly ? /^(\d{1,6}[A-Za-z]?)\s+\S/.exec(q)?.[1] : undefined;
     const cityState = !zip && !houseNumber ? cityStateQuery(q) : null;
-    const match = data.find(item => (!zip || item.address?.postcode === zip)
+    const match = data.find(item => (!globalSearch && zip ? item.address?.postcode === zip : true)
+      && (!globalSearch || String(item.address?.country_code || '').toLowerCase() === country)
       && (!houseNumber || String(item.address?.house_number ?? '').toLowerCase() === houseNumber.toLowerCase())
       && (!cityState || (String(item.address?.state ?? '').toLowerCase() === cityState.state
         && [item.address?.city, item.address?.town, item.address?.village, item.address?.hamlet, item.address?.municipality]
           .some(name => String(name ?? '').toLowerCase() === cityState.city))));
-    const result = match ? { display_name: match.display_name, lat: match.lat, lon: match.lon, postcode: match.address?.postcode } : null;
+    const result = match ? { display_name: match.display_name, lat: match.lat, lon: match.lon, postcode: match.address?.postcode, country_code: String(match.address?.country_code || '').toLowerCase() } : null;
     const res = Response.json({ result }, { headers: { 'Cache-Control': result ? 'public, max-age=86400' : 'public, max-age=900' } });
     writeEdgeCache(cache, key, res, waitUntil); return res;
   } catch { return Response.json({ error: 'Location search is temporarily unavailable.' }, { status: 503, headers: { 'Cache-Control': 'no-store' } }); }

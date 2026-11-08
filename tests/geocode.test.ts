@@ -92,6 +92,16 @@ describe('ZIP lookup', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('restricts international geocoding to the requested country', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([
+      { display_name: 'London, United Kingdom', lat: '51.5', lon: '-0.12', address: { city: 'London', country_code: 'gb' } },
+      { display_name: 'London, Canada', lat: '42.98', lon: '-81.25', address: { city: 'London', country_code: 'ca' } },
+    ]));
+    const response = await geocode(context('/api/geocode?q=London%2C%20United%20Kingdom&scope=global&country=gb'));
+    expect((await response.json()).result.display_name).toContain('United Kingdom');
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('countrycodes')).toBe('gb');
+  });
+
   it('filters city-state autocomplete suggestions to the requested place', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ features: [
       { geometry: { coordinates: [-96.79, 32.77] }, properties: { name: 'Fairfax', city: 'Fairfax', state: 'Texas' } },
@@ -101,6 +111,26 @@ describe('ZIP lookup', () => {
     const suggestions = (await response.json()).suggestions;
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0].label).toContain('Virginia');
+  });
+
+  it('keeps autocomplete suggestions in the US by default', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ features: [
+      { geometry: { coordinates: [-77.3, 38.85] }, properties: { name: 'Fairfax', countrycode: 'us', country: 'United States' } },
+      { geometry: { coordinates: [-123.12, 49.28] }, properties: { name: 'Fairfax', countrycode: 'ca', country: 'Canada' } },
+    ] }));
+    const response = await suggest(context('/api/suggest?q=Fairfax'));
+    expect((await response.json()).suggestions.map((item: any) => item.countryCode)).toEqual(['us']);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('countrycode')).toBe('us');
+  });
+
+  it('scopes international autocomplete to the selected country', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ features: [
+      { geometry: { coordinates: [-0.12, 51.5] }, properties: { name: 'London', countrycode: 'gb', country: 'United Kingdom' } },
+      { geometry: { coordinates: [-73.56, 45.5] }, properties: { name: 'London', countrycode: 'ca', country: 'Canada' } },
+    ] }));
+    const response = await suggest(context('/api/suggest?q=London&country=gb'));
+    expect((await response.json()).suggestions.map((item: any) => item.countryCode)).toEqual(['gb']);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('countrycode')).toBe('gb');
   });
 
   it('accepts only an exact ZIP and filters unrelated suggestions', async () => {
