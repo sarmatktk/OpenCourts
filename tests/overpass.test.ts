@@ -80,8 +80,46 @@ describe('Overpass requests', () => {
     ] } });
     expect(result.timeZone).toBe('Europe/London');
     expect(result.source).toBe('MET Norway');
-    expect(result.periods[0]).toMatchObject({ temp: 12, wind: 4, precip: 45, humidity: 65, short: 'Rain' });
+    expect(result.periods[0]).toMatchObject({ temp: 53.6, precip: 45, humidity: 65, short: 'Rain', precipKnown: true });
+    expect(result.periods[0].wind).toBeCloseTo(8.95, 2);
     expect(result.periods[0].endTime).toBe('2026-11-08T11:00:00Z');
+  });
+
+  it('does not wait for a stalled international places provider before returning courts', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      if (String(input).includes('geoapify')) return new Promise<Response>(() => {});
+      return Promise.resolve(Response.json({ elements: [{ id: 9 }] }));
+    }));
+    const response = await getCourts({ request: new Request('https://opencourts.us/api/courts?lat=35.68&lon=139.69&country=jp'), env: { GEOAPIFY_API_KEY: 'test' } } as any);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ elements: [{ id: 9 }] });
+  });
+
+  it('normalizes WeatherAPI hours and caches international forecasts before calling providers', async () => {
+    const epoch = 1794132000;
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json({ location: { tz_id: 'Asia/Tokyo' }, forecast: { forecastday: [{ hour: [{ time_epoch: epoch, time: '2026-11-08 19:00', temp_f: 62, wind_mph: 4, chance_of_rain: 30 }] }] } })));
+    vi.stubGlobal('fetch', fetchMock);
+    let cached: Response | undefined;
+    const put = vi.fn(async (_key: Request, response: Response) => { cached = response; });
+    vi.stubGlobal('caches', { default: { match: vi.fn(async () => cached?.clone()), put } });
+    const context = { request: new Request('https://opencourts.us/api/weather?lat=35.68&lon=139.69&provider=met'), env: { WEATHERAPI_KEY: 'test' }, waitUntil: vi.fn() };
+    const response = await getWeather(context as any);
+    expect(await response.json()).toMatchObject({ source: 'WeatherAPI', timeZone: 'Asia/Tokyo', periods: [{ time: new Date(epoch * 1000).toISOString(), precip: 30 }] });
+    expect(put).toHaveBeenCalledOnce();
+    expect((await getWeather(context as any)).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('uses global rain probabilities and time zones without calling US services', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input).includes('api.met.no')) return Promise.reject(new Error('Network unavailable'));
+      return Promise.resolve(Response.json({ timezone: 'Asia/Tokyo', hourly: { time: [1794132000], temperature_2m: [65], wind_speed_10m: [5], precipitation_probability: [20] } }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const response = await getWeather({ request: new Request('https://opencourts.us/api/weather?lat=35.68&lon=139.69&provider=met'), env: {} } as any);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ source: 'Open-Meteo', periods: [{ time: new Date(1794132000 * 1000).toISOString(), precip: 20 }] });
+    expect(fetchMock.mock.calls.every(([url]) => !String(url).includes('weather.gov'))).toBe(true);
   });
 
   it('returns 400 for malformed rain request JSON', async () => {

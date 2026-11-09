@@ -36,8 +36,8 @@ function parseMetSymbol(symbol: string | undefined) {
   if (code.includes('snow') || code.includes('sleet')) return 'Snow';
   if (code.includes('rain') || code.includes('drizzle')) return 'Rain';
   if (code.includes('fog')) return 'Fog';
-  if (code.includes('cloudy')) return 'Cloudy';
   if (code.includes('partlycloudy')) return 'Partly cloudy';
+  if (code.includes('cloudy')) return 'Cloudy';
   if (code.includes('fair')) return 'Mostly clear';
   if (code.includes('clearsky')) return 'Clear';
   return 'Weather conditions';
@@ -55,9 +55,10 @@ export function mapMetNorwayForecast(data: any) {
     return {
       time: item.time,
       endTime: all[index + 1]?.time,
-      temp: details.air_temperature,
-      wind: details.wind_speed,
+      temp: Number.isFinite(details.air_temperature) ? details.air_temperature * 9 / 5 + 32 : undefined,
+      wind: Number.isFinite(details.wind_speed) ? details.wind_speed * 2.236936 : undefined,
       precip: item.data?.next_1_hours?.details?.probability_of_precipitation ?? item.data?.next_6_hours?.details?.probability_of_precipitation ?? 0,
+      precipKnown: Number.isFinite(item.data?.next_1_hours?.details?.probability_of_precipitation ?? item.data?.next_6_hours?.details?.probability_of_precipitation),
       humidity: details.relative_humidity,
       ...(ice ? { winterRisk: 'ice' } : snow ? { winterRisk: 'snow' } : {}),
       short: description,
@@ -69,33 +70,36 @@ export function mapMetNorwayForecast(data: any) {
 
 async function metNorwayForecast(lat: number, lon: number, origin: string, waitUntil?: (promise: Promise<unknown>) => void) {
   const cache = typeof caches === 'undefined' ? undefined : caches.default;
-  const key = new Request(`${origin}/api/weather?provider=met&lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`);
+  const key = new Request(`${origin}/api/weather?v=2&provider=met&lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`);
   const cached = await readEdgeCache(cache, key);
   if (cached) return cached;
-  const response = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`, {
-    headers: { 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us/contact; samktk23@gmail.com)', Accept: 'application/json' },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!response.ok) return openMeteoForecast(lat, lon, origin, waitUntil);
-  const data: any = await response.json();
-  const mapped = mapMetNorwayForecast(data);
-  if (!mapped.periods.length) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
-  // Weather is intentionally short-lived: refresh forecasts every 30 minutes.
-  const result = Response.json(mapped, { headers: { 'Cache-Control': 'public, max-age=1800' } });
-  writeEdgeCache(cache, key, result, waitUntil);
-  return result;
+  try {
+    const response = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`, {
+      headers: { 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us/contact; samktk23@gmail.com)', Accept: 'application/json' },
+      signal: AbortSignal.timeout(4500),
+    });
+    if (!response.ok) return openMeteoForecast(lat, lon, origin, waitUntil);
+    const data: any = await response.json();
+    const mapped = mapMetNorwayForecast(data);
+    if (!mapped.periods.length) return openMeteoForecast(lat, lon, origin, waitUntil);
+    // Weather is intentionally short-lived: refresh forecasts every 30 minutes.
+    const result = Response.json(mapped, { headers: { 'Cache-Control': 'public, max-age=1800' } });
+    writeEdgeCache(cache, key, result, waitUntil);
+    return result;
+  } catch { return openMeteoForecast(lat, lon, origin, waitUntil); }
 }
 
 async function openMeteoForecast(lat: number, lon: number, origin: string, waitUntil?: (promise: Promise<unknown>) => void) {
   const cache = typeof caches === 'undefined' ? undefined : caches.default;
-  const key = new Request(`${origin}/api/weather?provider=met-fallback&lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`);
+  const key = new Request(`${origin}/api/weather?v=2&provider=met-fallback&lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`);
   const cached = await readEdgeCache(cache, key); if (cached) return cached;
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m&forecast_days=7&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m&forecast_days=7&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&timeformat=unixtime`;
     const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!response.ok) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502 });
     const data: any = await response.json(); const hourly = data.hourly ?? {};
-    const periods = (hourly.time ?? []).map((time: string, i: number) => ({ time, endTime: hourly.time?.[i + 1], temp: hourly.temperature_2m?.[i], wind: hourly.wind_speed_10m?.[i], precip: hourly.precipitation_probability?.[i] ?? 0, humidity: hourly.relative_humidity_2m?.[i], short: 'Forecast', icon: '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
+    const periods = (hourly.time ?? []).map((time: number, i: number) => ({ time: new Date(time * 1000).toISOString(), endTime: new Date((time + 3600) * 1000).toISOString(), temp: hourly.temperature_2m?.[i], wind: hourly.wind_speed_10m?.[i], precip: hourly.precipitation_probability?.[i] ?? 0, precipKnown: Number.isFinite(hourly.precipitation_probability?.[i]), humidity: hourly.relative_humidity_2m?.[i], short: 'Forecast', icon: '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
+    if (!periods.length) throw new Error('Empty forecast');
     const result = Response.json({ periods, outlook: [], timeZone: data.timezone || 'UTC', source: 'Open-Meteo', attributionUrl: 'https://open-meteo.com/' }, { headers: { 'Cache-Control': 'public, max-age=1800' } });
     writeEdgeCache(cache, key, result, waitUntil); return result;
   } catch { return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502 }); }
@@ -107,19 +111,30 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   const lat = Number(rawLat); const lon = Number(rawLon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return Response.json({ error: 'Valid coordinates are required.' }, { status: 400 });
   if (u.searchParams.get('provider') === 'met') {
+    const cache = typeof caches === 'undefined' ? undefined : caches.default;
+    const key = new Request(`${u.origin}/api/weather?v=3&provider=international&lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`);
+    const cached = await readEdgeCache(cache, key); if (cached) return cached;
     if (env.WEATHERAPI_KEY) {
       try {
         // WeatherAPI's free plan provides a three-day forecast. Keep this
         // international-only request within that limit; the US NWS path is
         // unchanged and still supplies its normal seven-day data.
-        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${encodeURIComponent(env.WEATHERAPI_KEY)}&q=${lat},${lon}&days=3&aqi=no&alerts=no`, { signal: AbortSignal.timeout(12000) });
+        const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=${encodeURIComponent(env.WEATHERAPI_KEY)}&q=${lat},${lon}&days=3&aqi=no&alerts=no`, { signal: AbortSignal.timeout(4500) });
         if (response.ok) {
-          const data: any = await response.json(); const periods = (data.forecast?.forecastday ?? []).flatMap((day: any) => day.hour ?? []).map((h: any) => ({ time: h.time, temp: h.temp_f, wind: h.wind_mph, precip: h.chance_of_rain ?? 0, humidity: h.humidity, short: h.condition?.text || 'Forecast', icon: h.condition?.icon || '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
-          return Response.json({ periods, outlook: [], timeZone: data.location?.tz_id || 'UTC', source: 'WeatherAPI', attributionUrl: 'https://www.weatherapi.com/' }, { headers: { 'Cache-Control': 'public, max-age=1800' } });
+          const data: any = await response.json(); const periods = (data.forecast?.forecastday ?? []).flatMap((day: any) => day.hour ?? []).filter((h: any) => Number.isFinite(h.time_epoch)).map((h: any) => ({ time: new Date(h.time_epoch * 1000).toISOString(), endTime: new Date((h.time_epoch + 3600) * 1000).toISOString(), temp: h.temp_f, wind: h.wind_mph, precip: h.chance_of_rain ?? 0, precipKnown: Number.isFinite(h.chance_of_rain), humidity: h.humidity, ...(forecastWinterRisk(h.condition?.text) ? { winterRisk: forecastWinterRisk(h.condition?.text) } : {}), short: h.condition?.text || 'Forecast', icon: h.condition?.icon || '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
+          if (periods.length) {
+            const result = Response.json({ periods, outlook: [], timeZone: data.location?.tz_id || 'UTC', source: 'WeatherAPI', attributionUrl: 'https://www.weatherapi.com/' }, { headers: { 'Cache-Control': 'public, max-age=1800' } });
+            writeEdgeCache(cache, key, result, waitUntil); return result;
+          }
         }
       } catch { /* fall through to free providers */ }
     }
-    return metNorwayForecast(lat, lon, u.origin, waitUntil);
+    // The global hourly provider supplies local time zones and rain probabilities;
+    // MET's global forecast often omits both. Keep MET as an outage fallback.
+    let result = await openMeteoForecast(lat, lon, u.origin, waitUntil);
+    if (!result.ok) result = await metNorwayForecast(lat, lon, u.origin, waitUntil);
+    if (result.ok) writeEdgeCache(cache, key, result, waitUntil);
+    return result;
   }
   const cache = typeof caches === 'undefined' ? undefined : caches.default; const key = new Request(`${u.origin}/api/weather?lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`); const cached = await readEdgeCache(cache, key); if (cached) return cached;
   try {

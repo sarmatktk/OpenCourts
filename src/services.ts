@@ -337,7 +337,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const countryCode = selectedCountryCode?.toLowerCase();
   const international = Boolean(countryCode && countryCode !== 'us');
   const key = international
-    ? `opencourts-courts-v21-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
+    ? `opencourts-courts-v22-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
     : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   // International Overpass is backed by shared public endpoints, so retain a
   // successful result across visits for this user. The US catalog/cache path
@@ -357,7 +357,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
     if (saved) {
       const courts = JSON.parse(saved) as Court[];
       const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
-      if (courts.length === 0 || missingDetails < courts.length * 0.8) {
+      if (international || courts.length === 0 || missingDetails < courts.length * 0.8) {
         if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
         return courts;
       }
@@ -385,7 +385,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
     .filter(({ element, court }: { element: any; court: Court }) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, element.tags))
     .map(({ court }: { court: Court }) => court)));
   const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
-  if (courts.length === 0 || missingDetails < courts.length * 0.8) {
+  if (international || courts.length === 0 || missingDetails < courts.length * 0.8) {
     try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
     if (international) try { localStorage.setItem(persistentKey, JSON.stringify({ savedAt: Date.now(), courts })); } catch { /* storage can be disabled */ }
   }
@@ -601,7 +601,7 @@ export function withWinterSurfaceCaution(periods: Forecast[], seed?: WinterCauti
     return { ...period, winterCaution: { type: lingering.type, lingering: true } };
   });
 }
-export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: number, lon?: number): DailyPlayWindows[] {
+export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: number, lon?: number, international = false): DailyPlayWindows[] {
   const partsFor = (time: string) => new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date(time));
@@ -617,8 +617,8 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
     if (lat === undefined || lon === undefined) return hour >= 8 && hour <= 18 ? [period] : [];
     if (!daylightByDate.has(day)) {
       const date = new Date(period.time);
-      const sunrise = estimatedSunrise(lat, lon, timeZone, date)?.getTime();
-      const sunset = estimatedSunset(lat, lon, timeZone, date)?.getTime();
+      const sunrise = estimatedSunrise(lat, lon, timeZone, date, international)?.getTime();
+      const sunset = estimatedSunset(lat, lon, timeZone, date, international)?.getTime();
       if (sunrise !== undefined && sunset !== undefined) daylightByDate.set(day, { sunrise, sunset });
     }
     const daylight = daylightByDate.get(day);
@@ -642,7 +642,7 @@ export function weeklyPlayWindows(periods: Forecast[], timeZone = 'UTC', lat?: n
     hours.sort((a, b) => a.time.localeCompare(b.time));
     const sunrise = daylightByDate.get(date)?.sunrise ?? new Date(hours[0].time).getTime();
     const previousSunset = lat !== undefined && lon !== undefined
-      ? estimatedSunset(lat, lon, timeZone, new Date(sunrise - 24 * 60 * 60_000))?.getTime()
+      ? estimatedSunset(lat, lon, timeZone, new Date(sunrise - 24 * 60 * 60_000), international)?.getTime()
       : sunrise - 14 * 60 * 60_000;
     const overnightPeriods = localParts.filter(({ period }) => {
       const start = Date.parse(period.time);

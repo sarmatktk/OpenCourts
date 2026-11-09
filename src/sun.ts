@@ -1,7 +1,7 @@
 function radians(value: number) { return value * Math.PI / 180; }
 function degrees(value: number) { return value * 180 / Math.PI; }
 function normalize(value: number, full: number) { return ((value % full) + full) % full; }
-function estimatedSolarEvent(lat: number, lon: number, timeZone: string, now: Date, sunrise: boolean): Date | null {
+function estimatedSolarEvent(lat: number, lon: number, timeZone: string, now: Date, sunrise: boolean, international = false): Date | null {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(now);
   const part = (type: string) => Number(parts.find(p => p.type === type)?.value);
   const year = part('year'); const month = part('month'); const day = part('day');
@@ -16,15 +16,22 @@ function estimatedSolarEvent(lat: number, lon: number, timeZone: string, now: Da
   const hourAngle = (sunrise ? 360 - degrees(Math.acos(cosHourAngle)) : degrees(Math.acos(cosHourAngle))) / 15;
   const meanTime = hourAngle + rightAscension - 0.06571 * t - 6.622;
   let utcHour = meanTime - longitudeHour;
+  if (international) {
+    const result = new Date(midnight + normalize(utcHour, 24) * 3600000);
+    const localParts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(result);
+    const local = (type: string) => Number(localParts.find(p => p.type === type)?.value);
+    const localMidnight = Date.UTC(local('year'), local('month') - 1, local('day'));
+    return new Date(result.getTime() + midnight - localMidnight);
+  }
   if (sunrise) utcHour = normalize(utcHour, 24);
   if (!sunrise && utcHour < 12) utcHour += 24; // U.S. sunsets can fall on the following UTC date.
   return new Date(midnight + utcHour * 3600000);
 }
-export function estimatedSunrise(lat: number, lon: number, timeZone: string, now = new Date()): Date | null {
-  return estimatedSolarEvent(lat, lon, timeZone, now, true);
+export function estimatedSunrise(lat: number, lon: number, timeZone: string, now = new Date(), international = false): Date | null {
+  return estimatedSolarEvent(lat, lon, timeZone, now, true, international);
 }
-export function estimatedSunset(lat: number, lon: number, timeZone: string, now = new Date()): Date | null {
-  return estimatedSolarEvent(lat, lon, timeZone, now, false);
+export function estimatedSunset(lat: number, lon: number, timeZone: string, now = new Date(), international = false): Date | null {
+  return estimatedSolarEvent(lat, lon, timeZone, now, false, international);
 }
 export function formatLocalTime(value: Date, timeZone: string) {
   return new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(value);
