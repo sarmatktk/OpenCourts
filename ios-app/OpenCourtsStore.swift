@@ -12,6 +12,8 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     var courts: [Court] = []
     var forecasts: [Forecast] = []
     var weatherTimeZone = "America/New_York"
+    var weatherSource: String?
+    var weatherAttributionURL: URL?
     var alerts: [WeatherAlert] = []
     var rain: [RainAssessment] = []
     var selectedCourt: Court?
@@ -30,6 +32,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     private let valueUsesKey = "opencourts.review-value-uses"
     private let reviewPromptedVersionKey = "opencourts.review-prompted-version"
     private var suggestionRequestID = 0
+    private var loadRequestID = 0
 
     private struct CachedData: Codable {
         let place: Place
@@ -113,23 +116,44 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     }
 
     func load(_ newPlace: Place? = nil) async {
+        let previousPlace = place
         if let newPlace {
             place = newPlace
+            if newPlace != previousPlace,
+               newPlace.countryCode?.lowercased() != "us" || previousPlace.countryCode?.lowercased() != "us" {
+                courts = []
+                forecasts = []
+                alerts = []
+                rain = []
+                lastUpdated = nil
+            }
             if let data = try? JSONEncoder().encode(newPlace) { UserDefaults.standard.set(data, forKey: "opencourts.place") }
         }
+        loadRequestID += 1
+        let requestID = loadRequestID
         let hadExistingData = !courts.isEmpty || !forecasts.isEmpty
         isLoading = true
         errorMessage = nil
         refreshErrorMessage = nil
         selectedCourt = nil
+
+        if place.countryCode?.lowercased() != "us" {
+            await loadInternational(hadExistingData: hadExistingData, requestID: requestID)
+            isLoading = false
+            return
+        }
+
         do {
             async let courtsTask = OpenCourtsAPI.shared.courts(near: place)
             async let weatherTask = OpenCourtsAPI.shared.weather(near: place)
             async let alertsTask = OpenCourtsAPI.shared.alerts(near: place)
             let (loadedCourts, weather, alertData) = try await (courtsTask, weatherTask, alertsTask)
+            guard requestID == loadRequestID else { return }
             courts = loadedCourts
             forecasts = weather.periods
             weatherTimeZone = weather.timeZone
+            weatherSource = weather.source
+            weatherAttributionURL = weather.attributionURL
             alerts = alertData.alerts
             if let loadedRain = try? await OpenCourtsAPI.shared.rain(for: Array(loadedCourts.sorted { $0.distance(from: place) < $1.distance(from: place) }.prefix(50))) {
                 rain = loadedRain
@@ -145,6 +169,97 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
             }
         }
         isLoading = false
+    }
+
+    private func loadInternational(hadExistingData: Bool, requestID: Int) async {
+        var loadedCourts: [Court]?
+        var weather: WeatherData?
+        var firstError: Error?
+
+        do {
+            loadedCourts = try await OpenCourtsAPI.shared.courts(near: place)
+        } catch {
+            firstError = error
+        }
+
+        do {
+            weather = try await OpenCourtsAPI.shared.weather(near: place)
+        } catch {
+            if firstError == nil { firstError = error }
+        }
+
+        guard requestID == loadRequestID else { return }
+        if let loadedCourts {
+            courts = loadedCourts
+        }
+        if let weather {
+            forecasts = weather.periods
+            weatherTimeZone = weather.timeZone
+        }
+
+        alerts = []
+        rain = []
+        if let loadedCourts, let weather {
+            rain = internationalRainAssessments(for: loadedCourts, forecasts: weather.periods, now: Date())
+        }
+
+        if let firstError {
+            errorMessage = firstError.localizedDescription
+            if hadExistingData {
+                isShowingStaleData = true
+                refreshErrorMessage = "Couldn’t refresh. Showing your last successful data."
+            }
+        } else {
+            lastUpdated = Date()
+            isShowingStaleData = false
+            saveCachedData()
+        }
+    }
+
+    private func internationalRainAssessments(for courts: [Court], forecasts: [Forecast], now: Date) -> [RainAssessment] {
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallbackParser = ISO8601DateFormatter()
+        let start = now
+        let finish = now.addingTimeInterval(6 * 60 * 60)
+        let intervals = forecasts.compactMap { forecast -> (Forecast, Date, Date)? in
+            guard forecast.precipKnown != false,
+                  let intervalStart = parser.date(from: forecast.time) ?? fallbackParser.date(from: forecast.time),
+                  let explicitEnd = forecast.endTime.flatMap({ parser.date(from: $0) ?? fallbackParser.date(from: $0) }) else { return nil }
+            let intervalEnd = max(explicitEnd, intervalStart.addingTimeInterval(60 * 60))
+            return (forecast, intervalStart, intervalEnd)
+        }.sorted { $0.1 < $1.1 }
+
+        var cursor = start
+        var weightedChance = 0.0
+        var coveredSeconds = 0.0
+        while cursor < finish {
+            guard let interval = intervals.first(where: { $0.1 <= cursor && $0.2 > cursor }),
+                  interval.0.precip.isFinite,
+                  interval.0.precip >= 0,
+                  interval.0.precip <= 100 else { return [] }
+            let end = min(interval.2, finish)
+            let duration = end.timeIntervalSince(cursor)
+            weightedChance += interval.0.precip * duration
+            coveredSeconds += duration
+            cursor = end
+        }
+
+        guard coveredSeconds >= finish.timeIntervalSince(start) - 1 else { return [] }
+        let chance = Int((weightedChance / coveredSeconds).rounded())
+        return courts.map {
+            RainAssessment(
+                courtId: $0.id,
+                rain1h: nil,
+                rain3h: nil,
+                rain6h: nil,
+                score: 100 - chance,
+                confidence: "Moderate",
+                summary: "(chance)% average hourly rain chance over the next 6 hours",
+                source: "forecast",
+                forecastRainChance: chance
+            )
+        }
     }
 
     func updateSuggestions() async {
@@ -185,7 +300,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        Task { @MainActor in await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude)) }
+        Task { @MainActor in await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude, countryCode: nil)) }
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in errorMessage = "Your location could not be determined." }

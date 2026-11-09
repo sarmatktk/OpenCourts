@@ -443,9 +443,9 @@ private struct SearchSheet: View {
                     LazyVStack(spacing: 0) {
                         ForEach(store.suggestions) { suggestion in
                             Button {
+                                dismiss()
                                 Task {
                                     await store.select(suggestion)
-                                    dismiss()
                                 }
                             } label: {
                                 HStack(spacing: 12) {
@@ -543,12 +543,12 @@ private struct ExploreSection: View {
             }
             .sheet(isPresented: $filtersPresented) { FilterSheet(store: store) }
 
-            if store.isLoading && store.courts.isEmpty {
+            if mode == .map {
+                ExploreMapView(store: store)
+            } else if store.isLoading && store.courts.isEmpty {
                 ProgressView("Finding nearby courts…")
                     .frame(maxWidth: .infinity)
                     .padding()
-            } else if mode == .map {
-                ExploreMapView(store: store)
             } else {
                 CourtListView(store: store)
             }
@@ -600,6 +600,15 @@ private struct ExploreMapView: View {
                 }
             }
             .padding(10)
+        }
+        .overlay {
+            if store.isLoading {
+                ProgressView("Searching for courts…")
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+            }
         }
         .overlay(alignment: .bottom) {
             if let previewCourt {
@@ -1164,13 +1173,13 @@ private struct CourtRainCard: View {
             .frame(width: 72, height: 72)
 
             VStack(alignment: .leading, spacing: 5) {
-                Label("RECENT PRECIPITATION", systemImage: "cloud.rain.fill")
+                Label(rain.source == "forecast" ? "AREA RAIN FORECAST" : "RECENT PRECIPITATION", systemImage: "cloud.rain.fill")
                     .font(.caption2.weight(.bold))
                     .tracking(1.1)
                     .foregroundStyle(Brand.accent)
                 Text(rain.summary)
                     .font(.headline)
-                Text("Radar confidence: \(rain.confidence)")
+                Text(rain.source == "forecast" ? "Forecast estimate · Moderate confidence" : "Radar confidence: \(rain.confidence)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1199,7 +1208,10 @@ private struct CourtDetailActions: View {
                 .background(Brand.accent, in: RoundedRectangle(cornerRadius: 15))
 
             Link(destination: sourceURL) {
-                Label("View source on OpenStreetMap", systemImage: "arrow.up.right.square")
+                Label(
+                    sourceURL.host == "opencourts.us" ? "View source on OpenCourts" : "View source on OpenStreetMap",
+                    systemImage: "arrow.up.right.square"
+                )
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -1210,12 +1222,16 @@ private struct CourtDetailActions: View {
 private struct RainPlannerSection: View {
     let store: OpenCourtsStore
 
+    private var isInternational: Bool {
+        store.place.countryCode?.lowercased() != nil && store.place.countryCode?.lowercased() != "us"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SectionHeading(
-                kicker: "RECENT PRECIPITATION · NEARBY COURTS",
-                title: "Your best bets for a dry court.",
-                detail: "Radar estimates are compared across nearby public courts."
+                kicker: isInternational ? "RAIN FORECAST · NEARBY COURTS" : "RECENT PRECIPITATION · NEARBY COURTS",
+                title: "Your best bets for a playable court.",
+                detail: isInternational ? "Nearby courts share the area forecast and are listed by distance." : "Radar estimates are compared across nearby public courts."
             )
 
             ForEach(Array(store.rainRecommendations.enumerated()), id: \.element.0.id) { index, item in
@@ -1231,13 +1247,15 @@ private struct RainPlannerSection: View {
             if store.rainRecommendations.isEmpty {
                 WeatherEmptyCard(
                     isLoading: store.isLoading,
-                    loadingText: "Checking recent rainfall near public courts…",
-                    emptyText: "No consistent radar readings are available right now."
+                    loadingText: isInternational ? "Checking the area rain forecast…" : "Checking recent rainfall near public courts…",
+                    emptyText: isInternational ? "A complete six-hour forecast is unavailable right now." : "No consistent radar readings are available right now."
                 )
             }
 
             Label(
-                "Radar cannot confirm shade, drainage, or the court’s current surface. Check conditions before you go.",
+                isInternational
+                    ? "Area forecast estimate only. Courts may still be wet after rain; check the surface."
+                    : "Radar cannot confirm shade, drainage, or the court’s current surface. Check conditions before you go.",
                 systemImage: "info.circle"
             )
             .font(.caption)
@@ -1302,7 +1320,13 @@ private struct DryCourtCard: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(surfaceStatusColor)
 
-            RainfallTimeline(rain: rain)
+            if rain.source != "forecast" {
+                RainfallTimeline(rain: rain)
+            } else {
+                Text("Area forecast estimate. Courts may still be wet after rain; check the surface.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) {
@@ -1404,11 +1428,16 @@ private struct WeatherSection: View {
     let store: OpenCourtsStore
     @State private var hourlyForecastExpanded = true
 
+    private var isInternational: Bool {
+        store.place.countryCode?.lowercased() != nil && store.place.countryCode?.lowercased() != "us"
+    }
+
     private var daytime: [Forecast] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: store.weatherTimeZone) ?? .current
         return WeatherWinterCaution.applying(to: store.forecasts).filter { forecast in
             guard let date = ISO8601DateFormatter().date(from: forecast.time) else { return false }
+            if isInternational { return true }
             let hour = calendar.component(.hour, from: date)
             return hour >= 8 && hour <= 18
         }
@@ -1429,10 +1458,16 @@ private struct WeatherSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             SectionHeading(
-                kicker: "7-DAY WEATHER",
+                kicker: isInternational ? "LOCAL WEATHER" : "7-DAY WEATHER",
                 title: "Plan the perfect time to play.",
-                detail: "\(store.place.label) · daylight forecast windows"
+                detail: "\(store.place.label) · \(isInternational ? "available hourly forecast" : "daylight forecast windows")"
             )
+
+            if isInternational, let source = store.weatherSource {
+                Label("Forecast source: \(source)", systemImage: "cloud.sun")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if let current = store.forecasts.first {
                 CurrentWeatherHero(forecast: current, location: store.place.label)

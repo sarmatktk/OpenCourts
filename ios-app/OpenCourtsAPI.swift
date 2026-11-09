@@ -6,28 +6,68 @@ actor OpenCourtsAPI {
     private let baseURL = URL(string: "https://opencourts.us")!
     private let decoder = JSONDecoder()
 
+    private func internationalCountryCode(for query: String) -> String? {
+        let lastPart = query.split(separator: ",").last?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let countryNames: [String: String] = [
+            "uk": "gb", "united kingdom": "gb", "england": "gb", "scotland": "gb", "wales": "gb",
+            "canada": "ca", "france": "fr", "spain": "es", "germany": "de", "italy": "it",
+            "australia": "au", "new zealand": "nz", "japan": "jp", "ireland": "ie", "netherlands": "nl",
+            "portugal": "pt", "mexico": "mx", "brazil": "br", "south africa": "za", "india": "in",
+            "singapore": "sg", "switzerland": "ch", "sweden": "se", "norway": "no", "denmark": "dk",
+            "belgium": "be", "austria": "at", "greece": "gr", "thailand": "th", "indonesia": "id",
+            "philippines": "ph", "china": "cn", "south korea": "kr", "turkey": "tr", "poland": "pl",
+            "czechia": "cz", "finland": "fi", "iceland": "is", "argentina": "ar", "chile": "cl",
+            "colombia": "co"
+        ]
+        if let code = countryNames[lastPart] { return code }
+        let supportedCodes = Set(["ae", "at", "au", "be", "br", "ca", "ch", "cl", "cn", "co", "cz", "de", "dk", "es", "fi", "fr", "gb", "gr", "id", "ie", "in", "is", "it", "jp", "kr", "mx", "nl", "no", "nz", "ph", "pl", "pt", "se", "sg", "th", "tr", "za"])
+        return supportedCodes.contains(lastPart) ? lastPart : nil
+    }
+
     func suggestions(for query: String) async throws -> [PlaceSuggestion] {
         guard query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 else { return [] }
-        let response: SuggestionsResponse = try await get(path: "/api/suggest", query: [("q", query), ("v", "6")])
+        let countryCode = internationalCountryCode(for: query)
+        var queryItems: [(String, String)] = [("q", query), ("v", countryCode == nil ? "6" : "7")]
+        if let countryCode {
+            queryItems.append(("country", countryCode))
+        }
+        let response: SuggestionsResponse = try await get(path: "/api/suggest", query: queryItems)
         return response.suggestions ?? []
     }
 
     func findPlace(_ query: String) async throws -> Place {
-        let response: GeocodeResponse = try await get(path: "/api/geocode", query: [("q", query), ("v", "6")])
-        guard let result = response.result, let lat = Double(result.lat), let lon = Double(result.lon) else {
-            throw APIError.message("We couldn’t find that place. Try a U.S. city, state, or ZIP code.")
+        let countryCode = internationalCountryCode(for: query)
+        var queryItems: [(String, String)] = [("q", query), ("v", countryCode == nil ? "6" : "7")]
+        if let countryCode {
+            queryItems.append(("scope", "global"))
+            queryItems.append(("country", countryCode))
         }
-        return Place(label: result.displayName, lat: lat, lon: lon)
+        let response: GeocodeResponse = try await get(path: "/api/geocode", query: queryItems)
+        guard let result = response.result, let lat = Double(result.lat), let lon = Double(result.lon) else {
+            let message = countryCode == nil
+                ? "We couldn’t find that place. Try a U.S. city, state, or ZIP code."
+                : "We couldn’t find that place. Try a city and country."
+            throw APIError.message(message)
+        }
+        return Place(label: result.displayName, lat: lat, lon: lon, countryCode: result.countryCode ?? countryCode)
     }
 
     func courts(near place: Place) async throws -> [Court] {
-        let response: ElementsResponse = try await get(path: "/api/courts", query: [("lat", String(place.lat)), ("lon", String(place.lon))])
+        var queryItems = [("lat", String(place.lat)), ("lon", String(place.lon))]
+        if let countryCode = place.countryCode, countryCode.lowercased() != "us" {
+            queryItems.append(("country", countryCode.lowercased()))
+        }
+        let response: ElementsResponse = try await get(path: "/api/courts", query: queryItems)
         let publicCourts = response.elements.compactMap(normalizeCourt).filter { $0.access != .restricted }
         return groupCourtsByVenue(publicCourts)
     }
 
     func weather(near place: Place) async throws -> WeatherData {
-        try await get(path: "/api/weather", query: [("lat", String(place.lat)), ("lon", String(place.lon))])
+        var queryItems = [("lat", String(place.lat)), ("lon", String(place.lon))]
+        if let countryCode = place.countryCode, countryCode.lowercased() != "us" {
+            queryItems.append(("provider", "met"))
+        }
+        return try await get(path: "/api/weather", query: queryItems)
     }
 
     func alerts(near place: Place) async throws -> WeatherAlertData {
@@ -71,11 +111,11 @@ actor OpenCourtsAPI {
         let access: Court.Access = ["private", "members", "customers", "fee", "no"].contains(tags["access"] ?? "") || tags["fee"] == "yes" ? .restricted : (["yes", "public", "permissive"].contains(tags["access"] ?? "") ? .publicAccess : .unknown)
         let lighting: Court.Lighting = tags["lit"] == "yes" || tags["lighting"] == "yes" ? .yes : (tags["lit"] == "no" || tags["lighting"] == "no" ? .no : .unknown)
         let name = tags["name"] ?? tags["name:en"] ?? "Tennis courts"
-        let addressLine = [tags["addr:housenumber"], tags["addr:street"]].compactMap { $0 }.joined(separator: " ")
+        let addressLine = tags["addr:full"] ?? [tags["addr:housenumber"], tags["addr:street"]].compactMap { $0 }.joined(separator: " ")
         let nearbyPlace = tags["opencourts:nearby_place"]
         let nearbyStreet = tags["opencourts:nearby_street"]
         let address = !addressLine.isEmpty ? addressLine : nearbyPlace.map { "At \($0)" } ?? nearbyStreet.map { "Near \($0)" }
-        return Court(id: "osm-\(element.type)-\(element.id)", name: name, lat: lat, lon: lon, lighting: lighting, access: access, surface: tags["surface"], courts: Int(tags["count"] ?? tags["courts:count"] ?? ""), sheltered: tags["indoor"] == "yes" || tags["covered"] == "yes", address: address, addressApprox: addressLine.isEmpty && address != nil, contextName: nearbyPlace.map { "At \($0)" }, sourceURL: URL(string: "https://www.openstreetmap.org/\(element.type)/\(element.id)")!)
+        return Court(id: "osm-\(element.type)-\(element.id)", name: name, lat: lat, lon: lon, lighting: lighting, access: access, surface: tags["surface"], courts: Int(tags["count"] ?? tags["courts:count"] ?? ""), sheltered: tags["indoor"] == "yes" || tags["covered"] == "yes", address: address, addressApprox: addressLine.isEmpty && address != nil, contextName: nearbyPlace.map { "At \($0)" }, sourceURL: element.id.hasPrefix("geo-") ? URL(string: "https://opencourts.us")! : URL(string: "https://www.openstreetmap.org/\(element.type)/\(element.id)")!)
     }
 
     private func groupCourtsByVenue(_ courts: [Court]) -> [Court] {
@@ -179,7 +219,12 @@ private nonisolated struct GeocodeResponse: Decodable {
         let displayName: String
         let lat: String
         let lon: String
-        enum CodingKeys: String, CodingKey { case displayName = "display_name"; case lat, lon }
+        let countryCode: String?
+        enum CodingKeys: String, CodingKey {
+            case displayName = "display_name"
+            case lat, lon
+            case countryCode = "country_code"
+        }
     }
     let result: Result?
 }
@@ -187,11 +232,29 @@ private nonisolated struct ElementsResponse: Decodable { let elements: [OSMEleme
 private nonisolated struct OSMElement: Decodable {
     nonisolated struct Center: Decodable { let lat: Double; let lon: Double }
     let type: String
-    let id: Int
+    let id: String
     let lat: Double?
     let lon: Double?
     let center: Center?
     let tags: [String: String]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        if let stringID = try? container.decode(String.self, forKey: .id) {
+            id = stringID
+        } else {
+            id = String(try container.decode(Int.self, forKey: .id))
+        }
+        lat = try container.decodeIfPresent(Double.self, forKey: .lat)
+        lon = try container.decodeIfPresent(Double.self, forKey: .lon)
+        center = try container.decodeIfPresent(Center.self, forKey: .center)
+        tags = try container.decodeIfPresent([String: String].self, forKey: .tags)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case type, id, lat, lon, center, tags
+    }
 }
 private nonisolated struct RainRequest: Encodable {
     nonisolated struct Item: Encodable { let id: String; let lat: Double; let lon: Double }

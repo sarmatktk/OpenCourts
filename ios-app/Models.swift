@@ -5,7 +5,8 @@ nonisolated struct Place: Codable, Equatable, Sendable {
     let label: String
     let lat: Double
     let lon: Double
-    static let fairfax = Place(label: "Fairfax, Virginia", lat: 38.8462, lon: -77.3064)
+    var countryCode: String? = nil
+    static let fairfax = Place(label: "Fairfax, Virginia", lat: 38.8462, lon: -77.3064, countryCode: "us")
 }
 
 nonisolated struct PlaceSuggestion: Codable, Identifiable, Sendable {
@@ -14,8 +15,9 @@ nonisolated struct PlaceSuggestion: Codable, Identifiable, Sendable {
     let label: String
     let lat: Double
     let lon: Double
+    var countryCode: String? = nil
     var id: String { "\(lat),\(lon)" }
-    var place: Place { Place(label: label, lat: lat, lon: lon) }
+    var place: Place { Place(label: label, lat: lat, lon: lon, countryCode: countryCode) }
 }
 
 struct Court: Identifiable, Codable, Hashable, Sendable {
@@ -46,6 +48,7 @@ nonisolated struct Forecast: Codable, Identifiable, Sendable {
     let temp: Double
     let wind: Double
     let precip: Double
+    var precipKnown: Bool? = nil
     let humidity: Double?
     let heatIndex: Double?
     let winterRisk: String?
@@ -64,6 +67,8 @@ nonisolated struct WeatherData: Codable, Sendable {
     let periods: [Forecast]
     let outlook: [Forecast]
     let timeZone: String
+    var source: String? = nil
+    var attributionURL: URL? = nil
 }
 
 nonisolated struct WeatherAlertData: Codable, Sendable {
@@ -90,6 +95,8 @@ nonisolated struct RainAssessment: Codable, Identifiable, Sendable {
     let score: Int
     let confidence: String
     let summary: String
+    var source: String? = nil
+    var forecastRainChance: Int? = nil
     var id: String { courtId }
 }
 
