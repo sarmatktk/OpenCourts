@@ -14,6 +14,7 @@ export function classifyAccess(tags: Record<string, string | undefined>): Access
 }
 function milesBetween(a: { lat: number; lon: number }, b: { lat: number; lon: number }) { const rad = Math.PI / 180; const dLat = (a.lat-b.lat)*rad; const dLon = (a.lon-b.lon)*rad; const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2; return 3958.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h)); }
 function usefulLocality(locality: string) { const value = locality.trim(); return /^(?:your|my|current) location$|^near me$/i.test(value) ? '' : value; }
+let globalCountryNames: Map<string, string> | undefined;
 export function internationalCountryCode(query: string): string | undefined {
   const last = query.split(',').at(-1)?.trim().toLowerCase() || '';
   const countries: Record<string, string> = {
@@ -27,7 +28,21 @@ export function internationalCountryCode(query: string): string | undefined {
   if (countries[last]) return countries[last];
   const code = last.toLowerCase();
   const supportedCodes = new Set(['ae', 'at', 'au', 'be', 'br', 'ca', 'ch', 'cl', 'cn', 'co', 'cz', 'de', 'dk', 'es', 'fi', 'fr', 'gb', 'gr', 'id', 'ie', 'in', 'is', 'it', 'jp', 'kr', 'mx', 'nl', 'no', 'nz', 'ph', 'pl', 'pt', 'se', 'sg', 'th', 'tr', 'za']);
-  return supportedCodes.has(code) ? code : undefined;
+  if (supportedCodes.has(code)) return code;
+  // Extend explicit full country names without treating additional two-letter
+  // US state abbreviations as international country codes.
+  if (!globalCountryNames && typeof Intl.DisplayNames === 'function') {
+    globalCountryNames = new Map();
+    const names = new Intl.DisplayNames(['en'], { type: 'region' });
+    for (const a of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const b of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+      const region = a + b;
+      // Preserve existing US and territory routing, and ambiguous US Georgia.
+      if (['US', 'UM', 'VI', 'PR', 'GU', 'AS', 'MP', 'GE', 'EU', 'UN', 'EZ'].includes(region)) continue;
+      const name = names.of(region);
+      if (name && name !== region) globalCountryNames.set(name.toLowerCase(), region.toLowerCase());
+    }
+  }
+  return globalCountryNames?.get(last);
 }
 export function normalizeCourt(element: any, roads: any[] = [], locality = '', nearbyPlaces: any[] = []): Court {
   const tags = element.tags ?? {};
@@ -67,7 +82,7 @@ export function normalizeCourt(element: any, roads: any[] = [], locality = '', n
   }
   const explicitCount = Number(tags.count || tags['courts:count'] || tags.courts) || undefined;
   const courts = explicitCount ?? (tags.leisure === 'pitch' && /(^|;)tennis(;|$)/.test(tags.sport || '') ? 1 : undefined);
-  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextName, contextCached: tags['opencourts:context_version'] === '2' && Boolean(address || contextName), sourceUrl: `https://www.openstreetmap.org/${element.type}/${element.id}` };
+  return { id: `osm-${element.type}-${element.id}`, name, lat, lon, lighting: classifyLighting(tags), access: classifyAccess(tags), surface: tags.surface, courts, sheltered: tags.indoor === 'yes' || tags.covered === 'yes', address, addressApprox, contextName, contextCached: tags['opencourts:context_version'] === '2' && Boolean(address || contextName), sourceUrl: typeof element.id === 'string' && element.id.startsWith('geo-') ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}` : `https://www.openstreetmap.org/${element.type}/${element.id}` };
 }
 export function distinguishCourtNames(courts: Court[]): Court[] {
   const groups = new Map<string, Court[]>();
@@ -337,39 +352,51 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const countryCode = selectedCountryCode?.toLowerCase();
   const international = Boolean(countryCode && countryCode !== 'us');
   const key = international
-    ? `opencourts-courts-v22-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
+    ? `opencourts-courts-v25-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
     : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   // International Overpass is backed by shared public endpoints, so retain a
   // successful result across visits for this user. The US catalog/cache path
   // remains unchanged.
   const persistentKey = international ? `${key}-local` : '';
+  let fallback: { savedAt: number; courts: Court[] } | undefined;
   const readCached = (storage: Storage) => {
     const raw = storage.getItem(persistentKey);
     if (!raw) return null;
     try {
       const entry = JSON.parse(raw) as { savedAt?: number; courts?: Court[] };
       if (!entry.savedAt || Date.now() - entry.savedAt > 30 * 24 * 60 * 60 * 1000 || !Array.isArray(entry.courts)) { storage.removeItem(persistentKey); return null; }
-      return entry.courts;
+      return { savedAt: entry.savedAt, courts: entry.courts };
     } catch { storage.removeItem(persistentKey); return null; }
   };
   try {
     const saved = sessionStorage.getItem(key);
     if (saved) {
-      const courts = JSON.parse(saved) as Court[];
+      const entry = JSON.parse(saved);
+      const courts = (international ? entry.courts : entry) as Court[];
+      if (international) {
+        if (!Array.isArray(courts) || !Number.isFinite(entry.savedAt) || Date.now() - entry.savedAt > 30 * 24 * 60 * 60_000) sessionStorage.removeItem(key);
+        else if (Date.now() - entry.savedAt <= 6 * 60 * 60_000) return courts;
+        else if (courts.length) fallback = { savedAt: entry.savedAt, courts };
+      } else {
       const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
-      if (international || courts.length === 0 || missingDetails < courts.length * 0.8) {
+      if (courts.length === 0 || missingDetails < courts.length * 0.8) {
         if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
         return courts;
       }
       sessionStorage.removeItem(key);
+      }
     }
   } catch { /* storage can be disabled */ }
   if (international) {
     try {
       const saved = readCached(localStorage);
-      if (saved && saved.length > 0) return saved;
+      if (saved) {
+        if (Date.now() - saved.savedAt <= 6 * 60 * 60_000) return saved.courts;
+        if (saved.courts.length) fallback = saved;
+      }
     } catch { /* storage can be disabled */ }
   }
+  try {
   const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}${international ? `&country=${countryCode}` : ''}`, { signal });
   if (!res.ok) {
     const failure = await res.json().catch(() => ({} as Record<string, unknown>));
@@ -377,20 +404,26 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
     if (diagnostic) console.warn('[OpenCourts] Court lookup failed', diagnostic);
     throw new Error(res.status === 429 ? 'Court data is busy. Please try again shortly.' : typeof failure.error === 'string' ? failure.error : 'Court data is temporarily unavailable. Please try again.');
   }
-  const data = await readApiJson<{ elements?: any[] }>(res, 'Court data could not be read. Please try again.');
+  const data = await readApiJson<{ elements?: any[]; stale?: boolean; dataUpdatedAt?: string }>(res, 'Court data could not be read. Please try again.');
+  if (international && !Array.isArray(data.elements)) throw new Error('Court data could not be read. Please try again.');
   const elements = Array.isArray(data.elements) ? data.elements : []; const roads = elements.filter((item: any) => item.tags?.highway && item.tags?.name);
   const places = elements.filter((item: any) => item.tags?.name && (['park', 'recreation_ground'].includes(item.tags?.leisure) || ['school', 'college', 'university', 'community_centre', 'community_hall'].includes(item.tags?.amenity) || item.tags?.landuse === 'school'));
   const courtElements = elements.filter((item: any) => ['pitch', 'sports_centre'].includes(item.tags?.leisure) && /(^|;)tennis(;|$)/.test(item.tags?.sport || ''));
   const courts = distinguishCourtNames(groupCourtsByVenue(courtElements.map((element: any) => ({ element, court: normalizeCourt(element, roads, locality, places) }))
     .filter(({ element, court }: { element: any; court: Court }) => Number.isFinite(court.lat) && Number.isFinite(court.lon) && !isLikelyMembersClub(court, element.tags))
-    .map(({ court }: { court: Court }) => court)));
+    .map(({ court }: { court: Court }) => court))).map(court => international ? { ...court, dataStale: data.stale === true, dataUpdatedAt: data.dataUpdatedAt || new Date().toISOString() } : court);
   const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
   if (international || courts.length === 0 || missingDetails < courts.length * 0.8) {
-    try { sessionStorage.setItem(key, JSON.stringify(courts)); } catch { /* storage can be disabled */ }
-    if (international) try { localStorage.setItem(persistentKey, JSON.stringify({ savedAt: Date.now(), courts })); } catch { /* storage can be disabled */ }
+    const savedAt = international && data.stale ? Math.min(Date.parse(data.dataUpdatedAt || '') || Date.now(), Date.now() - 6 * 60 * 60_000 - 1) : Date.now();
+    try { sessionStorage.setItem(key, JSON.stringify(international ? { savedAt, courts } : courts)); } catch { /* storage can be disabled */ }
+    if (international) try { localStorage.setItem(persistentKey, JSON.stringify({ savedAt, courts })); } catch { /* storage can be disabled */ }
   }
   if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
   return courts;
+  } catch (error) {
+    if (international && fallback && !signal?.aborted) return fallback.courts.map(court => ({ ...court, dataStale: true, dataUpdatedAt: court.dataUpdatedAt || new Date(fallback!.savedAt).toISOString() }));
+    throw error;
+  }
 }
 export async function getRainAssessments(
   courts: Court[],

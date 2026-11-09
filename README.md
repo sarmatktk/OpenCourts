@@ -1,5 +1,9 @@
 # OpenCourts
 
+International provider, cache, coverage, and rollout details are documented in
+[International reliability](docs/international-reliability.md). US behavior is
+preserved separately from this international data path.
+
 OpenCourts is a map-first public tennis court finder. It combines OpenStreetMap court features, a MapLibre map, Photon place suggestions and OpenStreetMap Nominatim place search, and National Weather Service hourly forecasts. No account or API key is required for the included setup.
 
 ## Run locally

@@ -12,3 +12,6 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 *.xcresult
+
+# Generated international verification reports (no provider keys).
+tmp/international-*.json

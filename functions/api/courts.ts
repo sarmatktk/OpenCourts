@@ -2,8 +2,9 @@
 import { queryOverpass } from '../lib/overpass';
 import { readEdgeCache, writeEdgeCache } from '../lib/edge-cache';
 import { findCourtsInCatalog, type D1Database } from '../lib/court-catalog';
+import { internationalCourts, type InternationalCourtsEnv } from '../lib/international-courts';
 
-interface Env { COURTS_DB?: D1Database; GEOAPIFY_API_KEY?: string }
+interface Env extends InternationalCourtsEnv { COURTS_DB?: D1Database }
 const globalEndpoints = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
@@ -19,12 +20,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   const countryCode = url.searchParams.get('country')?.toLowerCase();
   const international = Boolean(countryCode && countryCode !== 'us');
   if (countryCode && !/^[a-z]{2}$/.test(countryCode)) return Response.json({ error: 'Valid country code required.' }, { status: 400 });
+  if (international) return internationalCourts({ lat, lon, country: countryCode!, origin: url.origin, env, waitUntil });
   // Keep regional requests bounded. This is a discovery radius, not a completeness guarantee.
   const dLat = 0.135; const dLon = dLat / Math.max(0.2, Math.cos(lat * Math.PI / 180));
   const south = Math.max(-90, lat - dLat); const north = Math.min(90, lat + dLat);
   const west = Math.max(-180, lon - dLon); const east = Math.min(180, lon + dLon);
   const bbox = `${south.toFixed(4)},${west.toFixed(4)},${north.toFixed(4)},${east.toFixed(4)}`;
-  const cacheKey = new Request(`${url.origin}/api/courts?v=${international ? 7 : 6}&scope=${international ? countryCode : 'us'}&bbox=${bbox}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
+  const cacheKey = new Request(`${url.origin}/api/courts?v=${international ? 9 : 6}&scope=${international ? countryCode : 'us'}&bbox=${bbox}`); const cache = typeof caches === 'undefined' ? undefined : caches.default;
   const cached = await readEdgeCache(cache, cacheKey); if (cached) return cached;
   // Keep the blocking query focused on tennis features. Nearby roads and parks
   // are fetched separately after this response so they can't delay the results.
@@ -32,36 +34,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil, env
   const isVirginia = lat >= 36.5 && lat <= 39.5 && lon >= -83.7 && lon <= -75.2;
   const endpoints = isVirginia ? ['https://overpass.maprva.org/api/interpreter', ...globalEndpoints] : globalEndpoints;
   try {
-    if (international) {
-      const providers: Promise<{ elements?: unknown[] }>[] = [queryOverpass(globalEndpoints, query.replace('timeout:16', 'timeout:8'), 8500, globalEndpoints.length)];
-      if (env.GEOAPIFY_API_KEY) {
-        providers.push((async () => {
-          const requestPlaces = async (categories: string) => {
-            const places = new URL('https://api.geoapify.com/v2/places');
-            places.search = new URLSearchParams({ categories, filter: `circle:${lon},${lat},15000`, limit: '100', apiKey: env.GEOAPIFY_API_KEY! }).toString();
-            const geo = await fetch(places, { signal: AbortSignal.timeout(4500) });
-            return geo.ok ? await geo.json() as any : null;
-          };
-          const body = await requestPlaces('sport.tennis');
-          if (body) {
-            const elements = (body.features ?? []).filter((feature: any) => {
-              const p = feature.properties ?? {}; const text = JSON.stringify(p).toLowerCase();
-              return text.includes('tennis');
-            }).map((feature: any, index: number) => {
-              const [x, y] = feature.geometry?.coordinates ?? []; const p = feature.properties ?? {};
-              return { type: 'node', id: `geo-${index}`, lat: Number(y), lon: Number(x), tags: { leisure: 'pitch', sport: 'tennis', name: p.name || p.address_line1 || 'Tennis courts', 'addr:full': [p.address_line1, p.address_line2].filter(Boolean).join(', ') } };
-            }).filter((item: any) => Number.isFinite(item.lat) && Number.isFinite(item.lon));
-            if (elements.length) return { elements };
-          }
-          throw new Error('No tennis results from places provider');
-        })());
-      }
-      // Race all public providers with a short bound for international lookups;
-      // sequential provider pairs can otherwise make one slow server costly.
-      const data = await (providers.length === 1 ? providers[0] : Promise.any(providers));
-      const response = Response.json(data, { headers: { 'Cache-Control': 'public, max-age=21600', 'Access-Control-Allow-Origin': '*' } });
-      writeEdgeCache(cache, cacheKey, response, waitUntil); return response;
-    }
     if (env.COURTS_DB) {
       try {
         const data = await findCourtsInCatalog(env.COURTS_DB, { south, west, north, east });

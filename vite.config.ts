@@ -40,7 +40,8 @@ const pagesApiDev = {
         const request = new Request(url, { method: req.method, headers: req.headers as HeadersInit, ...(body ? { body } : {}) });
         const handler = req.method === 'POST' ? module.onRequestPost : module.onRequestGet;
         const env = international || internationalWeather ? { LOCAL_DEV: true, WEATHERAPI_KEY: localEnv.WEATHERAPI_KEY, GEOAPIFY_API_KEY: localEnv.GEOAPIFY_API_KEY } : { LOCAL_DEV: true };
-        let response = await handler({ request, env, waitUntil() {}, passThroughOnException() {} });
+        let response = await handler({ request, env, waitUntil(promise: Promise<unknown>) { void promise.catch(() => undefined); }, passThroughOnException() {} });
+        // The local handler serves bundled international catalogs first.
         // The deployed API remains an outage fallback for international local
         // development, rather than masking changes to the local court handler.
         if (international && url.pathname === '/api/courts' && !response.ok) {
@@ -56,7 +57,7 @@ const pagesApiDev = {
         res.statusCode = response.status;
         response.headers.forEach((value: string, key: string) => res.setHeader(key, value));
         const text = await response.text();
-        if (cacheable && response.ok) {
+        if (cacheable && response.ok && !response.headers.get('cache-control')?.includes('no-store')) {
           if (internationalCache.size >= 100) internationalCache.delete(internationalCache.keys().next().value!);
           internationalCache.set(url.href, { expires: Date.now() + (internationalWeather ? 30 * 60_000 : 6 * 60 * 60_000), status: response.status, body: text, headers: [...response.headers.entries()] });
         }

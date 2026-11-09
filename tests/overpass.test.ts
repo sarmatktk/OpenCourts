@@ -85,12 +85,12 @@ describe('Overpass requests', () => {
     expect(result.periods[0].endTime).toBe('2026-11-08T11:00:00Z');
   });
 
-  it('does not wait for a stalled international places provider before returning courts', async () => {
+  it('falls back to public providers when the international places provider fails', async () => {
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-      if (String(input).includes('geoapify')) return new Promise<Response>(() => {});
+      if (String(input).includes('geoapify')) return Promise.resolve(new Response('', { status: 503 }));
       return Promise.resolve(Response.json({ elements: [{ id: 9 }] }));
     }));
-    const response = await getCourts({ request: new Request('https://opencourts.us/api/courts?lat=35.68&lon=139.69&country=jp'), env: { GEOAPIFY_API_KEY: 'test' } } as any);
+    const response = await getCourts({ request: new Request('https://opencourts.us/api/courts?lat=40.4168&lon=-3.7038&country=es'), env: { GEOAPIFY_API_KEY: 'test' } } as any);
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ elements: [{ id: 9 }] });
   });

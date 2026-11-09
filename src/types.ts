@@ -1,6 +1,6 @@
 export type Lighting = 'yes' | 'no' | 'unknown';
 export type Access = 'public' | 'restricted' | 'unknown';
-export interface Court { id: string; name: string; lat: number; lon: number; lighting: Lighting; access: Access; surface?: string; courts?: number; sheltered?: boolean; address?: string; addressApprox?: boolean; contextName?: string; contextCached?: boolean; sourceUrl: string; }
+export interface Court { id: string; name: string; lat: number; lon: number; lighting: Lighting; access: Access; surface?: string; courts?: number; sheltered?: boolean; address?: string; addressApprox?: boolean; contextName?: string; contextCached?: boolean; sourceUrl: string; dataStale?: boolean; dataUpdatedAt?: string; }
 export type WinterRisk = 'snow' | 'ice';
 export interface Forecast { time: string; endTime?: string; temp: number; wind: number; precip: number; precipKnown?: boolean; humidity?: number; heatIndex?: number; winterRisk?: WinterRisk; winterCaution?: { type: WinterRisk; lingering: boolean }; short: string; icon: string; }
 export interface PlayWindow extends Forecast { score: number; }

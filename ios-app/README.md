@@ -2,6 +2,86 @@
 
 Prepared November 8, 2026. Read this before implementing international support on Mac.
 
+Expanded verification is recorded in
+`docs/testing/international-verification-2026-11-08.md`: 147 unit tests, 11 browser
+tests, live API checks across 14 cities on warm and clean local servers, and a
+Korean-name normalization fix. Published court requests still failed separately;
+do not treat the local results as deployed availability or exhaustive coverage.
+
+### Live provider verification after local key configuration
+
+The user supplied the existing provider keys in `.env.example`; they were moved
+to Git-ignored `.env` and removed from the shared template without displaying
+their values. Do not commit provider credentials or place them in the native app.
+
+Live local API checks then passed for courts and weather in Tokyo, Paris, Madrid,
+Sydney, Singapore, and Johannesburg. Geoapify supplied Madrid/Sydney/Singapore/
+Johannesburg courts; imported catalogs supplied Tokyo/Paris. WeatherAPI supplied
+72 hourly periods for all six cities. This verifies these sample searches with
+the actual providers, not worldwide completeness or production rollout. Wrangler
+still reported no authenticated session after the attempted Cloudflare sign-in;
+deployment and the KV binding remain pending.
+
+### Latest reliability architecture
+
+Read `docs/international-reliability.md` and
+`functions/lib/international-courts.ts` before porting orchestration. International
+queries now use fresh shared cache results, imported regions, Geoapify, and bounded
+public-provider fallback. Optional KV binding `INTERNATIONAL_COURTS_CACHE` retains
+successful results across Cloudflare locations for outage fallback. API responses
+can include `stale: true` and `dataUpdatedAt`; native views must visibly label such
+saved listings and must not treat them as fresh observations. The international
+browser cache is now v25, with six-hour freshness and up to 30-day outage fallback.
+This is a native-cache behavior reference, not an instruction to change US caches.
+
+Geoapify name queries now have localized variants for several languages; this
+still does not provide exhaustive global coverage of unnamed courts. Explicit
+full country-name recognition was broadened while preserving US state searches.
+Deployment and the optional KV binding are not verified/configured from this
+workspace: Wrangler reports no Cloudflare login. The user identified the Pages
+project as `opencourts` (`https://opencourts.pages.dev`). Do not claim production
+availability based on local tests or the existence of a monitoring workflow file.
+
+### Latest update: Paris and corrected Geoapify integration
+
+The bundled catalogs now cover mapped Tokyo and Paris tennis features. Paris was
+imported separately after the user reported that `Paris, France` still failed.
+The registry is `functions/lib/international-court-catalog.ts`. The international
+browser cache key is now v24; the US key is unchanged.
+
+The user confirmed that **both `GEOAPIFY_API_KEY` and `WEATHERAPI_KEY` are configured
+in Cloudflare**. A missing local `.env` must not be interpreted as absent production
+credentials. The local Vite process does not automatically inherit Cloudflare keys.
+
+The previous Geoapify query used unsupported `sport.tennis`. The corrected
+international adapter (`functions/lib/geoapify-courts.ts`) queries supported
+`sport.pitch,sport.sports_centre,sport.sports_hall` categories with `name=tennis`,
+radius, and proximity filters. It preserves access/fee information when supplied,
+uses original OSM IDs when known, and uses map links for synthetic provider IDs.
+The name-filtered lookup is not exhaustive for unnamed or differently named courts.
+Geoapify behavior was checked against its documentation and mocked responses;
+the production key/dashboard was not inspected. Verify the deployed API before
+claiming that production is fixed. Keep all US request and display behavior intact.
+
+### Later fix: imported Tokyo court catalog
+
+Fresh Tokyo searches were still failing because the earlier success came from a
+cached response at different coordinates. The user chose an imported catalog
+instead of adding a Geoapify key. `functions/data/international/tokyo.json` now
+contains real mapped tennis features extracted from the BBBike Tokyo OSM PBF,
+with source timestamp, attribution, and original numeric OSM IDs. The international
+court handler checks this snapshot before live providers; it can also use imported
+D1 regions. US routing remains separate. The international browser cache key is
+now v23 to avoid preserving the earlier sparse results; the US key is unchanged.
+
+See `functions/data/international/README.md` and
+`scripts/import-international-pbf.py` for source, limitations, and refresh steps.
+Do not implement a dependency on a live Overpass request for every Tokyo search.
+Verify fresh coordinates (including 35.6768601, 139.7638947) with live providers
+blocked. This fixes catalog-covered Tokyo, not all international regions.
+String court IDs still need decoding support for live Geoapify fallback results.
+The bundled catalog works in production only after the updated backend is deployed.
+
 ## Required scope
 
 **Keep everything in the US working exactly as it currently does.** The user explicitly repeated this requirement. Preserve US court discovery, filtering, caching, NWS weather and alerts, NOAA/MRMS rain requests, radar scores, recommendation rules, and UI behavior. Add explicit international branches instead of replacing shared behavior globally.

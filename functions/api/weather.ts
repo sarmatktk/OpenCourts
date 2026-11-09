@@ -78,15 +78,15 @@ async function metNorwayForecast(lat: number, lon: number, origin: string, waitU
       headers: { 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us/contact; samktk23@gmail.com)', Accept: 'application/json' },
       signal: AbortSignal.timeout(4500),
     });
-    if (!response.ok) return openMeteoForecast(lat, lon, origin, waitUntil);
+    if (!response.ok) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     const data: any = await response.json();
     const mapped = mapMetNorwayForecast(data);
-    if (!mapped.periods.length) return openMeteoForecast(lat, lon, origin, waitUntil);
+    if (!mapped.periods.length) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
     // Weather is intentionally short-lived: refresh forecasts every 30 minutes.
     const result = Response.json(mapped, { headers: { 'Cache-Control': 'public, max-age=1800' } });
     writeEdgeCache(cache, key, result, waitUntil);
     return result;
-  } catch { return openMeteoForecast(lat, lon, origin, waitUntil); }
+  } catch { return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } }); }
 }
 
 async function openMeteoForecast(lat: number, lon: number, origin: string, waitUntil?: (promise: Promise<unknown>) => void) {
@@ -95,7 +95,7 @@ async function openMeteoForecast(lat: number, lon: number, origin: string, waitU
   const cached = await readEdgeCache(cache, key); if (cached) return cached;
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m&forecast_days=7&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&timeformat=unixtime`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!response.ok) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502 });
     const data: any = await response.json(); const hourly = data.hourly ?? {};
     const periods = (hourly.time ?? []).map((time: number, i: number) => ({ time: new Date(time * 1000).toISOString(), endTime: new Date((time + 3600) * 1000).toISOString(), temp: hourly.temperature_2m?.[i], wind: hourly.wind_speed_10m?.[i], precip: hourly.precipitation_probability?.[i] ?? 0, precipKnown: Number.isFinite(hourly.precipitation_probability?.[i]), humidity: hourly.relative_humidity_2m?.[i], short: 'Forecast', icon: '' })).filter((p: any) => Number.isFinite(p.temp) && Number.isFinite(p.wind));
