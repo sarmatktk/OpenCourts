@@ -42,30 +42,47 @@ struct ContentView: View {
     @State private var store = OpenCourtsStore()
     @State private var destination: AppDestination = .map
     @State private var searchPresented = false
+    @State private var duoSelectedCourt: Court?
+    @State private var duoDetailsCourt: Court?
+    @State private var phoneSearchPresented = false
     @State private var hasCompletedInitialLoad = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.requestReview) private var requestReview
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                AppHeader(store: store)
-                if let message = store.refreshErrorMessage {
-                    RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
-                        Task { await store.load() }
+        GeometryReader { proxy in
+            Group {
+                if proxy.size.width >= 700 {
+                    ExpandedDuoLayout(
+                        store: store,
+                        destination: $destination,
+                        searchPresented: $searchPresented,
+                        selectedCourt: $duoSelectedCourt,
+                        detailsCourt: $duoDetailsCourt
+                    )
+                } else {
+                    ZStack(alignment: .bottom) {
+                        VStack(spacing: 0) {
+                            AppHeader(store: store)
+                            if let message = store.refreshErrorMessage {
+                                RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
+                                    Task { await store.load() }
+                                }
+                            }
+                            AppScreen(destination: destination, store: store)
+                                .safeAreaPadding(.bottom, 72)
+                                .refreshable {
+                                    await store.load()
+                                }
+                        }
+                        BottomNavigation(selection: $destination) {
+                            phoneSearchPresented = true
+                        }
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 8)
                     }
                 }
-                AppScreen(destination: destination, store: store)
-                    .safeAreaPadding(.bottom, 72)
-                    .refreshable {
-                        await store.load()
-                    }
             }
-            BottomNavigation(selection: $destination) {
-                searchPresented = true
-            }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
         }
         .background(Brand.background)
         .tint(Brand.accent)
@@ -94,7 +111,7 @@ struct ContentView: View {
                 await requestReviewIfAppropriate()
             }
         }
-        .sheet(isPresented: $searchPresented) {
+        .sheet(isPresented: $phoneSearchPresented) {
             SearchSheet(store: store)
         }
         .alert(
@@ -124,6 +141,626 @@ struct ContentView: View {
         guard scenePhase == .active, !store.isLoading, store.shouldRequestReview else { return }
         store.markReviewPrompted()
         requestReview()
+    }
+}
+
+private struct ExpandedDuoLayout: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var destination: AppDestination
+    @Binding var searchPresented: Bool
+    @Binding var selectedCourt: Court?
+    @Binding var detailsCourt: Court?
+    @State private var filtersPresented = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            AppHeader(store: store)
+
+            if let message = store.refreshErrorMessage {
+                RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
+                    Task { await store.load() }
+                }
+            }
+
+            DuoNavigationBar(destination: $destination)
+
+            if destination == .weather || destination == .dryCourts {
+                HStack(spacing: 0) {
+                    DuoWeatherPane(store: store, destination: $destination)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    Divider()
+
+                    DuoDryCourtsPane(store: store, destination: $destination)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    DuoCourtsPane(
+                        store: store,
+                        destination: $destination,
+                        searchPresented: $searchPresented,
+                        selectedCourt: $selectedCourt,
+                        detailsCourt: $detailsCourt
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    Divider()
+
+                    DuoMapPane(
+                        store: store,
+                        destination: $destination,
+                        selectedCourt: $selectedCourt,
+                        onOpenCourtDetails: { court in
+                            detailsCourt = court
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+        .background(Brand.background)
+    }
+}
+
+private struct DuoCourtsPane: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var destination: AppDestination
+    @Binding var searchPresented: Bool
+    @Binding var selectedCourt: Court?
+    @Binding var detailsCourt: Court?
+    @State private var filtersPresented = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DuoPaneHeader(
+                title: "Courts",
+                systemImage: "list.bullet",
+                isSelected: destination == .map || destination == .courts || destination == .courts
+            ) {
+                destination = .courts
+            } trailing: {
+                Button("Search courts", systemImage: "magnifyingglass") {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        searchPresented.toggle()
+                    }
+                }
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .accessibilityHint("Searches for courts on the left side")
+            }
+
+            if filtersPresented {
+                DuoFilterPanel(store: store) {
+                    filtersPresented = false
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            } else if let detailsCourt {
+                DuoCourtDetailsPanel(
+                    court: detailsCourt,
+                    place: store.place,
+                    rain: store.rain.first { $0.courtId == detailsCourt.id },
+                    directions: {
+                        store.directions(to: detailsCourt)
+                    }
+                ) {
+                    self.detailsCourt = nil
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            } else {
+                if searchPresented {
+                    DuoSearchPanel(store: store, isPresented: $searchPresented)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                ScrollView {
+                    ExploreSection(
+                        store: store,
+                        mode: .list,
+                        onCourtSelected: { court in
+                            selectedCourt = court
+                        },
+                        onFiltersRequested: {
+                            filtersPresented = true
+                        }
+                    )
+                }
+                .refreshable {
+                    await store.load()
+                }
+            }
+        }
+        .background(Brand.surface)
+    }
+}
+
+private struct DuoMapPane: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var destination: AppDestination
+    @Binding var selectedCourt: Court?
+    let onOpenCourtDetails: (Court) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DuoPaneHeader(
+                title: "Map",
+                systemImage: "map.fill",
+                isSelected: destination == .map
+            ) {
+                destination = .map
+            }
+
+            ScrollView {
+                ExploreMapView(
+                    store: store,
+                    selectedCourt: $selectedCourt,
+                    onOpenCourtDetails: onOpenCourtDetails
+                )
+                .padding(20)
+            }
+            .refreshable {
+                await store.load()
+            }
+        }
+        .background(Brand.background)
+    }
+}
+
+private struct DuoSearchPanel: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var isPresented: Bool
+    @FocusState private var searchFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+
+                TextField("City, ZIP code, or address", text: $store.query)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.search)
+                    .focused($searchFocused)
+                    .onSubmit {
+                        Task { await submit() }
+                    }
+                    .task(id: store.query) {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        guard !Task.isCancelled else { return }
+                        await store.updateSuggestions()
+                    }
+
+                if store.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                Button("Close search", systemImage: "xmark") {
+                    isPresented = false
+                }
+                .labelStyle(.iconOnly)
+                .accessibilityLabel("Close search")
+            }
+            .padding(12)
+            .background(Brand.background, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.separator)
+            }
+
+            if let error = store.errorMessage {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(store.suggestions) { suggestion in
+                        Button {
+                            isPresented = false
+                            Task {
+                                await store.select(suggestion)
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundStyle(Brand.accent)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(suggestion.title)
+                                        .fontWeight(.semibold)
+                                    Text(suggestion.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 9)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider()
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Label(store.place.label, systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("Use my current location", systemImage: "location.fill") {
+                    store.requestLocation()
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(14)
+        .background(Brand.background)
+        .onAppear {
+            // Defer focus until the panel has entered the Duo pane so UIKit can
+            // attach the keyboard to the correct display.
+            Task { @MainActor in
+                await Task.yield()
+                searchFocused = true
+            }
+        }
+    }
+
+    private func submit() async {
+        await store.submitSearch()
+        if store.errorMessage == nil {
+            isPresented = false
+        }
+    }
+}
+
+private struct DuoFilterPanel: View {
+    @Bindable var store: OpenCourtsStore
+    let onClose: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Court filters")
+                        .font(.title3.weight(.bold))
+                    Spacer()
+                    Button("Done") {
+                        onClose()
+                    }
+                    .fontWeight(.semibold)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("AMENITIES")
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.1)
+                        .foregroundStyle(Brand.accent)
+
+                    Toggle("Lights listed", isOn: $store.lightedOnly)
+                    Toggle("Public access listed", isOn: $store.publicOnly)
+                }
+                .padding(14)
+                .background(Brand.surface, in: RoundedRectangle(cornerRadius: 14))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("DISTANCE")
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.1)
+                        .foregroundStyle(Brand.accent)
+
+                    Picker("Radius", selection: $store.radius) {
+                        ForEach(SearchRadius.allCases) {
+                            Text($0.rawValue).tag($0)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Brand.surface, in: RoundedRectangle(cornerRadius: 10))
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("SURFACE")
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.1)
+                        .foregroundStyle(Brand.accent)
+
+                    Picker("Surface", selection: $store.surface) {
+                        ForEach(store.surfaces, id: \.self) { surface in
+                            Text(surface.replacingOccurrences(of: "_", with: " ")).tag(surface)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Brand.surface, in: RoundedRectangle(cornerRadius: 10))
+                }
+
+                Button("Reset filters") {
+                    store.lightedOnly = false
+                    store.publicOnly = false
+                    store.radius = .all
+                    store.surface = "Any surface"
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Brand.accent)
+            }
+            .padding(16)
+        }
+        .background(Brand.background)
+    }
+}
+
+private struct DuoCourtDetailsPanel: View {
+    let court: Court
+    let place: Place
+    let rain: RainAssessment?
+    let directions: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    Image(systemName: "tennisball.fill")
+                        .font(.title2)
+                        .foregroundStyle(Brand.green)
+                        .frame(width: 48, height: 48)
+                        .background(Brand.lime, in: Circle())
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(court.name)
+                            .font(.headline)
+                            .lineLimit(2)
+                        Text(court.contextName ?? court.address ?? "Location details unavailable")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Button("Close details", systemImage: "xmark") {
+                        onClose()
+                    }
+                    .labelStyle(.iconOnly)
+                    .accessibilityLabel("Close court details")
+                }
+
+                HStack(spacing: 10) {
+                    DuoDetailBadge(
+                        title: court.distance(from: place).formatted(.number.precision(.fractionLength(1))) + " mi",
+                        systemImage: "location.fill"
+                    )
+                    DuoDetailBadge(
+                        title: court.lighting == .yes ? "Lighted" : court.lighting == .no ? "Unlighted" : "Lights unknown",
+                        systemImage: court.lighting == .yes ? "lightbulb.fill" : "lightbulb.slash"
+                    )
+                }
+
+                HStack(spacing: 10) {
+                    DuoDetailBadge(
+                        title: court.courts.map(String.init) ?? "Court count unknown",
+                        systemImage: "square.grid.2x2.fill"
+                    )
+                    DuoDetailBadge(
+                        title: court.surface?.replacingOccurrences(of: "_", with: " ") ?? "Surface unknown",
+                        systemImage: "square.fill"
+                    )
+                }
+
+                if let rain {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .stroke(Brand.accent.opacity(0.18), lineWidth: 5)
+                            Circle()
+                                .trim(from: 0, to: Double(rain.score) / 100)
+                                .stroke(Brand.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                            Text("\(rain.score)")
+                                .font(.caption.weight(.bold))
+                        }
+                        .frame(width: 50, height: 50)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(rain.source == "forecast" ? "AREA RAIN FORECAST" : "RECENT PRECIPITATION")
+                                .font(.caption2.weight(.bold))
+                                .tracking(0.8)
+                                .foregroundStyle(Brand.accent)
+                            Text(rain.summary)
+                                .font(.footnote)
+                                .lineLimit(2)
+                            Text("Score")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Button("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill") {
+                    directions()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+        }
+        .frame(maxHeight: 290)
+        .background(Brand.background)
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+}
+
+private struct DuoDetailBadge: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(Brand.surface, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct DuoNavigationBar: View {
+    @Binding var destination: AppDestination
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach([
+                    AppDestination.courts,
+                    .map,
+                    .weather,
+                    .dryCourts
+                ]) { item in
+                    Button {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            destination = item
+                        }
+                    } label: {
+                        Label(item.rawValue, systemImage: item.systemImage)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(minWidth: 150)
+                            .padding(.vertical, 9)
+                            .background(
+                                isActive(item) ? Brand.accent.opacity(0.16) : .clear,
+                                in: RoundedRectangle(cornerRadius: 10)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isActive(item) ? Brand.accent : .secondary)
+                    .accessibilityAddTraits(destination == item ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 14)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(Brand.surface)
+    }
+
+    private func isActive(_ item: AppDestination) -> Bool {
+        switch item {
+        case .map, .courts:
+            destination == .map || destination == .courts
+        case .dryCourts, .weather:
+            destination == .dryCourts || destination == .weather
+        }
+    }
+}
+
+private struct DuoPaneHeader<TrailingContent: View>: View {
+    let title: LocalizedStringKey
+    let systemImage: String
+    let isSelected: Bool
+    let action: () -> Void
+    @ViewBuilder let trailing: () -> TrailingContent
+
+    init(
+        title: LocalizedStringKey,
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void,
+        @ViewBuilder trailing: @escaping () -> TrailingContent = { EmptyView() }
+    ) {
+        self.title = title
+        self.systemImage = systemImage
+        self.isSelected = isSelected
+        self.action = action
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: action) {
+                Label(title, systemImage: systemImage)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(isSelected ? Brand.accent : .primary)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            trailing()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Brand.background)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(isSelected ? Brand.accent : .clear)
+                .frame(height: 2)
+        }
+    }
+}
+
+private struct DuoWeatherPane: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var destination: AppDestination
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DuoPaneHeader(
+                title: "Weather",
+                systemImage: "cloud.sun.fill",
+                isSelected: destination == .weather || destination == .dryCourts
+            ) {
+                destination = .weather
+            }
+
+            ScrollView {
+                WeatherSection(store: store)
+                AboutSection()
+            }
+        }
+        .background(Brand.surface)
+    }
+}
+
+private struct DuoDryCourtsPane: View {
+    @Bindable var store: OpenCourtsStore
+    @Binding var destination: AppDestination
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DuoPaneHeader(
+                title: "Dry Courts",
+                systemImage: "cloud.rain",
+                isSelected: destination == .weather || destination == .dryCourts
+            ) {
+                destination = .dryCourts
+            }
+
+            ScrollView {
+                RainPlannerSection(store: store)
+            }
+        }
+        .background(Brand.surface)
     }
 }
 
@@ -565,7 +1202,21 @@ private enum ExploreMode {
 private struct ExploreSection: View {
     @Bindable var store: OpenCourtsStore
     let mode: ExploreMode
+    let onCourtSelected: ((Court) -> Void)?
+    let onFiltersRequested: (() -> Void)?
     @State private var filtersPresented = false
+
+    init(
+        store: OpenCourtsStore,
+        mode: ExploreMode,
+        onCourtSelected: ((Court) -> Void)? = nil,
+        onFiltersRequested: (() -> Void)? = nil
+    ) {
+        self.store = store
+        self.mode = mode
+        self.onCourtSelected = onCourtSelected
+        self.onFiltersRequested = onFiltersRequested
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -573,7 +1224,11 @@ private struct ExploreSection: View {
 
             HStack(spacing: 12) {
                 Button("Filters", systemImage: "slider.horizontal.3") {
-                    filtersPresented = true
+                    if let onFiltersRequested {
+                        onFiltersRequested()
+                    } else {
+                        filtersPresented = true
+                    }
                 }
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 13)
@@ -602,7 +1257,7 @@ private struct ExploreSection: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             } else {
-                CourtListView(store: store)
+                CourtListView(store: store, onCourtSelected: onCourtSelected)
             }
         }
         .padding(20)
@@ -615,18 +1270,26 @@ private struct ExploreSection: View {
 
 private struct ExploreMapView: View {
     @Bindable var store: OpenCourtsStore
+    @Binding private var externalSelectedCourt: Court?
     @State private var selectedID: String?
+    @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var previewCourt: Court?
     @State private var selectedAlert: WeatherAlert?
+    let onOpenCourtDetails: ((Court) -> Void)?
+
+    init(
+        store: OpenCourtsStore,
+        selectedCourt: Binding<Court?> = .constant(nil),
+        onOpenCourtDetails: ((Court) -> Void)? = nil
+    ) {
+        self.store = store
+        self._externalSelectedCourt = selectedCourt
+        self.onOpenCourtDetails = onOpenCourtDetails
+    }
 
     var body: some View {
         Map(
-            initialPosition: .region(
-                .init(
-                    center: .init(latitude: store.place.lat, longitude: store.place.lon),
-                    span: .init(latitudeDelta: 0.10, longitudeDelta: 0.10)
-                )
-            ),
+            position: $cameraPosition,
             selection: $selectedID
         ) {
             Marker("Search center", coordinate: .init(latitude: store.place.lat, longitude: store.place.lon))
@@ -665,14 +1328,39 @@ private struct ExploreMapView: View {
         .overlay(alignment: .bottom) {
             if let previewCourt {
                 MapCourtPreview(court: previewCourt, place: store.place) {
-                    store.selectedCourt = previewCourt
+                    if let onOpenCourtDetails {
+                        onOpenCourtDetails(previewCourt)
+                    } else {
+                        store.selectedCourt = previewCourt
+                    }
                 }
                 .padding(12)
-                .padding(.bottom, 92)
+                // Keep the preview above the floating phone/Duo navigation controls.
+                .padding(.bottom, 170)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
+        .onAppear {
+            cameraPosition = .region(
+                .init(
+                    center: .init(latitude: store.place.lat, longitude: store.place.lon),
+                    span: .init(latitudeDelta: 0.10, longitudeDelta: 0.10)
+                )
+            )
+        }
+        .onChange(of: externalSelectedCourt) { _, court in
+            guard let court else { return }
+            withAnimation(.easeInOut(duration: 0.65)) {
+                selectedID = court.id
+                cameraPosition = .region(
+                    .init(
+                        center: .init(latitude: court.lat, longitude: court.lon),
+                        span: .init(latitudeDelta: 0.025, longitudeDelta: 0.025)
+                    )
+                )
+            }
+        }
         .onChange(of: selectedID) { _, value in
             withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
                 previewCourt = store.courts.first { $0.id == value }
@@ -681,6 +1369,12 @@ private struct ExploreMapView: View {
         .onChange(of: store.place) {
             selectedID = nil
             previewCourt = nil
+            cameraPosition = .region(
+                .init(
+                    center: .init(latitude: store.place.lat, longitude: store.place.lon),
+                    span: .init(latitudeDelta: 0.10, longitudeDelta: 0.10)
+                )
+            )
         }
         .sheet(item: $selectedAlert) { alert in
             WeatherAdvisoryDetail(alert: alert)
@@ -899,6 +1593,12 @@ private struct MapLegendRow: View {
 
 private struct CourtListView: View {
     @Bindable var store: OpenCourtsStore
+    let onCourtSelected: ((Court) -> Void)?
+
+    init(store: OpenCourtsStore, onCourtSelected: ((Court) -> Void)? = nil) {
+        self.store = store
+        self.onCourtSelected = onCourtSelected
+    }
 
     var body: some View {
         LazyVStack(spacing: 14) {
@@ -908,7 +1608,11 @@ private struct CourtListView: View {
                     place: store.place,
                     rain: store.rain.first { $0.courtId == court.id }
                 ) {
-                    store.selectedCourt = court
+                    if let onCourtSelected {
+                        onCourtSelected(court)
+                    } else {
+                        store.selectedCourt = court
+                    }
                 }
             }
         }
@@ -941,9 +1645,11 @@ private struct FilterSheet: View {
                 }
             }
             .navigationTitle("Court filters")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -1092,7 +1798,7 @@ private struct CourtDetail: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.68), .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(28)
     }
