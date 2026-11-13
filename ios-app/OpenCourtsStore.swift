@@ -19,6 +19,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     var selectedCourt: Court?
     var isLoading = false
     var errorMessage: String?
+    var locationAlertMessage: String?
     var refreshErrorMessage: String?
     var lastUpdated: Date?
     var isShowingStaleData = false
@@ -295,6 +296,15 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         await load(suggestion.place)
     }
     func requestLocation() {
+        let authorizationStatus = locationManager.authorizationStatus
+        guard CLLocationManager.locationServicesEnabled(),
+              authorizationStatus != .denied,
+              authorizationStatus != .restricted else {
+            locationAlertMessage = "Turn on Location Services for OpenCourts in Settings > Privacy & Security > Location Services, then try again."
+            return
+        }
+
+        locationAlertMessage = nil
         locationManager.requestWhenInUseAuthorization()
         locationManager.requestLocation()
     }
@@ -303,7 +313,13 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         Task { @MainActor in await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude, countryCode: nil)) }
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in errorMessage = "Your location could not be determined." }
+        Task { @MainActor in
+            if let locationError = error as? CLError, locationError.code == .denied {
+                locationAlertMessage = "Turn on Location Services for OpenCourts in Settings > Privacy & Security > Location Services, then try again."
+            } else {
+                errorMessage = "Your location could not be determined."
+            }
+        }
     }
     func directions(to court: Court) {
         recordValueUse()

@@ -69,6 +69,14 @@ struct ContentView: View {
         }
         .background(Brand.background)
         .tint(Brand.accent)
+        .overlay {
+            if !hasCompletedInitialLoad {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: hasCompletedInitialLoad)
         .task {
             guard !hasCompletedInitialLoad else { return }
             await store.load()
@@ -89,6 +97,25 @@ struct ContentView: View {
         .sheet(isPresented: $searchPresented) {
             SearchSheet(store: store)
         }
+        .alert(
+            "Location Services Are Off",
+            isPresented: Binding(
+                get: { store.locationAlertMessage != nil },
+                set: { if !$0 { store.locationAlertMessage = nil } }
+            )
+        ) {
+            #if os(iOS)
+            Button("Open Settings") {
+                guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(settingsURL)
+            }
+            #endif
+            Button("Not Now", role: .cancel) {
+                store.locationAlertMessage = nil
+            }
+        } message: {
+            Text(store.locationAlertMessage ?? "Enable Location Services for OpenCourts in Settings, then try again.")
+        }
     }
 
     private func requestReviewIfAppropriate() async {
@@ -97,6 +124,31 @@ struct ContentView: View {
         guard scenePhase == .active, !store.isLoading, store.shouldRequestReview else { return }
         store.markReviewPrompted()
         requestReview()
+    }
+}
+
+private struct SplashView: View {
+    @State private var isVisible = false
+
+    var body: some View {
+        ZStack {
+            Brand.green
+                .ignoresSafeArea()
+
+            Image("OpenCourtsLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .scaleEffect(isVisible ? 1 : 0.82)
+                .opacity(isVisible ? 1 : 0)
+        }
+        .task {
+            withAnimation(.easeOut(duration: 0.7)) {
+                isVisible = true
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("OpenCourts")
     }
 }
 
