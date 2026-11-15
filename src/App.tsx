@@ -1,7 +1,7 @@
 import { internationalRainAssessments } from './international-rain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, Heart, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
 import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution, internationalCountryCode } from './services';
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment, WeatherData } from './types';
@@ -511,7 +511,7 @@ function App() {
   return <div id="top" className={dark ? 'app dark' : 'app'}>
     <header className="topbar"><a className="brand" href="#top" aria-label="OpenCourts home"><span className="brand-mark"><TennisBall size={20}/></span><span>open<span className="brand-light">courts</span></span></a>
       <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support" onClick={() => setMenuOpen(false)}>Support</a></nav>
-      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
+      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><a className="mobile-support" href="/support" aria-label="Open Support page"><Heart size={19} strokeWidth={2} aria-hidden="true"/></a><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
     <nav className="mobile-bottom-nav" aria-label="Quick navigation">
       <button type="button" className={mobileNavSection === 'explore' && !mobileList ? 'active' : ''} aria-label="Show court map" aria-pressed={mobileNavSection === 'explore' && !mobileList} onClick={() => { setMobileNavSection('explore'); showMapView(); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><MapIcon size={21} strokeWidth={1.9} aria-hidden="true"/><span>Map</span></button>

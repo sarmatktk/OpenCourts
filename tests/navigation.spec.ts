@@ -65,6 +65,7 @@ test('filters and menu links work on a phone', async ({ page }) => {
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(page.locator('.result-meta')).toContainText('3 courts');
 
+  await expect(page.getByRole('link', { name: 'Open Support page' })).toHaveAttribute('href', '/support');
   await page.getByRole('button', { name: 'Toggle menu' }).click();
   const menu = page.getByRole('navigation', { name: 'Main navigation' });
   await expect(menu.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '/support');
