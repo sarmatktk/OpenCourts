@@ -6,6 +6,10 @@ const landingPages = [
   ['best-time-to-play-tennis.html', 'social-play-weather.png'],
   ['tennis-courts-after-rain.html', 'social-after-rain.png'],
   ['public-tennis-courts-fairfax-va.html', 'social-fairfax-courts.png'],
+  ['public-tennis-courts-los-angeles.html', 'social-los-angeles-courts.png'],
+  ['public-tennis-courts-atlanta.html', 'social-atlanta-courts.png'],
+  ['public-tennis-courts-dallas.html', 'social-dallas-courts.png'],
+  ['public-tennis-courts-miami.html', 'social-miami-courts.png'],
 ] as const;
 
 const pages = [
@@ -35,6 +39,7 @@ describe('social share metadata', () => {
       expect((html.match(/data-analytics-event="landing_cta_click"/g) || []).length).toBe(2);
       const image = readFileSync(resolve(process.cwd(), 'public', imageName));
       expect([image.readUInt32BE(16), image.readUInt32BE(20)]).toEqual([1200, 630]);
+      expect(image.length, `${imageName} should remain below 1 MB`).toBeLessThan(1_000_000);
     }
   });
   it('tracks landing actions and preserves the Fairfax destination without changing the main page', () => {
@@ -51,9 +56,129 @@ describe('social share metadata', () => {
     }
     expect((fairfax.match(/class="landing-park-link"/g) || []).length).toBe(3);
     expect((fairfax.match(/class="landing-source-link"/g) || []).length).toBe(3);
+    expect(fairfax).toContain('<h1>Find public tennis courts around Fairfax.</h1>');
+    expect(fairfax).toContain('rel="preload" as="image" type="image/webp" href="/landing-fairfax.webp"');
+    const jsonLd = fairfax.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    const graph = JSON.parse(jsonLd!)['@graph'];
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'FAQPage')).toBe(true);
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'BreadcrumbList')).toBe(true);
+  });
+  it('deep-links Los Angeles facilities and includes matching FAQ structured data', () => {
+    const html = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-los-angeles.html'), 'utf8');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const slug of ['echo-park-la', 'mar-vista-la', 'riverside-la']) {
+      expect(html).toContain(`href="/?park=${slug}#explore"`);
+      expect(app).toContain(`'${slug}': { label:`);
+    }
+    expect(html).toContain('href="https://locator.lacounty.gov/lac/Location/3178778/echo-park-recreation-center"');
+    expect(html).toContain('href="https://recreation.parks.lacity.gov/reccenter/mar-vista"');
+    expect(html).not.toContain('href="https://recreation.parks.lacity.gov/reccenter/echo-park"');
+    expect(html).not.toContain('/reccenter/echo-park-recreation-center');
+    expect(html).not.toContain('/reccenter/mar-vista-recreation-center');
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    const graph = JSON.parse(jsonLd!)['@graph'];
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'FAQPage')).toBe(true);
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'BreadcrumbList')).toBe(true);
+    expect(app).toContain("m.setPaintProperty('osm-raster', 'raster-brightness-max', dark ? 0.6 : 1)");
+  });
+  it('makes the Los Angeles guide indexable, branded, measurable, and image-rich', () => {
+    const html = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-los-angeles.html'), 'utf8');
+    expect(html).toContain('<h1>Find public tennis courts in Los Angeles.</h1>');
+    expect(html).toContain('name="robots" content="index, follow, max-image-preview:large');
+    expect(html).toContain('rel="icon" type="image/svg+xml" href="/favicon.svg"');
+    expect(html).toContain('rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"');
+    expect(html).toContain('rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"');
+    expect(html).toContain('name="twitter:image:alt"');
+    expect(html).toContain('rel="preload" as="image" type="image/webp" href="/landing-los-angeles.webp"');
+    expect(html).toContain('https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410');
+    expect(html).toContain("gtag('config', 'G-7T3S2D1410')");
+    expect(html).toContain('src="/landing-analytics.js"');
+  });
+  it('deep-links Atlanta facilities and explains park courts versus racquet centers', () => {
+    const html = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-atlanta.html'), 'utf8');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const slug of ['grant-park-atlanta', 'east-lake-park-atlanta', 'washington-park-atlanta']) {
+      expect(html).toContain(`href="/?park=${slug}#explore"`);
+      expect(app).toContain(`'${slug}': { label:`);
+    }
+    expect(html).toContain('<h1>Find public tennis courts in Atlanta.</h1>');
+    expect(html).toContain('data-city-preset="atlanta-ga"');
+    expect(html).toContain('https://www.atlantaga.gov/government/departments/department-parks-recreation/office-of-parks/list-of-tennis-courts');
+    expect(html).toContain('https://www.atlantaga.gov/government/departments/department-parks-recreation/office-of-parks/city-of-atlanta-tennis');
+    expect(html).toContain('rel="preload" as="image" type="image/webp" href="/landing-atlanta.webp"');
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    const graph = JSON.parse(jsonLd!)['@graph'];
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'FAQPage')).toBe(true);
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'BreadcrumbList')).toBe(true);
+  });
+  it('deep-links Dallas public centers without describing them as free courts', () => {
+    const html = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-dallas.html'), 'utf8');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const slug of ['samuell-grand-dallas', 'fretz-dallas', 'lb-houston-dallas']) {
+      expect(html).toContain(`href="/?park=${slug}#explore"`);
+      expect(app).toContain(`'${slug}': { label:`);
+    }
+    expect(html).toContain('<h1>Find public tennis courts in Dallas.</h1>');
+    expect(html).toContain('data-city-preset="dallas-tx"');
+    expect(html).toContain('Public does not automatically mean free');
+    expect(html).toContain('https://www.dallasparks.org/281/Tennis-Centers');
+    expect(html).toContain('rel="preload" as="image" type="image/webp" href="/landing-dallas.webp"');
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    const graph = JSON.parse(jsonLd!)['@graph'];
+    expect(graph.some((item: { '@type': string }) => item['@type'] === 'FAQPage')).toBe(true);
+  });
+  it('keeps the Miami guide within City of Miami jurisdiction', () => {
+    const html = readFileSync(resolve(process.cwd(), 'public/public-tennis-courts-miami.html'), 'utf8');
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const slug of ['margaret-pace-miami', 'shenandoah-miami', 'morningside-miami']) {
+      expect(html).toContain(`href="/?park=${slug}#explore"`);
+      expect(app).toContain(`'${slug}': { label:`);
+    }
+    expect(html).toContain('<h1>Find public tennis courts in Miami.</h1>');
+    expect(html).toContain('data-city-preset="miami-fl"');
+    expect(html).toContain('Miami Beach and Miami-Dade County run separate park systems');
+    expect(html).toContain('rel="preload" as="image" type="image/webp" href="/landing-miami.webp"');
+    const jsonLd = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];
+    expect(JSON.parse(jsonLd!)['@graph'].some((item: { '@type': string }) => item['@type'] === 'FAQPage')).toBe(true);
+  });
+  it('restores every main-page anchor after asynchronous court and weather layout changes', () => {
+    const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    for (const target of ['top', 'search', 'explore', 'rain-planner-title', 'conditions', 'about', 'support']) {
+      expect(app).toContain(`'${target}'`);
+    }
+    expect(app).toContain('}, [loading, weatherLoading]);');
+    expect(app).toContain('<div id="top" className={dark');
+  });
+  it('uses the same main navigation contract on every landing page', () => {
+    const expected = [
+      ['Explore courts', '/#explore', 'explore'],
+      ['Weather', '/#conditions', 'weather'],
+      ['About', '/#about', 'about'],
+      ['Support', '/#support', 'support'],
+    ] as const;
+    for (const [file] of landingPages) {
+      const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
+      const nav = html.match(/<nav id="landing-nav"[\s\S]*?<\/nav>/)?.[0];
+      expect(nav, `${file} main navigation`).toBeDefined();
+      for (const [label, href, analyticsLabel] of expected) {
+        expect(nav).toContain(`href="${href}"`);
+        expect(nav).toContain(`data-analytics-label="${analyticsLabel}">${label}</a>`);
+      }
+    }
+  });
+  it('uses the location-target icon and label on every landing-page Near me control', () => {
+    for (const [file] of landingPages) {
+      const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
+      const control = html.match(/<button[^>]*data-near-me[\s\S]*?<\/button>/)?.[0];
+      expect(control, `${file} Near me control`).toBeDefined();
+      expect(control).toContain('<svg');
+      expect(control).toContain('<circle cx="12" cy="12" r="7"');
+      expect(control).toContain('<circle cx="12" cy="12" r="3"');
+      expect(control).toContain('<span>Near me</span>');
+    }
   });
   it('uses optimized page photography and clear links on all landing pages', () => {
-    const photos = ['landing-weather.webp', 'landing-after-rain.webp', 'landing-fairfax.webp'];
+    const photos = ['landing-weather.webp', 'landing-after-rain.webp', 'landing-fairfax.webp', 'landing-los-angeles.webp', 'landing-atlanta.webp', 'landing-dallas.webp', 'landing-miami.webp'];
     for (const [index, [file]] of landingPages.entries()) {
       const html = readFileSync(resolve(process.cwd(), 'public', file), 'utf8');
       const photo = readFileSync(resolve(process.cwd(), 'public', photos[index]));
