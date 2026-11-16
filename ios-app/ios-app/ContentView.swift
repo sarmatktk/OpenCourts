@@ -2209,6 +2209,20 @@ private struct WeatherSection: View {
         ForecastWindowPlanner.windows(from: daytime, timeZoneIdentifier: store.weatherTimeZone)
     }
 
+    private var forecastDayGroups: [ForecastDayGroup] {
+        let grouped = Dictionary(grouping: forecastWindows) {
+            ForecastDate.dayLabel(for: $0.representative.time)
+        }
+        return grouped.map { day, windows in
+            ForecastDayGroup(
+                day: day,
+                windows: windows.sorted { $0.representative.time < $1.representative.time }
+            )
+        }.sorted {
+            ($0.windows.first?.representative.time ?? "") < ($1.windows.first?.representative.time ?? "")
+        }
+    }
+
     private var bestForecast: Forecast? {
         dailyBest.max { $0.score < $1.score }?.forecast
     }
@@ -2265,37 +2279,45 @@ private struct WeatherSection: View {
                         hourlyForecastExpanded.toggle()
                     }
                 } label: {
-                    Label(
-                        hourlyForecastExpanded ? "Hide forecast windows" : "View forecast windows",
-                        systemImage: hourlyForecastExpanded ? "chevron.up" : "clock"
-                    )
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Brand.background, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(.separator.opacity(0.55), lineWidth: 0.7)
+                    HStack(spacing: 12) {
+                        Image(systemName: hourlyForecastExpanded ? "chevron.up" : "clock")
+                            .font(.subheadline.weight(.bold))
+                            .frame(width: 34, height: 34)
+                            .background(.white.opacity(0.14), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(hourlyForecastExpanded ? "Hide forecast windows" : "View forecast windows")
+                                .font(.subheadline.weight(.bold))
+                            Text(hourlyForecastExpanded ? "Return to the seven-day summary" : "See the full daylight breakdown")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.72))
+                        }
+
+                        Spacer()
                     }
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(Brand.green, in: RoundedRectangle(cornerRadius: 18))
+                    .shadow(color: Brand.green.opacity(0.18), radius: 10, y: 5)
                 }
                 .buttonStyle(.plain)
 
                 if hourlyForecastExpanded {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("DAYLIGHT FORECAST WINDOWS")
-                            .font(.caption2.weight(.bold))
-                            .tracking(1.2)
-                            .foregroundStyle(Brand.accent)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("DAYLIGHT FORECAST WINDOWS")
+                                .font(.caption2.weight(.bold))
+                                .tracking(1.2)
+                                .foregroundStyle(Brand.accent)
+                            Spacer()
+                            Text("Grouped by day")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
 
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible(), spacing: 10),
-                                GridItem(.flexible(), spacing: 10)
-                            ],
-                            spacing: 10
-                        ) {
-                            ForEach(forecastWindows) { window in
-                                ForecastWindowCard(window: window)
+                        VStack(spacing: 14) {
+                            ForEach(forecastDayGroups) { group in
+                                ForecastDaySection(group: group)
                             }
                         }
                     }
@@ -2677,58 +2699,87 @@ private enum ForecastWindowPlanner {
     }
 }
 
+private struct ForecastDayGroup: Identifiable {
+    let day: String
+    let windows: [ForecastWindow]
+
+    var id: String { day }
+}
+
+private struct ForecastDaySection: View {
+    let group: ForecastDayGroup
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text(group.day)
+                    .font(.headline.weight(.bold))
+                Spacer()
+                Text("\(group.windows.count) \(group.windows.count == 1 ? "window" : "windows")")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(group.windows) { window in
+                    ForecastWindowCard(window: window)
+                }
+            }
+        }
+        .padding(13)
+        .background(Brand.background, in: RoundedRectangle(cornerRadius: 19))
+        .overlay {
+            RoundedRectangle(cornerRadius: 19)
+                .stroke(.separator.opacity(0.45), lineWidth: 0.7)
+        }
+    }
+}
+
 private struct ForecastWindowCard: View {
     let window: ForecastWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(alignment: .top, spacing: 5) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ForecastDate.dayLabel(for: window.representative.time))
-                        .font(.caption2.weight(.bold))
+        HStack(spacing: 11) {
+            Image(systemName: WeatherSymbol.name(for: window.representative))
+                .font(.title3)
+                .symbolRenderingMode(.multicolor)
+                .frame(width: 38, height: 38)
+                .background(Brand.surface, in: Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ForecastDate.windowLabel(for: window.forecasts))
+                    .font(.subheadline.weight(.bold))
+                HStack(spacing: 7) {
+                    Text("\(Int(window.averageTemperature.rounded()))°")
+                        .font(.subheadline.weight(.bold))
+                    Text(window.representative.short)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(ForecastDate.windowLabel(for: window.forecasts))
-                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 2)
-                Text("\(window.score)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(window.score >= 70 ? Brand.green : .orange)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        window.score >= 70 ? Brand.lime.opacity(0.75) : Color.orange.opacity(0.12),
-                        in: Capsule()
-                    )
+                HStack(spacing: 10) {
+                    Label("\(Int(window.maximumRainChance.rounded()))%", systemImage: "drop.fill")
+                    Label("\(Int(window.maximumWind.rounded())) mph", systemImage: "wind")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
 
-            HStack {
-                Image(systemName: WeatherSymbol.name(for: window.representative))
-                    .font(.title2)
-                    .symbolRenderingMode(.multicolor)
-                Spacer()
-                Text("\(Int(window.averageTemperature.rounded()))°")
-                    .font(.title2.weight(.bold))
-            }
+            Spacer(minLength: 4)
 
-            Text(window.representative.short)
-                .font(.caption.weight(.semibold))
-                .lineLimit(2)
-
-            Divider()
-
-            Label("\(Int(window.maximumRainChance.rounded()))% rain", systemImage: "drop.fill")
-            Label("Up to \(Int(window.maximumWind.rounded())) mph", systemImage: "wind")
+            Text("\(window.score)")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(window.score >= 70 ? Brand.green : .orange)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 5)
+                .background(
+                    window.score >= 70 ? Brand.lime.opacity(0.75) : Color.orange.opacity(0.12),
+                    in: Capsule()
+                )
         }
         .font(.caption2)
-        .frame(maxWidth: .infinity, minHeight: 184, alignment: .topLeading)
-        .padding(14)
-        .background(Brand.background, in: RoundedRectangle(cornerRadius: 17))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17)
-                .stroke(.separator.opacity(0.5), lineWidth: 0.7)
-        }
-        .shadow(color: .black.opacity(0.05), radius: 8, y: 3)
+        .padding(10)
+        .background(Brand.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 

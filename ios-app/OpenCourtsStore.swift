@@ -34,6 +34,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     private let reviewPromptedVersionKey = "opencourts.review-prompted-version"
     private var suggestionRequestID = 0
     private var loadRequestID = 0
+    private var isLocationRequestInProgress = false
 
     private struct CachedData: Codable {
         let place: Place
@@ -297,17 +298,45 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     }
     func requestLocation() {
         let authorizationStatus = locationManager.authorizationStatus
-        guard CLLocationManager.locationServicesEnabled(),
-              authorizationStatus != .denied,
+        guard authorizationStatus != .denied,
               authorizationStatus != .restricted else {
             locationAlertMessage = "Turn on Location Services for OpenCourts in Settings > Privacy & Security > Location Services, then try again."
             return
         }
 
+        isLocationRequestInProgress = true
         locationAlertMessage = nil
-        locationManager.requestWhenInUseAuthorization()
-        locationManager.requestLocation()
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            isLocationRequestInProgress = false
+            locationManager.requestLocation()
+        } else {
+            locationManager.requestWhenInUseAuthorization()
+        }
     }
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            handleLocationAuthorization(status)
+        }
+    }
+
+    private func handleLocationAuthorization(_ status: CLAuthorizationStatus) {
+        guard isLocationRequestInProgress else { return }
+
+        switch status {
+        case .authorized, .authorizedWhenInUse, .authorizedAlways:
+            isLocationRequestInProgress = false
+            locationManager.requestLocation()
+        case .denied, .restricted:
+            isLocationRequestInProgress = false
+            locationAlertMessage = "Turn on Location Services for OpenCourts in Settings > Privacy & Security > Location Services, then try again."
+        case .notDetermined:
+            break
+        @unknown default:
+            isLocationRequestInProgress = false
+        }
+    }
+
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         Task { @MainActor in await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude, countryCode: nil)) }
