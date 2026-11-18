@@ -1,7 +1,11 @@
+import AccountAvatar from './AccountAvatar';
+import NotificationBell from './NotificationBell';
 import { internationalRainAssessments } from './international-rain';
+import { useTheme } from './useTheme';
+import TennisBall from './TennisBall';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, Heart, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, Wind, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Clock3, CloudRain, CloudSun, Compass, Crosshair, ExternalLink, Filter, Heart, List as ListIcon, LoaderCircle, LocateFixed, Map as MapIcon, MapPin, Menu, Search, Snowflake, Sun, SunMedium, ThermometerSnowflake, ThermometerSun, UsersRound, Wind, X } from 'lucide-react';
 import { currentHeatCaution, findPlace, getCourts, getSelectedCourtContext, getWeatherAlerts, getPlaceSuggestions, getRainAssessments, getWeather, hasWidespreadRecentRain, HEAT_INDEX_DISPLAY_THRESHOLD_F, playScoreFactors, weeklyPlayWindows, withWinterSurfaceCaution, internationalCountryCode } from './services';
 import type { WinterCautionSeed } from './services';
 import type { Court, Forecast, WeatherAlert, Place, PlaceSuggestion, RainAssessment, WeatherData } from './types';
@@ -41,7 +45,6 @@ function GetAppLink() {
   if (runningAndroidApp || (!apple && !android)) return null;
   return <StoreBadge store={apple ? 'apple' : 'google'} />;
 }
-function TennisBall({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" strokeWidth="1.5"/></svg>; }
 function courtBallImage(highlight: string, shade: string, seam: string): ImageData {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 48;
@@ -155,6 +158,7 @@ function WindowScoreFactors({ forecast }: { forecast: Forecast }) {
 }
 
 function App() {
+  const { dark } = useTheme();
   const legendBalls = useMemo(() => ({
     lit: ballImageUrl(BALL_COLORS.lit),
     unlit: ballImageUrl(BALL_COLORS.unlit),
@@ -181,22 +185,13 @@ function App() {
   const [query, setQuery] = useState(''); const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]); const [suggestionsOpen, setSuggestionsOpen] = useState(false); const [suggestionsLoading, setSuggestionsLoading] = useState(false); const [suggestionsError, setSuggestionsError] = useState(''); const [activeSuggestion, setActiveSuggestion] = useState(-1); const [courts, setCourts] = useState<Court[]>([]); const [hourlyForecast, setHourlyForecast] = useState<Forecast[]>([]); const [timeZone, setTimeZone] = useState('America/New_York'); const [weatherSource, setWeatherSource] = useState<NonNullable<WeatherData['source']>>('NWS'); const [visibleCount, setVisibleCount] = useState(30);
   const [loading, setLoading] = useState(true); const [searchSlow, setSearchSlow] = useState(false); const [placeLookupLoading, setPlaceLookupLoading] = useState(false); const [weatherLoading, setWeatherLoading] = useState(true); const [rainLoading, setRainLoading] = useState(false); const [rainError, setRainError] = useState(''); const [rainAssessments, setRainAssessments] = useState<RainAssessment[]>([]); const [selectedRainLoading, setSelectedRainLoading] = useState(false); const [selectedRainError, setSelectedRainError] = useState(''); const [error, setError] = useState(''); const [weatherError, setWeatherError] = useState('');
   const [mapError, setMapError] = useState(''); const [mapReady, setMapReady] = useState(false);
-  const [litOnly, setLitOnly] = useState(false); const [dark, setDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false); const [selected, setSelected] = useState<Court | null>(null);
+  const [litOnly, setLitOnly] = useState(false); const [selected, setSelected] = useState<Court | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [radius, setRadius] = useState('all'); const [publicOnly, setPublicOnly] = useState(false); const [surface, setSurface] = useState('all');
   const activeFilters = Number(litOnly) + Number(publicOnly) + Number(radius !== 'all') + Number(surface !== 'all');
   function resetFilters() { setLitOnly(false); setPublicOnly(false); setRadius('all'); setSurface('all'); }
   const [menuOpen, setMenuOpen] = useState(false); const [mobileList, setMobileList] = useState(false); const [mobileNavSection, setMobileNavSection] = useState<'explore' | 'search' | 'dry' | 'weather'>(() => window.location.hash === '#conditions' ? 'weather' : window.location.hash === '#rain-planner-title' ? 'dry' : window.location.hash === '#search' ? 'search' : 'explore'); const [sort, setSort] = useState<'near' | 'lighted'>('near');
   const mapEl = useRef<HTMLDivElement>(null); const map = useRef<MapLibreMap | null>(null); const request = useRef<AbortController | null>(null); const suggestionRequest = useRef<AbortController | null>(null); const placeRef = useRef(place); placeRef.current = place;
-
-  useEffect(() => {
-    const preference = window.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!preference) return;
-    const updateTheme = () => setDark(preference.matches);
-    preference.addEventListener('change', updateTheme);
-    updateTheme();
-    return () => preference.removeEventListener('change', updateTheme);
-  }, []);
 
   useEffect(() => {
     const search = query.trim();
@@ -510,8 +505,8 @@ function App() {
   }
   return <div id="top" className={dark ? 'app dark' : 'app'}>
     <header className="topbar"><a className="brand" href="#top" aria-label="OpenCourts home"><span className="brand-mark"><TennisBall size={20}/></span><span>open<span className="brand-light">courts</span></span></a>
-      <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support" onClick={() => setMenuOpen(false)}>Support</a></nav>
-      <div className="top-actions"><button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><a className="mobile-support" href="/support" aria-label="Open Support page"><Heart size={19} strokeWidth={2} aria-hidden="true"/></a><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
+      <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore" onClick={() => setMenuOpen(false)}>Explore courts</a><a href="#conditions" onClick={() => setMenuOpen(false)}>Weather</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="/support" onClick={() => setMenuOpen(false)}>Support</a>{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <a href="/play-together" onClick={() => setMenuOpen(false)}>Play Together</a>}</nav>
+      <div className="top-actions">{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <NotificationBell/>}{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <a className="pt-account-link" href="/account" aria-label="Account and settings"><AccountAvatar/></a>}<button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><a className="mobile-support" href="/support" aria-label="Open Support page"><Heart size={19} strokeWidth={2} aria-hidden="true"/></a><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
     <nav className="mobile-bottom-nav" aria-label="Quick navigation">
       <button type="button" className={mobileNavSection === 'explore' && !mobileList ? 'active' : ''} aria-label="Show court map" aria-pressed={mobileNavSection === 'explore' && !mobileList} onClick={() => { setMobileNavSection('explore'); showMapView(); document.getElementById('explore')?.scrollIntoView({ behavior: 'smooth' }); }}><MapIcon size={21} strokeWidth={1.9} aria-hidden="true"/><span>Map</span></button>
@@ -519,11 +514,12 @@ function App() {
       <a className={`mobile-nav-search${mobileNavSection === 'search' ? ' active' : ''}`} href="#search" aria-current={mobileNavSection === 'search' ? 'location' : undefined} onClick={e => { e.preventDefault(); setMobileNavSection('search'); document.getElementById('search')?.scrollIntoView({ behavior: 'smooth' }); document.querySelector<HTMLInputElement>('#search input')?.focus({ preventScroll: true }); }} aria-label="Search courts"><span className="mobile-nav-search-icon"><Search size={23} strokeWidth={2.2} aria-hidden="true"/></span><span>Search</span></a>
       <a className={mobileNavSection === 'dry' ? 'active' : ''} href="#rain-planner-title" aria-current={mobileNavSection === 'dry' ? 'location' : undefined} onClick={() => setMobileNavSection('dry')}><CloudRain size={21} strokeWidth={1.9} aria-hidden="true"/><span>Dry courts</span></a>
       <a className={mobileNavSection === 'weather' ? 'active' : ''} href="#conditions" aria-current={mobileNavSection === 'weather' ? 'location' : undefined} onClick={() => setMobileNavSection('weather')}><CloudSun size={21} strokeWidth={1.9} aria-hidden="true"/><span>Weather</span></a>
+      {(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <a href="/play-together" aria-label="Play Together"><UsersRound size={21} strokeWidth={1.9} aria-hidden="true"/><span>Play</span></a>}
     </nav>
     <main id="top">
       <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Compare nearby courts, check recent rain, and plan your next match around the seven-day forecast.</p>
         <div className="search-wrap" id="search" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
-          <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{(placeLookupLoading || loading) && <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/>}</button></form>
+          <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input role="combobox" aria-haspopup="listbox" aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{(placeLookupLoading || loading) && <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/>}</button></form>
           {suggestionsOpen && query.trim().length >= 3 && <div className="place-suggestions" id="place-suggestions" role="listbox" aria-label="Address suggestions">
             {suggestionsLoading && <div className="suggestion-message" role="status">Searching places…</div>}
             {!suggestionsLoading && suggestionsError && <div className="suggestion-message" role="status">{suggestionsError}</div>}

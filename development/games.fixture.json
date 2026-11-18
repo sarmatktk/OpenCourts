@@ -1,0 +1,11 @@
+{
+  "developmentOnly": true,
+  "note": "Synthetic planning fixture only. Not imported into D1; no Play Together schema exists yet. Dates are examples, not upcoming real games.",
+  "players": [
+    { "id": "dev-player-1", "displayName": "Demo Organizer", "skillLevel": "intermediate" },
+    { "id": "dev-player-2", "displayName": "Demo Player", "skillLevel": "beginner" }
+  ],
+  "games": [
+    { "id": "dev-game-1", "courtId": "osm-way-40881080", "organizerId": "dev-player-1", "startsAt": "2030-06-15T10:00:00Z", "timeZone": "Europe/Paris", "capacity": 4, "participantIds": ["dev-player-1", "dev-player-2"] }
+  ]
+}

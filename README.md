@@ -1,12 +1,28 @@
 # OpenCourts
 
+**Continuing Play Together with another agent? Start with the
+[development handoff and next steps](docs/PLAY_TOGETHER_HANDOFF.md).**
+
+Current development Preview includes accounts, all three game audiences, groups/roles,
+guest participation, sharing, opt-in discovery and safety reporting. See the
+[current handoff](docs/PLAY_TOGETHER_HANDOFF.md) and
+[remaining release checks](docs/PLAY_TOGETHER_RELEASE_CHECKLIST.md).
+Production remains unchanged.
+
 International provider, cache, coverage, and rollout details are documented in
 [International reliability](docs/international-reliability.md). US behavior is
 preserved separately from this international data path.
 
 OpenCourts is a map-first public tennis court finder. It combines OpenStreetMap court features, a MapLibre map, Photon place suggestions and OpenStreetMap Nominatim place search, and National Weather Service hourly forecasts. No account or API key is required for the included setup.
 
+[Play Together product decisions, architecture, and progress](docs/PLAY_TOGETHER.md)
+are maintained as the central reference for the planned community features.
+
 ## Run locally
+
+For isolated Play Together development with local D1, see
+[the development setup and preview approval checklist](docs/play-together-development.md).
+Local Vite handlers do not forward requests to the production OpenCourts API.
 
 ```sh
 npm install
@@ -87,3 +103,9 @@ tests/               Unit tests and the Playwright search flow
 ## Notes
 
 OpenStreetMap features are community contributed. Access, lighting, availability, and amenities can change and should be confirmed locally. The app makes no reservation or availability guarantees and does not offer booking or accounts.
+
+Phase 2 public games: [implementation and testing guide](docs/play-together-games.md).
+
+Phase 3 participation: [implementation and rollout guide](docs/play-together-participation.md).
+
+Phase 4 groups: [implementation, privacy and rollout guide](docs/play-together-groups.md).

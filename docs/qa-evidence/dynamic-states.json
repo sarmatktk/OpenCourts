@@ -1,0 +1,23 @@
+{
+  "confirmFacts": {
+    "focused": "Cancel this game for all participants? It will be removed from upcoming discovery.Confirm cancellationKeep game",
+    "dialogCount": 0,
+    "alertVisible": 1
+  },
+  "groupConfirm": {
+    "dialogCount": 0,
+    "focused": "Remove QA Member from this group?ConfirmKeep unchanged",
+    "confirmVisible": true
+  },
+  "stale": {
+    "privateTitleStillVisible": false,
+    "detailReadsOnFocus": 1
+  },
+  "notFound": true,
+  "searchLoading": {
+    "buttonDisabled": true,
+    "statusRegions": [
+      "Searching players..."
+    ]
+  }
+}

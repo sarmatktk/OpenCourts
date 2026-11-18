@@ -179,12 +179,12 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   const globalSearch = Boolean(internationalCountry);
   const url = new URL('/api/geocode', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '6'); if (globalSearch) { url.searchParams.set('scope', 'global'); url.searchParams.set('country', internationalCountry!); }
   const res = await fetch(url, { signal, cache: 'no-store' }); if (!res.ok) throw new Error(res.status === 429 ? 'Location search is busy. Please wait a moment and try again.' : 'Location search is unavailable. Try a city and state or ZIP code.');
-  const data = await readApiJson<{ result?: { display_name?: string; lat?: string | number; lon?: string | number; postcode?: string; country_code?: string } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
+  const data = await readApiJson<{ result?: { general_label?:string;display_name?: string; lat?: string | number; lon?: string | number; postcode?: string; country_code?: string } | null }>(res, 'Location search is unavailable. Try a city and state or ZIP code.');
   const match = data.result;
   if (!match) throw new Error(globalSearch ? 'We couldn’t find that place. Try a city and country.' : 'We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
   const lat = Number(match.lat); const lon = Number(match.lon);
   if (!match.display_name || (!globalSearch && normalized.zip && match.postcode !== normalized.zip) || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new Error(globalSearch ? 'We couldn’t find that place. Try a city and country.' : 'We couldn’t find that place. Try a U.S. city, state, or ZIP code.');
-  const place = { label: match.display_name, lat, lon, ...(match.country_code ? { countryCode: match.country_code } : {}) };
+  const place = { ...(match.general_label?{generalLabel:match.general_label}:{}),label: match.display_name, lat, lon, ...(match.country_code ? { countryCode: match.country_code } : {}) };
   return place;
 }
 export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
@@ -192,7 +192,7 @@ export async function getPlaceSuggestions(query: string, signal?: AbortSignal): 
   if (normalized.error) return [];
   query = normalized.query;
   const internationalCountry = internationalCountryCode(query);
-  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '7'); if (internationalCountry) url.searchParams.set('country', internationalCountry);
+  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '8'); if (internationalCountry) url.searchParams.set('country', internationalCountry);
   const canGeocode = Boolean(internationalCountry) || (Boolean(normalized.zip) || /^\d{1,6}[A-Za-z]?\s+\S.*(?:,|\b[A-Za-z]{2}\b|\b\d{5}\b)/.test(query) || /^[^,]+,\s*[A-Za-z]{2}$/.test(query));
   try {
     const res = await fetch(url, { signal, cache: 'no-store' });

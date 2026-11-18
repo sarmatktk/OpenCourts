@@ -9,7 +9,7 @@ test('visitor can search for a city and use lighting filter', async ({ page }) =
   await page.route('**/api/rain', route => route.fulfill({ json: { assessments: [] } }));
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /find public tennis courts near you/i })).toBeVisible();
-  const search = page.getByRole('searchbox', { name: /search by address, city, or ZIP code/i });
+  const search = page.getByRole('combobox', { name: /search by address, city, or ZIP code/i });
   await search.fill('Austin, Texas');
   await page.getByRole('button', { name: /find courts/i }).click();
   await expect(page.getByRole('heading', { name: /Austin, Texas/i })).toBeVisible({ timeout: 15000 });

@@ -1,0 +1,61 @@
+/* Shared interaction palette. Brand actions and selected states keep the same
+   colors in both themes; neutral surfaces and text follow the device theme. */
+:root,.app{
+ --action-bg:#123d32;--action-text:#fff;--action-hover:#205646;--action-pressed:#0d2f26;
+ --action-focus:var(--text);--action-radius:5px;
+ --selected-bg:#edf2e8;--selected-hover:#e0e9d7;
+ --selected-text:#264b39;--selected-border:#a5b69d;
+}
+
+:is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions){background:var(--action-bg);color:var(--action-text);border-color:var(--action-bg)}
+:is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions):not(:disabled):hover{background:var(--action-hover);color:var(--action-text);border-color:var(--action-hover);filter:none;transform:none}
+.app .mobile-bottom-nav .mobile-nav-search-icon{background:var(--action-bg);color:var(--action-text);box-shadow:0 5px 14px #123d3250}
+
+/* Outline actions and icon buttons use the same hover cue, without moving. */
+:is(.app.dark,.app:not(.dark)) :is(.pt-secondary,.pt-provider,.pt-photo-edit,.pt-member-actions>summary,.pt-account-link,.quiet,.round-action,.search-locate,.filter-trigger,.quick-filter,.map-locate,.mobile-menu,.mobile-support):not(:disabled):hover{background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border);text-decoration:none;transform:none}
+
+/* Selected controls are distinct from submit actions and share one highlight. */
+:is(.app.dark,.app:not(.dark)) :is(.filter-trigger.active,.quick-filter.active,.filter-chip.active,.mobile-view-switch button.active,.mobile-bottom-nav .active,.pt-group-links .pt-group-tab[aria-current=page],.pt-feed-filters button[aria-pressed=true]){background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border);box-shadow:none;text-decoration:none}
+:is(.app.dark,.app:not(.dark)) :is(.filter-trigger.active,.quick-filter.active,.mobile-view-switch button.active,.mobile-bottom-nav .active,.pt-group-links .pt-group-tab[aria-current=page],.pt-feed-filters button[aria-pressed=true]):not(:disabled):hover{background:var(--selected-hover);color:var(--selected-text);border-color:var(--selected-border)}
+.app.dark :is(.filter-trigger.active,.quick-filter.active,.mobile-bottom-nav .active) svg{color:inherit}
+:is(.app.dark,.app:not(.dark)) :is(.court-card.selected,.court-list-card.selected,.pt-court-picker label.selected){--text:#264b39;--muted:#496052;background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border)}
+.app.dark .court-card.selected .card-arrow{color:var(--selected-text)}
+.app .nav a{border-radius:5px;background:transparent}
+:is(.app.dark,.app:not(.dark)) .nav a:hover{background:transparent;color:var(--text);text-decoration:none}
+
+/* Suggestion selections and title links match the court list's hover cue.
+   Inline prose links keep their existing persistent underline for recognition. */
+:is(.app.dark,.app:not(.dark)) :is(.place-suggestion,.pt-location-options>button):is(:hover,.active,[aria-selected=true]){background:var(--selected-bg);color:var(--selected-text)}
+:is(.app.dark,.app:not(.dark)) :is(.place-suggestion,.pt-location-options>button):is(:hover,.active,[aria-selected=true]) small{color:var(--selected-text)}
+:is(.app.dark,.app:not(.dark)) :is(.pt-game-card h3 a,.pt-feed-event h2 a,.pt-game-grid h2 a,.dry-court-name):hover{background:var(--selected-bg);color:var(--selected-text);text-decoration:none;border-radius:3px}
+:is(.app.dark,.app:not(.dark)) .pt-feed-group:hover{background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border)}
+
+/* Keep the prominent search icon's white glyph and readable label when selected. */
+:is(.app.dark,.app:not(.dark)) .mobile-bottom-nav .mobile-nav-search.active>span:last-child{color:var(--selected-text)}
+.app .mobile-bottom-nav .mobile-nav-search-icon svg,.app.dark .mobile-bottom-nav .mobile-nav-search-icon svg{color:var(--action-text)}
+
+:is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions):not(:disabled):active{background:var(--action-pressed);color:var(--action-text);border-color:var(--action-pressed)}
+
+:is(.app.dark,.app:not(.dark)) :is(button,a,summary):focus-visible{outline:2px solid var(--action-focus);outline-offset:3px}
+:is(.app.dark,.app:not(.dark)) :is(button,.pt-primary,.pt-secondary):disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
+
+/* Informational pages use the same action palette as the application. */
+:root body .support-page-button,:root[data-theme="dark"] body .support-page-button{background:var(--action-bg);color:var(--action-text);border-radius:var(--action-radius)}
+:root body .support-page-button:hover,:root[data-theme="dark"] body .support-page-button:hover{background:var(--action-hover);color:var(--action-text);transform:none}
+:root body .page-back:hover,:root[data-theme="dark"] body .page-back:hover{background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border)}
+:root body .page-back:focus-visible,:root body .support-page-button:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+
+/* Top navigation is a link, not a selected pill. Keep aria-current semantics. */
+:is(.app.dark,.app:not(.dark)) .topbar .nav a[aria-current=page]{background:transparent;color:var(--muted);box-shadow:none}
+:is(.app.dark,.app:not(.dark)) .topbar .nav a[aria-current=page]:hover{background:transparent;color:var(--text)}
+
+/* One focus boundary for every search surface, matching court discovery. */
+.app{--search-focus-border:#55745f;--search-focus-glow:0 0 0 3px #6c8e6418}
+.app.dark{--search-focus-border:#bdd78b;--search-focus-glow:0 0 0 3px #bdd78b25}
+.app :is(.searchbox,.pt-search-input):focus-within{outline:none;border-color:var(--search-focus-border);box-shadow:var(--search-focus-glow)}
+.app input:is([type=search],[role=combobox]):focus{outline:none;border-color:var(--search-focus-border);box-shadow:var(--search-focus-glow)}
+.app :is(.searchbox,.pt-search-input) input:is(:focus,:focus-visible){outline:none;border:0;box-shadow:none}
+@media(forced-colors:active){
+ .app :is(.searchbox,.pt-search-input):focus-within,.app input:is([type=search],[role=combobox]):focus{outline:2px solid Highlight;outline-offset:2px}
+ .app :is(.searchbox,.pt-search-input) input:is(:focus,:focus-visible){outline:none}
+}

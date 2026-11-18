@@ -1,0 +1,5 @@
+import {Shield} from 'lucide-react';
+import {useState} from 'react';
+import {gameApi} from './game-api';
+import ReportContent from './ReportContent';
+export default function PlayerSafetyActions({id,csrf,displayName}:{id:string;csrf:string;displayName:string}){const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);async function block(){setBusy(true);try{await gameApi('players/block',{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({playerId:id})});setMessage('Player blocked. Shared group memberships remain unchanged. Manage blocks in player safety settings.');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}return <details className="pt-player-safety"><summary aria-label={'Safety options for '+displayName}><Shield size={14} aria-hidden="true"/>Safety</summary><button className="pt-secondary" disabled={busy} onClick={()=>void block()}>Block player</button><ReportContent type="player" id={id}/>{message&&<p role="status" className="pt-help">{message}</p>}</details>;}

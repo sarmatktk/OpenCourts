@@ -1,0 +1,12 @@
+{
+  "name": "opencourts-local-only",
+  "compatibility_date": "2025-01-01",
+  "d1_databases": [
+    {
+      "binding": "COURTS_DB",
+      "database_name": "opencourts-dev",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "../functions/db/migrations"
+    }
+  ]
+}

@@ -6,17 +6,25 @@
   "scripts": {
     "dev": "cross-env NODE_USE_ENV_PROXY=1 vite",
     "build": "tsc -b && tsc -p functions/tsconfig.json && vite build",
+    "build:dev": "cross-env VITE_PLAY_TOGETHER=true npm run build && node scripts/prepare-dev-pages.mjs",
     "build:watch": "vite build --watch",
     "preview": "wrangler pages dev dist --compatibility-date=2025-01-01",
     "pages:dev": "wrangler pages dev dist --compatibility-date=2025-01-01",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
-    "import:courts": "node scripts/import-court-catalog.mjs"
+    "import:courts": "node scripts/import-court-catalog.mjs",
+    "dev:db:migrate": "node scripts/dev-environment.mjs migrate",
+    "dev:db:seed": "node scripts/dev-environment.mjs seed",
+    "dev:db:seed-games": "node scripts/dev-environment.mjs seed-games",
+    "dev:db:verify": "node scripts/dev-environment.mjs verify",
+    "dev:pages": "node scripts/dev-environment.mjs serve"
   },
   "dependencies": {
     "@mmmike/web-push": "^1.5.0",
+    "jose": "^6.2.17",
     "lucide-react": "^0.468.0",
-    "maplibre-gl": "^5.0.0",
+    "maplibre-gl": "^5.24.1",
+    "oauth4webapi": "^3.8.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

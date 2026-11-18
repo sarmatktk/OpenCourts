@@ -1,0 +1,20 @@
+import GameSharing from './GameSharing';
+import ReportContent from './ReportContent';
+import GameParticipation from './GameParticipation';
+import { useEffect, useRef, useState } from 'react';
+import { Navigation, CalendarDays, Clock3, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
+import { gameApi,gameDate,type Game } from './game-api';
+import PlayTogetherShell from './PlayTogetherShell';
+export default function GameDetails(){
+  const [game,setGame]=useState<Game|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+  const id=new URLSearchParams(location.search).get('id')??'';
+  const generation=useRef(0);
+  async function refreshGame(){const ticket=++generation.current;try{const data=await gameApi<{game:Game}>(`games/${encodeURIComponent(id)}`);if(ticket===generation.current){setGame(data.game);setError('');}}catch(e){if(ticket===generation.current){setGame(null);setError((e as Error).message);}}finally{if(ticket===generation.current)setLoading(false);}}
+  useEffect(()=>{if(!/^[0-9a-f-]{36}$/i.test(id)){setGame(null);setError('Game not found.');setLoading(false);return;}void refreshGame();const revalidate=()=>{if(!document.hidden)void refreshGame();};const timer=setInterval(revalidate,30000);window.addEventListener('focus',revalidate);document.addEventListener('visibilitychange',revalidate);return()=>{++generation.current;clearInterval(timer);window.removeEventListener('focus',revalidate);document.removeEventListener('visibilitychange',revalidate);};},[id]);
+  return <PlayTogetherShell>{loading?<div className="pt-panel pt-inline-status" role="status"><LoaderCircle className="search-spinner" size={20}/>Loading game…</div>:error?<div className="pt-message pt-error" role="alert">{error}</div>:game&&<>
+    {new URLSearchParams(location.search).get('created')==='1'&&<div className="pt-message" role="status">{game.visibility==='unlisted'?'Your unlisted game is created. Create an invitation below to share it.':game.visibility==='group'?'Your group game is created. Approved members can find it in their feed.':'Your public game is created. It now appears in upcoming game discovery.'}</div>}
+    <div className="pt-heading"><span className="section-kicker">{game.visibility==='unlisted'?'UNLISTED GAME':game.visibility==='group'?'GROUP GAME':'PUBLIC GAME'} · {game.status==='cancelled'?'CANCELLED':game.format.toUpperCase()}</span><h1>{game.title}</h1><p>Organized by {game.organizer.displayName}</p></div>
+    <div className="pt-layout"><section className="pt-panel"><h2>Game details</h2><dl className="pt-game-facts"><div><dt><CalendarDays size={17}/>When</dt><dd>{gameDate(game)}<small>{game.timeZone}</small></dd></div><div><dt><Clock3 size={17}/>Duration</dt><dd>{(Date.parse(game.endsAt)-Date.parse(game.startsAt))/60000} minutes</dd></div><div><dt><MapPin size={17}/>Court</dt><dd>{game.court.name}<small>{game.court.access==='public'?'Mapped public access':'Please confirm court access before playing.'}</small><a className="pt-secondary pt-directions-button" href={`https://www.google.com/maps/dir/?api=1&destination=${game.court.lat},${game.court.lon}`} target="_blank" rel="noopener noreferrer"><Navigation size={17} aria-hidden="true"/>Directions</a></dd></div><div><dt><UsersRound size={17}/>Players</dt><dd>{game.playerCount} of {game.capacity} confirmed places</dd></div><div><dt>Skill preference</dt><dd>{game.skillPreference==='any'?'All skill levels welcome':game.skillPreference}</dd></div></dl>{game.notes&&<><h3>Organizer notes</h3><p className="pt-game-notes">{game.notes}</p></>}</section>
+    <aside className="pt-panel pt-aside"><h2>{game.status==='cancelled'?'This game was cancelled.':'A game, not a reservation.'}</h2><p>Creating a game does not reserve this court. Check local access rules, availability and weather before heading out.</p><GameParticipation game={game} onChange={refreshGame}/><GameSharing game={game}/><ReportContent type="game" id={game.id}/><a className="pt-secondary" href="/play-together">Browse public games</a></aside></div>
+  </>}</PlayTogetherShell>;
+}

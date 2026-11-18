@@ -147,3 +147,7 @@ describe('ZIP lookup', () => {
     expect((await suggestions.json()).suggestions).toHaveLength(1);
   });
 });
+it('suggestion and fallback geocode return a general label without the street address',async()=>{
+ const fetchMock=vi.spyOn(globalThis,'fetch').mockResolvedValue(Response.json({features:[{geometry:{coordinates:[-77,38]},properties:{name:'Private building',housenumber:'123',street:'Main Street',city:'Fairfax',state:'Virginia',country:'United States',countrycode:'us',postcode:'22033'}}]}));
+ const response=await suggest(context('/api/suggest?q=123%20Main'));const data=await response.json();expect(data.suggestions[0].title).toBe('123 Main Street');expect(data.suggestions[0].generalLabel).toBe('Fairfax, Virginia');expect(data.suggestions[0].generalLabel).not.toContain('Private building');fetchMock.mockResolvedValue(Response.json([{display_name:'123 Main Street, Fairfax, Virginia, United States',lat:'38',lon:'-77',address:{house_number:'123',road:'Main Street',city:'Fairfax',state:'Virginia',country_code:'us'}}]));const result=await(await geocode(context('/api/geocode?q=123%20Main%20Street'))).json();expect(result.result.general_label).toBe('Fairfax, Virginia');
+});

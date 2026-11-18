@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {gameApi,type GameAccount} from './game-api';
+import type {GroupPreview} from './group-api';
+import PlayTogetherShell from './PlayTogetherShell';
+export default function GroupInvitation(){
+ const [token]=useState(()=>location.hash.slice(1)),[group,setGroup]=useState<GroupPreview|null>(null),[account,setAccount]=useState<GameAccount|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
+ useEffect(()=>{const c=new AbortController();Promise.all([gameApi<{group:GroupPreview}>('groups/invitation-preview',{method:'POST',body:JSON.stringify({token}),signal:c.signal}),gameApi<GameAccount>('auth/me',{signal:c.signal})]).then(([g,a])=>{setGroup(g.group);setAccount(a);}).catch(e=>{if(!c.signal.aborted)setError(e.message);}).finally(()=>{if(!c.signal.aborted)setLoading(false);});return()=>c.abort();},[token]);
+ async function join(){setBusy(true);setError('');try{const d=await gameApi<{groupId:string}>('groups/invitation-accept',{method:'POST',headers:{'X-CSRF-Token':account?.csrfToken??''},body:JSON.stringify({token})});location.assign('/play-together/group?id='+d.groupId);}catch(e){setError((e as Error).message);setBusy(false);}}
+ return <PlayTogetherShell><div className="pt-heading"><h1>You’re invited to play together</h1></div>{loading?<p role="status">Checking invitation...</p>:<section className="pt-panel">{error&&<p className="pt-message pt-error" role="alert">{error}</p>}{group&&<><span className="pt-coming">{group.visibility==='private'?'Private group':'Public group'}</span><h2>{group.name}</h2><p>{group.generalLocation}</p><p>{group.publicDescription}</p><p>Request membership to join this group. Private content stays unavailable until approval.</p>{account?.player?<button className="pt-primary" disabled={busy} onClick={()=>void join()}>Request membership</button>:<><a className="pt-primary" href="/account">Sign in to continue</a><p className="pt-help">After signing in, reopen this invitation link.</p></>}</>}</section>}</PlayTogetherShell>;
+}

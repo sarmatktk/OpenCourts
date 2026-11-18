@@ -1,0 +1,821 @@
+{
+  "screens": 350,
+  "overflow": [],
+  "errors": [],
+  "violations": {
+    "aria-allowed-attr": {
+      "impact": "critical",
+      "affected": [
+        "courts 1024 dark",
+        "courts 1024 light",
+        "courts 1440 dark",
+        "courts 1440 light",
+        "courts 320 dark",
+        "courts 320 light",
+        "courts 375 dark",
+        "courts 375 light",
+        "courts 390 dark",
+        "courts 390 light",
+        "courts 430 dark",
+        "courts 430 light",
+        "courts 768 dark",
+        "courts 768 light"
+      ],
+      "examples": [
+        {
+          "target": [
+            "input"
+          ],
+          "summary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-expanded=\"false\"",
+          "html": "<input aria-label=\"Search by address, city, or ZIP code\" aria-autocomplete=\"list\" aria-controls=\"place-suggestions\" aria-expanded=\"false\" type=\"search\" enterkeyhint=\"search\" placeholder=\"Address, city, or ZIP code\" value=\"\">"
+        },
+        {
+          "target": [
+            "input"
+          ],
+          "summary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-expanded=\"false\"",
+          "html": "<input aria-label=\"Search by address, city, or ZIP code\" aria-autocomplete=\"list\" aria-controls=\"place-suggestions\" aria-expanded=\"false\" type=\"search\" enterkeyhint=\"search\" placeholder=\"Address, city, or ZIP code\" value=\"\">"
+        },
+        {
+          "target": [
+            "input"
+          ],
+          "summary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-expanded=\"false\"",
+          "html": "<input aria-label=\"Search by address, city, or ZIP code\" aria-autocomplete=\"list\" aria-controls=\"place-suggestions\" aria-expanded=\"false\" type=\"search\" enterkeyhint=\"search\" placeholder=\"Address, city, or ZIP code\" value=\"\">"
+        },
+        {
+          "target": [
+            "input"
+          ],
+          "summary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-expanded=\"false\"",
+          "html": "<input aria-label=\"Search by address, city, or ZIP code\" aria-autocomplete=\"list\" aria-controls=\"place-suggestions\" aria-expanded=\"false\" type=\"search\" enterkeyhint=\"search\" placeholder=\"Address, city, or ZIP code\" value=\"\">"
+        }
+      ]
+    },
+    "color-contrast": {
+      "impact": "serious",
+      "affected": [
+        "courts 1024 dark",
+        "courts 1024 light",
+        "discovery 1024 light",
+        "create-game 1024 light",
+        "game-host 1024 light",
+        "game-member 1024 light",
+        "account 1024 light",
+        "signin 1024 light",
+        "groups 1024 light",
+        "my-groups 1024 light",
+        "create-group 1024 light",
+        "about 1024 light",
+        "support 1024 light",
+        "privacy 1024 light",
+        "contact 1024 light",
+        "courts 1440 dark",
+        "courts 1440 light",
+        "discovery 1440 light",
+        "create-game 1440 light",
+        "game-host 1440 light",
+        "game-member 1440 light",
+        "account 1440 light",
+        "signin 1440 light",
+        "groups 1440 light",
+        "my-groups 1440 light",
+        "create-group 1440 light",
+        "about 1440 light",
+        "support 1440 light",
+        "privacy 1440 light",
+        "contact 1440 light",
+        "courts 320 dark",
+        "courts 320 light",
+        "discovery 320 light",
+        "feed 320 light",
+        "create-game 320 light",
+        "game-host 320 light",
+        "game-member 320 light",
+        "schedule 320 light",
+        "inbox 320 light",
+        "account 320 light",
+        "signin 320 light",
+        "groups 320 light",
+        "my-groups 320 light",
+        "create-group 320 light",
+        "group-owner 320 light",
+        "group-preview 320 light",
+        "group-invitation 320 light",
+        "game-invitation 320 light",
+        "players-moderator 320 light",
+        "about 320 light",
+        "support 320 light",
+        "privacy 320 light",
+        "contact 320 light",
+        "courts 375 dark",
+        "courts 375 light",
+        "discovery 375 light",
+        "feed 375 light",
+        "create-game 375 light",
+        "game-host 375 light",
+        "game-member 375 light",
+        "schedule 375 light",
+        "inbox 375 light",
+        "account 375 light",
+        "signin 375 light",
+        "groups 375 light",
+        "my-groups 375 light",
+        "create-group 375 light",
+        "group-owner 375 light",
+        "group-preview 375 light",
+        "group-invitation 375 light",
+        "game-invitation 375 light",
+        "players-moderator 375 light",
+        "about 375 light",
+        "support 375 light",
+        "privacy 375 light",
+        "contact 375 light",
+        "courts 390 dark",
+        "courts 390 light",
+        "discovery 390 light",
+        "feed 390 light",
+        "create-game 390 light",
+        "game-host 390 light",
+        "game-member 390 light",
+        "schedule 390 light",
+        "inbox 390 light",
+        "account 390 light",
+        "signin 390 light",
+        "groups 390 light",
+        "my-groups 390 light",
+        "create-group 390 light",
+        "group-owner 390 light",
+        "group-preview 390 light",
+        "group-invitation 390 light",
+        "game-invitation 390 light",
+        "players-moderator 390 light",
+        "about 390 light",
+        "support 390 light",
+        "privacy 390 light",
+        "contact 390 light",
+        "courts 430 dark",
+        "courts 430 light",
+        "discovery 430 light",
+        "feed 430 light",
+        "create-game 430 light",
+        "game-host 430 light",
+        "game-member 430 light",
+        "schedule 430 light",
+        "inbox 430 light",
+        "account 430 light",
+        "signin 430 light",
+        "groups 430 light",
+        "my-groups 430 light",
+        "create-group 430 light",
+        "group-owner 430 light",
+        "group-preview 430 light",
+        "group-invitation 430 light",
+        "game-invitation 430 light",
+        "players-moderator 430 light",
+        "about 430 light",
+        "support 430 light",
+        "privacy 430 light",
+        "contact 430 light",
+        "courts 768 dark",
+        "courts 768 light",
+        "discovery 768 light",
+        "create-game 768 light",
+        "game-host 768 light",
+        "game-member 768 light",
+        "account 768 light",
+        "signin 768 light",
+        "groups 768 light",
+        "my-groups 768 light",
+        "create-group 768 light",
+        "about 768 light",
+        "support 768 light",
+        "privacy 768 light",
+        "contact 768 light"
+      ],
+      "examples": [
+        {
+          "target": [
+            ".best-play-copy > small"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.81 (foreground color: #628540, background color: #17231e, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "html": "<small>BEST TIME TO PLAY</small>"
+        },
+        {
+          "target": [
+            ".results-head > div > .section-kicker"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.81 (foreground color: #78867e, background color: #ffffff, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "html": "<div class=\"section-kicker\">COURTS NEAR</div>"
+        },
+        {
+          "target": [
+            ".pt-heading > .section-kicker"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.52 (foreground color: #78867e, background color: #f7f6f2, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "html": "<span class=\"section-kicker\">PLAY TOGETHER</span>"
+        },
+        {
+          "target": [
+            ".section-kicker"
+          ],
+          "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.52 (foreground color: #78867e, background color: #f7f6f2, font size: 6.8pt (9px), font weight: bold). Expected contrast ratio of 4.5:1",
+          "html": "<span class=\"section-kicker\">PLAY TOGETHER</span>"
+        }
+      ]
+    }
+  },
+  "themes": {
+    "courts dark": "rgb(16, 26, 22)",
+    "discovery dark": "rgb(16, 26, 22)",
+    "feed dark": "rgb(16, 26, 22)",
+    "create-game dark": "rgb(16, 26, 22)",
+    "game-host dark": "rgb(16, 26, 22)",
+    "game-member dark": "rgb(16, 26, 22)",
+    "schedule dark": "rgb(16, 26, 22)",
+    "inbox dark": "rgb(16, 26, 22)",
+    "account dark": "rgb(16, 26, 22)",
+    "signin dark": "rgb(16, 26, 22)",
+    "groups dark": "rgb(16, 26, 22)",
+    "my-groups dark": "rgb(16, 26, 22)",
+    "create-group dark": "rgb(16, 26, 22)",
+    "group-owner dark": "rgb(16, 26, 22)",
+    "group-preview dark": "rgb(16, 26, 22)",
+    "group-invitation dark": "rgb(16, 26, 22)",
+    "game-invitation dark": "rgb(16, 26, 22)",
+    "players-moderator dark": "rgb(16, 26, 22)",
+    "about dark": "rgb(16, 26, 22)",
+    "support dark": "rgb(16, 26, 22)",
+    "privacy dark": "rgb(16, 26, 22)",
+    "contact dark": "rgb(16, 26, 22)",
+    "court-guide dark": "rgb(16, 26, 22)",
+    "rain-guide dark": "rgb(16, 26, 22)",
+    "timing-guide dark": "rgb(16, 26, 22)",
+    "courts light": "rgb(242, 243, 248)",
+    "discovery light": "rgb(242, 243, 248)",
+    "feed light": "rgb(242, 243, 248)",
+    "create-game light": "rgb(242, 243, 248)",
+    "game-host light": "rgb(242, 243, 248)",
+    "game-member light": "rgb(242, 243, 248)",
+    "schedule light": "rgb(242, 243, 248)",
+    "inbox light": "rgb(242, 243, 248)",
+    "account light": "rgb(242, 243, 248)",
+    "signin light": "rgb(242, 243, 248)",
+    "groups light": "rgb(242, 243, 248)",
+    "my-groups light": "rgb(242, 243, 248)",
+    "create-group light": "rgb(242, 243, 248)",
+    "group-owner light": "rgb(242, 243, 248)",
+    "group-preview light": "rgb(242, 243, 248)",
+    "group-invitation light": "rgb(242, 243, 248)",
+    "game-invitation light": "rgb(242, 243, 248)",
+    "players-moderator light": "rgb(242, 243, 248)",
+    "about light": "rgb(248, 249, 246)",
+    "support light": "rgb(248, 249, 246)",
+    "privacy light": "rgb(248, 249, 246)",
+    "contact light": "rgb(248, 249, 246)",
+    "court-guide light": "rgb(248, 249, 246)",
+    "rain-guide light": "rgb(248, 249, 246)",
+    "timing-guide light": "rgb(248, 249, 246)"
+  },
+  "small": [
+    {
+      "page": "courts",
+      "targets": [
+        {
+          "selector": "input",
+          "label": "Search by address, city, or ZIP code",
+          "w": 186,
+          "h": 23
+        },
+        {
+          "selector": "a",
+          "label": "Explore the source",
+          "w": 126,
+          "h": 22
+        },
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 34,
+          "h": 12
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 26,
+          "h": 12
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 30,
+          "h": 12
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 75,
+          "h": 12
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 34,
+          "h": 12
+        }
+      ]
+    },
+    {
+      "page": "discovery",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "feed",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "create-game",
+      "targets": [
+        {
+          "selector": "input",
+          "label": "",
+          "w": 19,
+          "h": 19
+        },
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "game-host",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "game-member",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "schedule",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "inbox",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "account",
+      "targets": [
+        {
+          "selector": "input",
+          "label": "",
+          "w": 19,
+          "h": 19
+        },
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "signin",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "privacy policy",
+          "w": 77,
+          "h": 16
+        },
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "groups",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "my-groups",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "create-group",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "group-owner",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "group-preview",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "group-invitation",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "game-invitation",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "players-moderator",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Privacy policy",
+          "w": 71,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "about",
+      "targets": [
+        {
+          "selector": "a.page-inline-link",
+          "label": "Read our privacy information",
+          "w": 174,
+          "h": 17
+        },
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "support",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "privacy",
+      "targets": [
+        {
+          "selector": "a.page-inline-link",
+          "label": "samktk23@gmail.com",
+          "w": 132,
+          "h": 17
+        },
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "contact",
+      "targets": [
+        {
+          "selector": "a.page-inline-link",
+          "label": "samktk23@gmail.com",
+          "w": 132,
+          "h": 17
+        },
+        {
+          "selector": "a.page-inline-link",
+          "label": "OpenStreetMap",
+          "w": 96,
+          "h": 17
+        },
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "court-guide",
+      "targets": [
+        {
+          "selector": "a.landing-source-link",
+          "label": "City park details",
+          "w": 87,
+          "h": 14
+        },
+        {
+          "selector": "a.landing-source-link",
+          "label": "City park details",
+          "w": 87,
+          "h": 14
+        },
+        {
+          "selector": "a.landing-source-link",
+          "label": "County park locator",
+          "w": 106,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "rain-guide",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    },
+    {
+      "page": "timing-guide",
+      "targets": [
+        {
+          "selector": "a",
+          "label": "Support",
+          "w": 41,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "About",
+          "w": 31,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Privacy",
+          "w": 37,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Data & attribution",
+          "w": 92,
+          "h": 14
+        },
+        {
+          "selector": "a",
+          "label": "Contact",
+          "w": 41,
+          "h": 14
+        }
+      ]
+    }
+  ]
+}

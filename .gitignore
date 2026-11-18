@@ -4,8 +4,34 @@ playwright-report/
 test-results/
 .wrangler/
 .env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+development/wrangler.remote.json
 .court-catalog-import/
 court-data.json
+
+# Local credentials, signing material, runtime data, and disposable output.
+*.p8
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
 
 # Xcode user-specific and generated files
 xcuserdata/
@@ -15,3 +41,13 @@ DerivedData/
 
 # Generated international verification reports (no provider keys).
 tmp/international-*.json
+
+# Keep only screenshots referenced by the reviewed QA report.
+# Test baselines under tests/*-snapshots/ remain tracked.
+docs/qa-evidence/*.png
+!docs/qa-evidence/account-390-light.png
+!docs/qa-evidence/account-390-dark.png
+!docs/qa-evidence/group-owner-390-light.png
+!docs/qa-evidence/players-moderator-1440-light.png
+!docs/qa-evidence/game-cancellation-confirm-390.png
+!docs/qa-evidence/group-member-removal-confirm-390.png

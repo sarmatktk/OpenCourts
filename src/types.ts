@@ -9,5 +9,5 @@ export interface WeatherData { periods: Forecast[]; outlook: Forecast[]; timeZon
 export interface WeatherAlert { id: string; event: string; severity: string; headline: string; area: string; effective: string | null; ends: string | null; url: string; }
 export interface WeatherAlertData { supported: boolean; alerts: WeatherAlert[]; }
 export interface RainAssessment { courtId: string; rain1h: number | null; rain3h: number | null; rain6h: number | null; score: number; confidence: 'Low' | 'Moderate' | 'High'; summary: string; source?: 'forecast'; forecastRainChance?: number; }
-export interface Place { label: string; lat: number; lon: number; countryCode?: string; }
+export interface Place { generalLabel?:string;label: string; lat: number; lon: number; countryCode?: string; }
 export interface PlaceSuggestion extends Place { title: string; detail: string; }

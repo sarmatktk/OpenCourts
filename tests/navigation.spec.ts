@@ -43,7 +43,7 @@ test('mobile navigation and court actions lead to the intended views', async ({ 
   await page.getByRole('button', { name: 'Close court details' }).click();
 
   await quickNav.getByRole('link', { name: 'Search courts' }).click();
-  await expect(page.getByRole('searchbox', { name: 'Search by address, city, or ZIP code' })).toBeFocused();
+  await expect(page.getByRole('combobox', { name: 'Search by address, city, or ZIP code' })).toBeFocused();
   await quickNav.getByRole('link', { name: 'Dry courts' }).click();
   await expect(page).toHaveURL(/#rain-planner-title$/);
   await quickNav.getByRole('link', { name: 'Weather' }).click();
@@ -66,10 +66,7 @@ test('filters and menu links work on a phone', async ({ page }) => {
   await expect(page.locator('.result-meta')).toContainText('3 courts');
 
   await expect(page.getByRole('link', { name: 'Open Support page' })).toHaveAttribute('href', '/support');
-  await page.getByRole('button', { name: 'Toggle menu' }).click();
-  const menu = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(menu.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '/support');
-  await menu.getByRole('link', { name: 'About' }).click();
-  await expect(page).toHaveURL(/#about$/);
+  await expect(page.getByRole('button', { name: 'Toggle menu' })).toBeHidden();
+  await expect(page.getByRole('link',{name:'About',exact:true}).last()).toHaveAttribute('href','/about');
   await expect(page.locator('nav.nav')).not.toHaveClass(/open/);
 });

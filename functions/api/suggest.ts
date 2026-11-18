@@ -24,7 +24,8 @@ function toSuggestion(feature: PhotonFeature) {
     .filter((value, index, values) => value && value !== title && values.indexOf(value) === index)
     .join(', ');
 
-  return { title, detail, label: [title, detail].filter(Boolean).join(', '), lat, lon, countryCode: String(properties.countrycode || '').toLowerCase() || undefined };
+  const area=String(properties.city||properties.locality||properties.district||properties.county||(properties.osm_key==='place'?properties.name:'')||'').trim();const generalLabel=[area,properties.state].filter(Boolean).join(', ');
+  return { generalLabel:area?generalLabel:undefined,title, detail, label: [title, detail].filter(Boolean).join(', '), lat, lon, countryCode: String(properties.countrycode || '').toLowerCase() || undefined };
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) => {
@@ -36,7 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, waitUntil }) =
   if (error) return Response.json({ suggestions: [], error }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
   const houseNumber = /^(\d{1,6}[A-Za-z]?)\s+\S/.exec(query)?.[1];
   const cityState = !zip && !houseNumber ? cityStateQuery(query) : null;
-  const key = new Request(`${url.origin}/api/suggest?v=7&country=${requestedCountry || 'any'}&q=${encodeURIComponent(query.toLowerCase())}`);
+  const key = new Request(`${url.origin}/api/suggest?v=8&country=${requestedCountry || 'any'}&q=${encodeURIComponent(query.toLowerCase())}`);
   const cache = typeof caches === 'undefined' ? undefined : caches.default;
   const cached = await readEdgeCache(cache, key);
   if (cached) return cached;
