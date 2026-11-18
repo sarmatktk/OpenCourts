@@ -1,5 +1,17 @@
 # Play Together: start here to continue development
 
+
+## Latest verified manual Preview publication
+
+Published application source commit `2674be8` to https://e303ef23.opencourts.pages.dev.
+Stable alias https://feature-play-together.opencourts.pages.dev serves HTTP 200 with
+`index-CjwFqLZq.js` and the shared interaction stylesheet. Search-focus and floating-dock
+corrections verified in hosted CSS. Preview COURTS_DB remains isolated development D1.
+Production remains main / 7ef38ff2 with its original D1. No migration or production deployment.
+This supersedes earlier local-only styling notes. Later documentation-only commits may
+trigger another feature preview without changing application code.
+
+
 ## Git feature backup checkpoint
 
 User approved committing and pushing to `feature/play-together` only. The complete feature

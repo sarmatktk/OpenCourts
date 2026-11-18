@@ -65,3 +65,14 @@ for that synchronization. Development build passed before staging.
 The staged review found 192 files, six audit-linked PNGs and 32 test-baseline PNGs,
 with no excluded paths or secret-pattern matches. Production branch remains main;
 production deployment 7ef38ff2 and Preview development D1 were verified unchanged.
+
+
+## Latest verified manual Preview publication
+
+Published application source commit `2674be8` to https://e303ef23.opencourts.pages.dev.
+Stable alias https://feature-play-together.opencourts.pages.dev serves HTTP 200 with
+`index-CjwFqLZq.js` and the shared interaction stylesheet. Search-focus and floating-dock
+corrections verified in hosted CSS. Preview COURTS_DB remains isolated development D1.
+Production remains main / 7ef38ff2 with its original D1. No migration or production deployment.
+This supersedes earlier local-only styling notes. Later documentation-only commits may
+trigger another feature preview without changing application code.

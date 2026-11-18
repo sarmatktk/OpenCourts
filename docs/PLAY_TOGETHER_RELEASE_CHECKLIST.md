@@ -1,6 +1,6 @@
 # Play Together - release acceptance checklist
 
-Preview candidate:89a8ba19, development schema0017. November17,2026.
+Preview candidate:e303ef23, development schema0017. November17,2026.
 This is a development candidate, not approval to release to production.
 
 ## Automated and live-development checks completed
