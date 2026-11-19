@@ -9,7 +9,6 @@
 
 :is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions){background:var(--action-bg);color:var(--action-text);border-color:var(--action-bg)}
 :is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions):not(:disabled):hover{background:var(--action-hover);color:var(--action-text);border-color:var(--action-hover);filter:none;transform:none}
-.app .mobile-bottom-nav .mobile-nav-search-icon{background:var(--action-bg);color:var(--action-text);box-shadow:0 5px 14px #123d3250}
 
 /* Outline actions and icon buttons use the same hover cue, without moving. */
 :is(.app.dark,.app:not(.dark)) :is(.pt-secondary,.pt-provider,.pt-photo-edit,.pt-member-actions>summary,.pt-account-link,.quiet,.round-action,.search-locate,.filter-trigger,.quick-filter,.map-locate,.mobile-menu,.mobile-support):not(:disabled):hover{background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border);text-decoration:none;transform:none}
@@ -29,10 +28,6 @@
 :is(.app.dark,.app:not(.dark)) :is(.place-suggestion,.pt-location-options>button):is(:hover,.active,[aria-selected=true]) small{color:var(--selected-text)}
 :is(.app.dark,.app:not(.dark)) :is(.pt-game-card h3 a,.pt-feed-event h2 a,.pt-game-grid h2 a,.dry-court-name):hover{background:var(--selected-bg);color:var(--selected-text);text-decoration:none;border-radius:3px}
 :is(.app.dark,.app:not(.dark)) .pt-feed-group:hover{background:var(--selected-bg);color:var(--selected-text);border-color:var(--selected-border)}
-
-/* Keep the prominent search icon's white glyph and readable label when selected. */
-:is(.app.dark,.app:not(.dark)) .mobile-bottom-nav .mobile-nav-search.active>span:last-child{color:var(--selected-text)}
-.app .mobile-bottom-nav .mobile-nav-search-icon svg,.app.dark .mobile-bottom-nav .mobile-nav-search-icon svg{color:var(--action-text)}
 
 :is(.app.dark,.app:not(.dark)) :is(.search-submit,.pt-primary,.support-button,.install-primary,.court-detail-directions,.dry-directions):not(:disabled):active{background:var(--action-pressed);color:var(--action-text);border-color:var(--action-pressed)}
 
@@ -59,3 +54,34 @@
  .app :is(.searchbox,.pt-search-input):focus-within,.app input:is([type=search],[role=combobox]):focus{outline:2px solid Highlight;outline-offset:2px}
  .app :is(.searchbox,.pt-search-input) input:is(:focus,:focus-visible){outline:none}
 }
+
+/* Every dock destination uses the same row and target size, including Search. */
+.app .mobile-bottom-nav :is(a,button){min-height:48px;gap:3px;font-size:9px}
+.app .mobile-bottom-nav :is(a,button)>svg,.app .mobile-bottom-nav :is(a,button)>span>svg{display:block;width:21px;height:21px}
+
+.app input:is([type=search],[role=combobox]){caret-color:var(--text)}
+
+/* Shared site-rendered pickers keep the same appearance across browsers. */
+.oc-select{display:grid;min-width:0;max-width:100%;position:relative}.oc-select select{width:100%;min-width:0;max-width:100%;appearance:none!important;padding-right:32px!important;background-image:none!important}.oc-select::after{content:"";pointer-events:none;position:absolute;right:14px;top:calc(50% - 4px);width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg)}
+.sort-control .oc-select{display:inline-grid;width:auto}.sort-control>svg{display:none}
+.oc-options{z-index:3000;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:5px;font:400 14px/1.45 'DM Sans',sans-serif;touch-action:pan-y}
+.oc-option{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:10px 12px;border-radius:5px;cursor:pointer;overflow-wrap:anywhere;white-space:normal;box-sizing:border-box}.oc-option>span{min-width:0}.oc-option>svg{flex-shrink:0}.oc-option:is(:hover,[data-active=true],[aria-selected=true]){background:var(--selected-bg);color:var(--selected-text)}.oc-option[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+@media(forced-colors:active){.oc-options{border-color:CanvasText}.oc-option:is([data-active=true],[aria-selected=true]){background:Highlight;color:HighlightText}}
+
+.oc-date-field{display:block;position:relative;min-width:0}.oc-date-field>input{width:100%;min-width:0;padding-right:44px!important}.oc-date-field>button{position:absolute;right:0;top:0;min-height:100%;width:44px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;border-radius:5px}
+.oc-calendar{box-sizing:border-box;width:350px;max-width:calc(100dvw - 24px);max-height:calc(100dvh - 32px);overflow:auto;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--shadow);font:400 14px/1.4 'DM Sans',sans-serif}.oc-calendar::backdrop{background:rgb(0 0 0/.45)}.oc-calendar button{cursor:pointer;font:inherit;color:inherit}.oc-calendar-title,.oc-calendar-month{display:flex;align-items:center;justify-content:space-between;gap:8px}.oc-calendar-title>button,.oc-calendar-month>button{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:6px;background:transparent}.oc-calendar-month{margin:8px 0}.oc-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}.oc-calendar-grid>span{text-align:center;font-size:11px;padding:8px 0;color:var(--muted)}.oc-calendar-grid>button{border:0;background:transparent;border-radius:6px;min-height:44px;padding:0}.oc-calendar button:not(.pt-primary):not(.pt-secondary):is(:hover,[aria-pressed=true]){background:var(--selected-bg);color:var(--selected-text)}.oc-calendar-time{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.oc-calendar-time label{display:grid;gap:6px;font-size:12px}.oc-calendar-time select{height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--text);font:inherit}.oc-calendar-actions{display:flex;justify-content:space-between;gap:8px;margin-top:18px}.oc-calendar :focus-visible{outline:2px solid var(--selected-border);outline-offset:2px}
+
+.oc-calendar button:disabled{opacity:.35;cursor:not-allowed;background:transparent!important;color:var(--muted)!important}.oc-calendar-help{font-size:12px;line-height:1.5;color:var(--muted);margin:12px 0 0}
+
+/* Only the button is interactive: iOS must never focus a native select behind our listbox. */
+.oc-select select[hidden]{display:none!important}.oc-select-trigger{display:block;box-sizing:border-box;width:100%;min-width:0;min-height:46px;padding:11px 32px 11px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:inherit;font-size:14px;line-height:1.5;text-align:left;overflow-wrap:anywhere;cursor:pointer}.pt-form .oc-select-trigger,.pt-filter-grid .oc-select-trigger{font-size:16px}.sort-control .oc-select-trigger{background:transparent;border:0;min-height:44px;font-size:12px;padding:8px 26px 8px 6px}.oc-select-trigger:focus-visible{outline:2px solid var(--selected-border);outline-offset:2px}.oc-select-trigger:disabled{opacity:.55;cursor:not-allowed}
+
+.oc-calendar-time-fields{border:0;padding:0;margin:16px 0 0;min-width:0}
+.oc-calendar-time-fields legend{font-weight:600;margin-bottom:8px}
+.oc-calendar-time-inputs{display:flex;align-items:end;gap:8px;min-width:0}
+.oc-calendar-time-inputs label{display:grid;gap:6px;font-size:12px;flex:1;min-width:0}
+.oc-calendar-time-inputs input{box-sizing:border-box;width:100%;min-width:0;min-height:46px;padding:10px 6px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);font:400 18px/1.3 'DM Sans',sans-serif}
+.oc-calendar-time-inputs>span{padding-bottom:12px}
+.oc-calendar-period{display:flex;gap:2px;flex-shrink:0;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.oc-calendar-period button{min-height:44px;min-width:44px;padding:6px;border:0;border-radius:5px;background:transparent;font-weight:600}
+.oc-calendar-period button[aria-pressed=true]{background:var(--selected-bg);color:var(--selected-text)}

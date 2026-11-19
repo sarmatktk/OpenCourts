@@ -287,3 +287,58 @@ now uses the main court page shadow. Four comparison tests pass with equal finge
 in all three states; development build passed. Labels/destinations and number of dock tabs
 are intentionally page-specific and are not claimed to be identical. No production change,
 no hosted preview publication; current hosted candidate remains 89a8ba19.
+
+
+### November 18, 2026 - Flat mobile/tablet dock search tab (local)
+
+Latest approved design supersedes the raised search-circle treatment: Search/Find games
+is now a standard outline magnifier in the same row as the other dock destinations on
+both court discovery and Play Together. Removed featured-circle markup and obsolete
+special styling instead of adding another visual override. All dock icons use 21px,
+1.9 stroke, no negative offset or circle/shadow, and at least 48px tall tab targets.
+Selected-state and keyboard-focus behavior stays consistent with other tabs.
+
+Ten comparison/alignment/theme checks passed (including 375px iPhone SE); fourteen
+navigation/mobile checks passed; development build passed. Full-page visual baselines
+are refreshed for the approved new row. One concurrent visual run lost its shared dev
+server and was restarted independently; that interrupted run is not counted as a pass.
+Changes remain local and uncommitted; no deployment, database change or production change.
+
+
+### November 18 - Useful player discovery and mobile access (LOCAL ONLY)
+
+User approved in-app invitations to the sender's public games, with normal host approval.
+Added Players to the phone/tablet dock and Invite to game on discovered player results.
+The recipient sees an inbox invitation and can Request a place; no place is reserved.
+Opt-in, blocks, own-game permissions, public-only scope, duplicate/rate and capacity
+checks are server-enforced. See play-together-player-invitations.md for architecture.
+
+268 unit tests (18 suites), 107 browser checks and development build passed. New migration
+0018_player_game_invitations.sql applied locally only. Hosted opencourts-dev remains 0017;
+apply the reviewed development migration before any Preview deployment of this backend.
+No production change, remote migration, real invitation, Git push or deployment this milestone.
+
+
+### November 18 - Search first and shared typing focus (LOCAL ONLY)
+
+Latest user direction: Search/Find games is the LEFTMOST destination in both bottom bars.
+Reordered DOM entries, not just CSS order, so keyboard order matches visual order.
+Play Together now links to /play-together#search from other pages. On the discovery page,
+tapping its Search destination focuses the actual input synchronously and preserves text
+instead of reloading the page. Hash entry uses conditional autofocus and hash-change focus.
+
+Shared search-focus.ts handles scrolling, input focus and a collapsed caret at the end of
+existing text for both court and game searches. Existing shared focus-border/glow rules
+remain in use; caret color follows the same theme text token. No second dark border.
+Desktop current-section detection now uses destination lookup rather than array indices,
+so moving Search does not highlight the wrong section.
+
+14 focused cross-page typing/caret/border/comparison checks and development build passed.
+Full browser regression and approved visual baseline refresh are recorded in the latest
+verification update. Physical iOS/Android soft-keyboard appearance remains a device check;
+Chrome browser tests verify DOM focus, typing and caret state, not operating-system UI.
+No deployment or remote database action. Migration 0018 remains local-only and must be
+applied to isolated development D1 before publishing the pending player-invitation backend.
+
+Latest search-order verification: all 113 browser regression checks passed; approved
+full-page baselines refreshed. Development build passed. No publication this milestone.

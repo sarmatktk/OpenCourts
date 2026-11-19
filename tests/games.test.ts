@@ -8,7 +8,7 @@ import {gameStart} from '../functions/lib/game-time';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class LocalDatabase implements AuthDatabase{
   sqlite=new DatabaseSync(':memory:');
-  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
+  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
   prepare(sql:string):AuthStatement{let values:any[]=[];const statement:AuthStatement={bind(...args){values=args;return statement;},first:async<T>()=>(this.sqlite.prepare(sql).get(...values)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...values) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...values).changes)}})};return statement;}
   async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -27,14 +27,28 @@ function req(path='',method='GET',body?:unknown,custom:Record<string,string>={})
 async function body(overrides:Record<string,unknown>={}){return{title:'Saturday doubles',courtToken:await courtSelectionToken(court,'player-1',env,origin),startLocal:'2026-02-14T10:00',timeZone:'Europe/Paris',durationMinutes:60,format:'doubles',capacity:4,skillPreference:'any',notes:'Bring tennis balls.',requestId:crypto.randomUUID(),acknowledgeNoReservation:true,confirmAccess:true,...overrides};}
 async function create(overrides:Record<string,unknown>={}){const response=await handleGames(req('','POST',await body(overrides)),env);return {response,data:await response.json()};}
 async function insertGame(overrides:Record<string,unknown>={}){
-  const {response,data}=await create();expect(response.status,JSON.stringify(data)).toBe(201);
+  const {response,data}=await create({...overrides.format?{format:overrides.format}:{},...overrides.capacity?{capacity:overrides.capacity}:{}});expect(response.status,JSON.stringify(data)).toBe(201);
   // Fixtures represent games created earlier, not a burst of user submissions.
   db.sqlite.prepare('UPDATE games SET created_at=? WHERE id=?').run(now-120_000,data.game.id);
   const entries=Object.entries(overrides);for(const [key] of entries)if(!['visibility','group_id','status','starts_at','ends_at','court_lat','court_lon','skill_preference','format','capacity'].includes(key))throw new Error('Unsafe fixture field');
-  if(entries.length)await db.prepare('UPDATE games SET '+entries.map(([k])=>k+'=?').join(',')+' WHERE id=?').bind(...entries.map(([,v])=>v),data.game.id).run();
+  if(entries.length)await db.prepare('UPDATE games SET '+entries.map(([k])=>(k==='capacity'?'event_capacity':k)+'=?').join(',')+' WHERE id=?').bind(...entries.map(([,v])=>v),data.game.id).run();
   return data.game.id as string;
 }
 describe('public game lifecycle and privacy',()=>{
+  it('accepts an explicit manual location snapshot without a catalog write or signing token',async()=>{
+    const input=await body();delete (input as any).courtToken;
+    const response=await handleGames(req('','POST',{...input,manualCourt:{name:'Franklin Glen Park',address:'Fairfax, VA 22033',lat:38.87,lon:-77.38}}),env);
+    expect(response.status).toBe(201);const data=await response.json();expect(data.game.court).toMatchObject({name:'Franklin Glen Park - Fairfax, VA 22033',access:'unknown',lat:38.87});
+    expect(db.sqlite.prepare('SELECT COUNT(*) AS count FROM tennis_courts').get()).toMatchObject({count:0});
+  });
+  it('rejects ambiguous, invalid and unacknowledged manual court locations',async()=>{
+    for(const c of [{name:'Park',address:'Fairfax',lat:91,lon:0},{name:'',address:'Fairfax',lat:38,lon:-77},{name:'Park',address:'Fairfax',lat:'38',lon:-77}]){
+      const input=await body();delete (input as any).courtToken;expect((await handleGames(req('','POST',{...input,manualCourt:c}),env)).status).toBe(400);
+    }
+    const c={name:'Park',address:'Fairfax',lat:38,lon:-77};
+    expect((await create({manualCourt:c})).response.status).toBe(400);
+    const input=await body();delete (input as any).courtToken;expect((await handleGames(req('','POST',{...input,manualCourt:c,confirmAccess:false}),env)).status).toBe(400);
+  });
   it('creates a public game with a validated snapshot and organizer occupying exactly one slot',async()=>{
     const {response,data}=await create();expect(response.status,JSON.stringify(data)).toBe(201);expect(data.game).toMatchObject({title:'Saturday doubles',playerCount:1,capacity:4,organizer:{displayName:'Tennis Friend'},startsAt:'2026-02-14T09:00:00.000Z'});
     expect(db.sqlite.prepare('SELECT visibility,request_hash FROM games').get()).toMatchObject({visibility:'public'});
@@ -59,7 +73,7 @@ describe('public game lifecycle and privacy',()=>{
     expect(db.sqlite.prepare('SELECT COUNT(*) AS count FROM games').get()).toMatchObject({count:1});
   });
   it('rejects private visibility, injected organizer IDs and invalid game data',async()=>{
-    for(const patch of [{visibility:'group'},{organizerId:'another-player'},{capacity:5},{format:'triples'},{durationMinutes:23},{skillPreference:'expert'},{title:''},{startLocal:'2026-01-01T10:00'},{acknowledgeNoReservation:false},{requestId:'bad'}])expect((await create(patch)).response.status,JSON.stringify(patch)).toBe(400);
+    for(const patch of [{visibility:'group'},{organizerId:'another-player'},{capacity:129},{format:'triples'},{durationMinutes:23},{skillPreference:'expert'},{title:''},{startLocal:'2026-01-01T10:00'},{acknowledgeNoReservation:false},{requestId:'bad'}])expect((await create(patch)).response.status,JSON.stringify(patch)).toBe(400);
   });
   it('rejects forged, expired, wrong-origin and other-player court tokens',async()=>{
     const foreign=await courtSelectionToken(court,'another-player',env,origin);
@@ -193,7 +207,7 @@ it('preserves existing notification data/read state across notification migratio
  try{
  for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql'])legacy.exec(readFileSync('functions/db/migrations/'+file,'utf8'));
  legacy.prepare('INSERT INTO players(id,created_at,updated_at) VALUES (?,?,?)').run('player-1',now,now);
- const columns=Object.keys(row);legacy.prepare('INSERT INTO games ('+columns.join(',')+') VALUES ('+columns.map(()=>'?').join(',')+')').run(...Object.values(row));
+ const columns=Object.keys(row).filter(k=>!['court_count','event_capacity','series_id','series_week','series_weeks','series_exception'].includes(k));legacy.prepare('INSERT INTO games ('+columns.join(',')+') VALUES ('+columns.map(()=>'?').join(',')+')').run(...columns.map(k=>row[k]));
  legacy.prepare('INSERT INTO game_host_notifications(id,game_id,host_id,actor_id,kind,reason,places_released,created_at,read_at) VALUES (?,?,?,?,?,?,?,?,?)').run('existing-event',id,'player-1','player-1','cancelled','Preserve reason',1,now,now);
  for(const file of ['0007_request_notifications.sql','0008_player_notifications.sql'])legacy.exec(readFileSync('functions/db/migrations/'+file,'utf8'));
  expect(legacy.prepare('SELECT * FROM game_notifications').get()).toMatchObject({id:'existing-event',recipient_id:'player-1',reason:'Preserve reason',read_at:now});
@@ -271,4 +285,74 @@ it('schedule sections distinguish active games, requests, completion and cancell
 it('schedule filters before pagination so old history cannot hide upcoming games',async()=>{
  for(let i=0;i<52;i++)await insertGame({starts_at:now+86400000+i*60000,ends_at:now+90000000+i*60000});
  const first=await(await handleGames(req('/mine?view=upcoming'),env)).json();expect(first.games).toHaveLength(50);expect(first.games[0].starts_at).toBe(now+86400000);expect(first.nextCursor).toBeTruthy();const second=await(await handleGames(req('/mine?view=upcoming&cursor='+encodeURIComponent(first.nextCursor)),env)).json();expect(second.games).toHaveLength(2);expect(new Set([...first.games,...second.games].map((g:any)=>g.id)).size).toBe(52);
+});
+
+it('creates multi-court singles and doubles with room for rotating players',async()=>{
+ for(const [format,courtCount,capacity] of [['singles',2,4],['doubles',4,16],['doubles',4,20]] as const){
+  const {response,data}=await create({format,courtCount,capacity});expect(response.status,JSON.stringify(data)).toBe(201);expect(data.game).toMatchObject({format,courtCount,capacity,playerCount:1});
+ }
+});
+it('rejects invalid court counts and insufficient, fractional or excessive attendance',async()=>{
+ for(const patch of [{courtCount:0},{courtCount:17},{courtCount:1.5},{courtCount:'2'},{courtCount:2,capacity:4},{capacity:3.5},{capacity:129}])expect((await create(patch)).response.status).toBe(400);
+});
+it('multi-court capacity counts guests and rejects a final overbooking atomically',async()=>{
+ const {data}=await create({format:'singles',courtCount:2,capacity:5});const id=data.game.id;
+ for(const name of ['a','b']){const h=await otherPlayer(name);await handleGames(req('/'+id+'/join','POST',{},h),env);expect((await handleGames(req('/'+id+'/approve','POST',{playerId:name}),env)).status).toBe(200);}
+ db.sqlite.prepare('UPDATE game_participants SET guest_count=2 WHERE game_id=? AND player_id=?').run(id,'a');
+ const h=await otherPlayer('c');await handleGames(req('/'+id+'/join','POST',{},h),env);expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'c'}),env)).status).toBe(409);
+ expect(db.sqlite.prepare('SELECT SUM(1+guest_count) n FROM game_participants WHERE game_id=?').get(id).n).toBe(5);
+ expect(()=>db.sqlite.prepare('UPDATE games SET event_capacity=4 WHERE id=?').run(id)).toThrow(/capacity/);
+ expect(db.sqlite.prepare('PRAGMA foreign_key_check').all()).toHaveLength(0);
+});
+
+it('creates independent weekly occurrences with local time preserved across DST',async()=>{
+ const {response,data}=await create({repeatWeeks:4,startLocal:'2026-03-01T10:00',timeZone:'America/New_York'});expect(response.status,JSON.stringify(data)).toBe(201);
+ const rows=db.sqlite.prepare('SELECT id,starts_at,series_week,series_weeks FROM games WHERE series_id=? ORDER BY series_week').all(data.game.id);expect(rows).toHaveLength(4);expect(new Set(rows.map((r:any)=>r.id)).size).toBe(4);
+ expect(new Date(rows[0].starts_at).toISOString()).toBe('2026-03-01T15:00:00.000Z');expect(new Date(rows[1].starts_at).toISOString()).toBe('2026-03-08T14:00:00.000Z');
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants').get().n).toBe(4);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM player_game_invitations').get().n).toBe(0);
+ const h=await otherPlayer('weekly-player');await handleGames(req('/'+rows[0].id+'/join','POST',{},h),env);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_join_requests WHERE player_id=?').get('weekly-player').n).toBe(1);
+ await handleGames(req('/'+rows[0].id+'/cancel','POST',{}),env);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM games WHERE status='scheduled'").get().n).toBe(3);
+});
+it('rejects invalid series and validates every date before creating any occurrence',async()=>{
+ for(const repeatWeeks of [0,13,2.5,'4'])expect((await create({repeatWeeks})).response.status).toBe(400);
+ expect((await create({repeatWeeks:12,startLocal:'2026-06-01T10:00'})).response.status).toBe(400);
+ expect((await create({repeatWeeks:2,startLocal:'2026-03-01T02:30',timeZone:'America/New_York'})).response.status).toBe(400);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM games').get().n).toBe(0);
+});
+it('weekly retries return the existing series without duplicate occurrences',async()=>{
+ const input=await body({repeatWeeks:3});for(let i=0;i<2;i++)expect((await handleGames(req('','POST',input),env)).status).toBe(i===0?201:200);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM games').get().n).toBe(3);
+});
+
+async function seriesPlan(id:string,extra:Record<string,unknown>={}){const input={scope:'single',operation:'reschedule',preserveExceptions:true,startLocal:'2026-02-14T09:30',...extra};const r=await handleGames(req('/'+id+'/series/preview','POST',input),env);expect(r.status,await r.clone().text()).toBe(200);return {input,plan:await r.json()};}
+async function seriesApply(id:string,input:Record<string,unknown>,plan:any,requestId=crypto.randomUUID()){return handleGames(req('/'+id+'/series/apply','POST',{...input,planHash:plan.planHash,requestId}),env);}
+it('reschedules one occurrence without changing attendance or the other weeks and notifies players',async()=>{
+ const {data}=await create({repeatWeeks:3});const id=data.game.id,guest=await otherPlayer('series-guest');await handleGames(req('/'+id+'/join','POST',{},guest),env);await handleGames(req('/'+id+'/approve','POST',{playerId:'series-guest'}),env);
+ const {input,plan}=await seriesPlan(id);expect(plan.affected).toHaveLength(1);const key=crypto.randomUUID();expect((await seriesApply(id,input,plan,key)).status).toBe(200);expect((await seriesApply(id,input,plan,key)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT starts_at,series_exception FROM games WHERE id=?').get(id)).toMatchObject({starts_at:Date.parse('2026-02-14T08:30:00Z'),series_exception:1});expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications WHERE recipient_id=?').get('series-guest').n).toBe(1);
+ const notes=await(await handleGames(req('/notifications','GET',undefined,guest),env)).json();expect(notes.notifications.some((n:any)=>n.kind==='schedule_changed'&&n.oldStart&&n.newStart)).toBe(true);
+});
+it('future edits preserve individual exceptions unless explicitly included',async()=>{
+ const {data}=await create({repeatWeeks:3});const ids=db.sqlite.prepare('SELECT id FROM games WHERE series_id=? ORDER BY series_week').all(data.game.id).map((r:any)=>r.id);
+ let p=await seriesPlan(ids[1],{startLocal:'2026-02-21T11:00'});expect((await seriesApply(ids[1],p.input,p.plan)).status).toBe(200);
+ p=await seriesPlan(ids[0],{scope:'future',startLocal:'2026-02-14T09:30'});expect(p.plan.affected).toHaveLength(2);expect(p.plan.skipped.some((g:any)=>g.reason==='Individual exception preserved')).toBe(true);expect((await seriesApply(ids[0],p.input,p.plan)).status).toBe(200);
+ expect(new Date(db.sqlite.prepare('SELECT starts_at FROM games WHERE id=?').get(ids[1]).starts_at).toISOString()).toBe('2026-02-21T10:00:00.000Z');
+});
+it('cancels one day or remaining series without deleting other games',async()=>{
+ const {data}=await create({repeatWeeks:3});const ids=db.sqlite.prepare('SELECT id FROM games WHERE series_id=? ORDER BY series_week').all(data.game.id).map((r:any)=>r.id);
+ let p=await seriesPlan(ids[1],{operation:'cancel'});expect((await seriesApply(ids[1],p.input,p.plan)).status).toBe(200);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM games WHERE status='scheduled'").get().n).toBe(2);
+ p=await seriesPlan(ids[0],{operation:'cancel',scope:'future',preserveExceptions:false});expect(p.plan.affected).toHaveLength(2);expect((await seriesApply(ids[0],p.input,p.plan)).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM games').get().n).toBe(3);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM games WHERE status='scheduled'").get().n).toBe(0);
+});
+it('rejects stale previews, outsiders and DST-invalid bulk changes without partial writes',async()=>{
+ const {data}=await create({repeatWeeks:3});const id=data.game.id;const p=await seriesPlan(id,{scope:'future'});db.sqlite.prepare('UPDATE games SET version=version+1 WHERE series_id=? AND series_week=2').run(id);
+ expect((await seriesApply(id,p.input,p.plan)).status).toBe(409);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications').get().n).toBe(0);
+ const other=await otherPlayer('not-host');expect((await handleGames(req('/'+id+'/series','GET',undefined,other),env)).status).toBe(404);
+ const {data:dst}=await create({repeatWeeks:3,startLocal:'2026-03-01T10:00',timeZone:'America/New_York'});const r=await handleGames(req('/'+dst.game.id+'/series/preview','POST',{scope:'future',operation:'reschedule',preserveExceptions:true,startLocal:'2026-03-01T02:30'}),env);expect(r.status).toBe(400);
+});
+
+it('database series guards roll back all occurrences if any target is stale',async()=>{
+ const {data}=await create({repeatWeeks:2});const rows=db.sqlite.prepare('SELECT id,version,starts_at,ends_at FROM games WHERE series_id=? ORDER BY series_week').all(data.game.id);const change=crypto.randomUUID();
+ await expect(db.batch([db.prepare('INSERT INTO game_series_changes VALUES (?,?,?,?,?)').bind(change,'player-1',await hashToken(token),'hash',now),...rows.map((g:any,i:number)=>db.prepare('INSERT INTO game_series_change_targets VALUES (?,?,?,?,?,?,?)').bind(change,g.id,g.version+(i===1?1:0),g.starts_at+1800000,g.ends_at+1800000,'scheduled',0))])).rejects.toThrow(/series changed/);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_series_changes').get().n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications').get().n).toBe(0);for(const g of rows)expect(db.sqlite.prepare('SELECT starts_at FROM games WHERE id=?').get(g.id).starts_at).toBe(g.starts_at);
 });

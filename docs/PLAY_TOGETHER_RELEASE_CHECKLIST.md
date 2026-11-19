@@ -67,3 +67,13 @@ build passed before publication. Hosted HTML/stylesheet HTTP 200 verified afterw
 Preview COURTS_DB remains opencourts-dev; production deployment 7ef38ff2 and original
 production D1 unchanged. No migrations, GitHub push or production deployment.
 This supersedes earlier local-only notices. Next: user/physical-device review.
+
+
+## Pending player-invitation Preview rollout
+
+- [ ] Review/apply migration 0018 to opencourts-dev only before deploying the new backend.
+- [ ] Publish the local Players mobile tab and public-game invitations to feature Preview.
+- [ ] Two-account synthetic verification: send, inbox, request, approve, block/full-game denial.
+- [ ] Physical-phone test of all six dock targets and the invitation picker in both themes.
+
+Local checks: 268 units / 107 browsers / build passed. No hosted migration or deployment yet.

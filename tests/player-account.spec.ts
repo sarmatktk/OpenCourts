@@ -18,7 +18,7 @@ test('Play Together opens the community home and account settings have a separat
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole('button',{ name:'Continue with Google' })).toBeVisible();
   await page.getByRole('navigation',{name:'Play Together quick navigation'}).getByRole('link',{name:'Find games',exact:true}).click();
-  await expect(page).toHaveURL(/\/play-together$/);
+  await expect(page).toHaveURL(/\/play-together#search$/);
 });
 for (const colorScheme of ['light','dark'] as const) {
   test(`sign-in matches the existing ${colorScheme} theme`,async ({ page })=>{

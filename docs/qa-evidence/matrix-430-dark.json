@@ -4,7 +4,7 @@
     "path": "/",
     "width": 430,
     "theme": "dark",
-    "ms": 2336,
+    "ms": 1913,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -84,7 +84,7 @@
     "path": "/play-together",
     "width": 430,
     "theme": "dark",
-    "ms": 1317,
+    "ms": 1018,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -109,7 +109,7 @@
     "path": "/play-together/feed",
     "width": 430,
     "theme": "dark",
-    "ms": 1088,
+    "ms": 1298,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -134,7 +134,7 @@
     "path": "/play-together/create",
     "width": 430,
     "theme": "dark",
-    "ms": 1032,
+    "ms": 1197,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -161,7 +161,7 @@
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 5
+        "count": 6
       }
     ]
   },
@@ -170,7 +170,7 @@
     "path": "/play-together/game?id=10000000-0000-4000-8000-000000000001",
     "width": 430,
     "theme": "dark",
-    "ms": 980,
+    "ms": 1208,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -191,7 +191,7 @@
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 1
+        "count": 6
       }
     ]
   },
@@ -200,7 +200,7 @@
     "path": "/play-together/game?id=10000000-0000-4000-8000-000000000001&qa=member",
     "width": 430,
     "theme": "dark",
-    "ms": 1395,
+    "ms": 1055,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -218,14 +218,19 @@
     "themeBackground": "rgb(16, 26, 22)",
     "requests": 12,
     "violations": [],
-    "incomplete": []
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "count": 5
+      }
+    ]
   },
   {
     "name": "schedule",
     "path": "/play-together/my-games",
     "width": 430,
     "theme": "dark",
-    "ms": 1051,
+    "ms": 957,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -250,7 +255,7 @@
     "path": "/play-together/notifications",
     "width": 430,
     "theme": "dark",
-    "ms": 1206,
+    "ms": 1576,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -268,19 +273,14 @@
     "themeBackground": "rgb(16, 26, 22)",
     "requests": 6,
     "violations": [],
-    "incomplete": [
-      {
-        "id": "color-contrast",
-        "count": 1
-      }
-    ]
+    "incomplete": []
   },
   {
     "name": "account",
     "path": "/account",
     "width": 430,
     "theme": "dark",
-    "ms": 1019,
+    "ms": 1123,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -316,7 +316,7 @@
     "path": "/account?qa=signedout",
     "width": 430,
     "theme": "dark",
-    "ms": 998,
+    "ms": 908,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -347,7 +347,7 @@
     "path": "/play-together/groups",
     "width": 430,
     "theme": "dark",
-    "ms": 1023,
+    "ms": 952,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -372,7 +372,7 @@
     "path": "/play-together/my-groups",
     "width": 430,
     "theme": "dark",
-    "ms": 932,
+    "ms": 1063,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -397,7 +397,7 @@
     "path": "/play-together/create-group",
     "width": 430,
     "theme": "dark",
-    "ms": 1076,
+    "ms": 1225,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -418,7 +418,7 @@
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 2
+        "count": 4
       }
     ]
   },
@@ -427,7 +427,7 @@
     "path": "/play-together/group?id=20000000-0000-4000-8000-000000000001",
     "width": 430,
     "theme": "dark",
-    "ms": 1112,
+    "ms": 1502,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -453,7 +453,7 @@
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 2
+        "count": 1
       }
     ]
   },
@@ -462,7 +462,7 @@
     "path": "/play-together/group?id=20000000-0000-4000-8000-000000000001&qa=visitor",
     "width": 430,
     "theme": "dark",
-    "ms": 1105,
+    "ms": 1157,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -487,7 +487,7 @@
     "path": "/play-together/invitation#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "width": 430,
     "theme": "dark",
-    "ms": 1091,
+    "ms": 995,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -512,7 +512,7 @@
     "path": "/play-together/game-invitation#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "width": 430,
     "theme": "dark",
-    "ms": 1078,
+    "ms": 977,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -537,7 +537,7 @@
     "path": "/play-together/players",
     "width": 430,
     "theme": "dark",
-    "ms": 949,
+    "ms": 1023,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -555,14 +555,19 @@
     "themeBackground": "rgb(16, 26, 22)",
     "requests": 4,
     "violations": [],
-    "incomplete": []
+    "incomplete": [
+      {
+        "id": "color-contrast",
+        "count": 1
+      }
+    ]
   },
   {
     "name": "about",
     "path": "/about.html",
     "width": 430,
     "theme": "dark",
-    "ms": 636,
+    "ms": 737,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -623,7 +628,7 @@
     "path": "/support.html",
     "width": 430,
     "theme": "dark",
-    "ms": 595,
+    "ms": 718,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -672,7 +677,7 @@
     "path": "/privacy.html",
     "width": 430,
     "theme": "dark",
-    "ms": 596,
+    "ms": 628,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -727,7 +732,7 @@
     "path": "/contact.html",
     "width": 430,
     "theme": "dark",
-    "ms": 562,
+    "ms": 605,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -788,7 +793,7 @@
     "path": "/public-tennis-courts-fairfax-va.html",
     "width": 430,
     "theme": "dark",
-    "ms": 782,
+    "ms": 713,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -866,7 +871,7 @@
     "path": "/tennis-courts-after-rain.html",
     "width": 430,
     "theme": "dark",
-    "ms": 766,
+    "ms": 680,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,
@@ -920,7 +925,7 @@
     "path": "/best-time-to-play-tennis.html",
     "width": 430,
     "theme": "dark",
-    "ms": 856,
+    "ms": 801,
     "errors": [],
     "scrollWidth": 430,
     "viewport": 430,

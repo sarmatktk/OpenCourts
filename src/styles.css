@@ -224,9 +224,6 @@
   .mobile-bottom-nav a,.mobile-bottom-nav button{display:flex;flex:1;min-width:0;min-height:44px;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 1px;border:0;background:transparent;color:var(--muted);font-size:9px;font-weight:700;text-decoration:none;border-radius:15px;white-space:nowrap}
   .mobile-bottom-nav a:hover,.mobile-bottom-nav a:focus-visible,.mobile-bottom-nav button:hover,.mobile-bottom-nav button:focus-visible{background:var(--bg)}
   .mobile-bottom-nav .active{background:color-mix(in srgb,var(--lime) 18%,var(--surface));color:var(--green)}
-  .mobile-bottom-nav .mobile-nav-search{position:relative;min-height:52px;color:var(--green)}
-  .mobile-nav-search-icon{display:grid;place-items:center;width:46px;height:46px;margin-top:-17px;background:var(--green);color:#fff;border:4px solid var(--surface);border-radius:50%;box-shadow:0 4px 14px #0d241d33}
-  .mobile-bottom-nav .mobile-nav-search:hover,.mobile-bottom-nav .mobile-nav-search:focus-visible{background:transparent}
   .mobile-view-switch{display:none}
   .review-prompt{bottom:calc(78px + env(safe-area-inset-bottom))}
 }
@@ -421,7 +418,6 @@
   .daily-best-score strong{font-size:22px}
   .mobile-bottom-nav{border-radius:999px;box-shadow:0 11px 28px #142b2240}
   .mobile-bottom-nav .active{background:color-mix(in srgb,#698b42 15%,var(--surface));color:#5e8039}
-  .mobile-nav-search-icon{width:48px;height:48px;margin-top:-19px;box-shadow:0 5px 14px #123d3250}
 }
 
 
@@ -441,7 +437,6 @@
 
 .app:not(.dark) .best-play-copy small,.app:not(.dark) .daily-best-heading strong,.app:not(.dark) .forecast-windows-heading strong,.app:not(.dark) .sunset-note{color:#4c682f}
 .app:not(.dark) .weather-time{color:var(--muted)}
-.app.dark .mobile-bottom-nav .mobile-nav-search>span:last-child{color:var(--text)}
 
 .app:not(.dark) .condition-unavailable{color:#4f5c62}
 
@@ -451,3 +446,12 @@
 .search-submit:not(:disabled):hover{background:var(--action-hover)}
 .search-submit:focus-visible{outline:2px solid var(--action-focus);outline-offset:3px}
 .search-submit:disabled{opacity:.6;cursor:not-allowed}
+
+.map-location-notice{pointer-events:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;box-shadow:var(--shadow);overflow-wrap:anywhere}.map-location-notice>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.map-location-notice button{min-height:44px;padding:8px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--text);font:inherit}
+
+.site-area-switch{display:none;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;color:var(--text);background:var(--surface);font-size:12px;font-weight:600;white-space:nowrap}@media(max-width:1100px){.site-area-switch{display:inline-flex}.mobile-bottom-nav,.pt-bottom-nav{grid-template-columns:repeat(5,minmax(0,1fr))!important}.top-actions{gap:6px}.top-actions .mobile-support{display:none}}
+@media(max-width:480px){.topbar{padding-left:12px;padding-right:12px}.topbar .brand>span:last-child{display:none}.topbar .brand{gap:0}.site-area-switch{font-size:11px;padding:7px 8px}.top-actions{gap:6px}}
+
+@media(max-width:1100px){.topbar .mobile-menu{display:none!important}}
+
+@media(min-width:621px) and (max-width:1100px){.mobile-bottom-nav:not(.pt-bottom-nav){position:fixed;z-index:19;display:flex;align-items:center;justify-content:space-around;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(440px,calc(100vw - 24px));padding:6px;border:1px solid var(--line);border-radius:999px;background:var(--surface);box-shadow:var(--shadow)}.mobile-bottom-nav:not(.pt-bottom-nav)>:is(a,button){display:flex;flex:1;min-width:0;min-height:48px;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;color:var(--muted);border:0;border-radius:20px;font-size:10px;font-weight:700}.topbar .nav{display:none}body:has(.mobile-bottom-nav) main{padding-bottom:90px}}

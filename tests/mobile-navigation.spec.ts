@@ -2,16 +2,18 @@ import {test,expect} from '@playwright/test';
 for(const theme of ['light','dark'] as const){
  test('floating navigation fits phones and tablets in '+theme,async({page})=>{
   await page.emulateMedia({colorScheme:theme});
-  await page.route('**/api/**',r=>r.fulfill({json:r.request().url().includes('auth/me')?{player:null,csrfToken:null}:{games:[],groups:[],notifications:[],nextCursor:null}}));
-  for(const width of [320,768,1024]){
+  await page.route('**/api/**',r=>r.fulfill({json:r.request().url().includes('auth/me')?{player:null,csrfToken:null}:{games:[],groups:[],players:[],moderator:false,notifications:[],nextCursor:null}}));
+  for(const width of [320,375,390,768,1024]){
    await page.setViewportSize({width,height:900});await page.goto('/play-together/feed');
    const dock=page.getByRole('navigation',{name:'Play Together quick navigation'});
-   await expect(dock).toBeVisible();if(width===320)await expect(page.getByRole('button',{name:'Toggle menu'})).toBeHidden();await expect(dock.getByRole('link')).toHaveCount(5);
+   await expect(dock).toBeVisible();if(width===320)await expect(page.getByRole('button',{name:'Toggle menu'})).toBeHidden();await expect(dock.getByRole('link')).toHaveCount(6);
    await expect(dock.getByRole('link',{name:'My Feed',exact:true})).toHaveAttribute('aria-current','page');
    const bounds=await dock.boundingBox();expect(bounds!.x).toBeGreaterThanOrEqual(0);expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width);
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
    for(const link of await dock.getByRole('link').all())expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+   for(const link of await dock.getByRole('link').all())expect((await link.boundingBox())!.width).toBeGreaterThanOrEqual(44);
    await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));await expect(dock).toBeInViewport();
+   await dock.getByRole('link',{name:'Players',exact:true}).click();await expect(page).toHaveURL(/\/play-together\/players$/);await expect(page.getByRole('heading',{name:'Find tennis players'})).toBeVisible();await expect(dock.getByRole('link',{name:'Players',exact:true})).toHaveAttribute('aria-current','page');
   }
   await page.setViewportSize({width:1440,height:900});await expect(page.getByRole('navigation',{name:'Play Together quick navigation'})).toBeHidden();
  });

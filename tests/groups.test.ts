@@ -10,7 +10,7 @@ import {hashToken,type AuthDatabase,type AuthStatement,type AuthEnv} from '../fu
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class DB implements AuthDatabase{
  sqlite=new DatabaseSync(':memory:');
- constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0012_media_assets.sql','0013_group_invitations.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
+ constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0012_media_assets.sql','0013_group_invitations.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
  prepare(sql:string):AuthStatement{let args:unknown[]=[];const s:AuthStatement={bind(...v){args=v;return s;},first:async<T>()=>(this.sqlite.prepare(sql).get(...args)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...args) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...args).changes)}})};return s;}
  async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -26,7 +26,7 @@ it('discovers private previews without leaking members, descriptions, roles or s
 it('requires approval for both public and private groups and deduplicates requests',async()=>{for(const visibility of ['public','private']){const id=await create({...input(),visibility});for(let i=0;i<2;i++)expect((await call(id,'request',{},'member')).status).toBe(200);expect((await handleGroups(req('/'+id+'/members','GET',undefined,'member'),env)).status).toBe(403);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_memberships WHERE group_id=?').get(id).n).toBe(2);await call(id,'approve',{playerId:'member'});expect((await handleGroups(req('/'+id+'/members','GET',undefined,'member'),env)).status).toBe(200);}});
 it('revokes content and roster access immediately on removal',async()=>{const id=await create();await member(id,'member');expect((await(await handleGroups(req('/'+id,'GET',undefined,'member'),env)).json()).content.description).toBe('PRIVATE-CONTENT-SENTINEL');await call(id,'remove',{playerId:'member'});expect((await handleGroups(req('/'+id+'/members','GET',undefined,'member'),env)).status).toBe(403);expect(await(await handleGroups(req('/'+id,'GET',undefined,'member'),env)).json()).not.toHaveProperty('content');expect((await call(id,'request',{},'member')).status).toBe(200);});
 it('keeps administrator roles owner-controlled and prevents peer-admin removal',async()=>{const id=await create();await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});expect((await call(id,'role',{playerId:'member',role:'coowner'},'admin')).status).toBe(403);expect((await call(id,'remove',{playerId:'member'},'admin')).status).toBe(200);expect((await call(id,'remove',{playerId:'owner'},'admin')).status).toBe(400);});
-it('supports withdraw, reject, owner-only transfer, and leaving after transfer',async()=>{const id=await create();await call(id,'request',{},'member');await call(id,'leave',{},'member');expect((await call(id,'request',{},'member')).status).toBe(200);await call(id,'reject',{playerId:'member'});expect((await call(id,'request',{},'member')).status).toBe(200);await call(id,'approve',{playerId:'member'});expect((await call(id,'leave')).status).toBe(409);await call(id,'transfer',{playerId:'member'});expect((await call(id,'leave')).status).toBe(200);expect((await call(id,'archive',{},'member')).status).toBe(200);});
+it('supports withdraw and reject while preserving the primary Owner',async()=>{const id=await create();await call(id,'request',{},'member');await call(id,'leave',{},'member');expect((await call(id,'request',{},'member')).status).toBe(200);await call(id,'reject',{playerId:'member'});expect((await call(id,'request',{},'member')).status).toBe(200);await call(id,'approve',{playerId:'member'});expect((await call(id,'leave')).status).toBe(409);expect((await call(id,'transfer',{playerId:'member'})).status).toBe(403);expect((await call(id,'leave')).status).toBe(409);expect((await call(id,'archive')).status).toBe(200);});
 it('excludes archived groups from discovery and protects member lists',async()=>{const id=await create();await member(id,'member');await call(id,'archive');expect((await(await handleGroups(req(),env)).json()).groups).toHaveLength(0);expect((await handleGroups(req('/'+id+'/members','GET',undefined,'member'),env)).status).toBe(403);expect((await call(id,'request',{},'outsider')).status).toBe(409);});
 it('protects writes with session/CSRF/environment and isolates My Groups',async()=>{const id=await create();expect((await call(id,'remove',{playerId:'owner'},'outsider')).status).toBe(403);expect((await handleGroups(req('/'+id+'/request','POST',{},'outsider',{'X-CSRF-Token':'wrong'}),env)).status).toBe(403);expect((await handleGroups(req('/'+id+'/request','POST',{},''),env)).status).toBe(401);expect((await handleGroups(req(),{...env,CF_PAGES_BRANCH:'main'})).status).toBe(404);expect((await(await handleGroups(req('/mine','GET',undefined,'outsider'),env)).json()).groups).toHaveLength(0);});
 it('version-checks metadata edits and never exposes private description to pending players',async()=>{const id=await create();await call(id,'request',{},'member');expect((await call(id,'edit',{...input(),requestId:undefined,version:1})).status).toBe(200);expect((await call(id,'edit',{...input(),requestId:undefined,version:1})).status).toBe(409);expect(await(await handleGroups(req('/'+id,'GET',undefined,'member'),env)).json()).not.toHaveProperty('content');});
@@ -36,10 +36,10 @@ it('requires active group ownership resolution before account deletion and clean
 it('notifies group managers and applicants without exposing member names to nonmembers',async()=>{const id=await create();await call(id,'request',{},'member');const inbox=async(who:string)=>{const r=await handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens[who]}}),env);expect(r.status).toBe(200);return (await r.json()).notifications;};expect((await inbox('owner'))[0]).toMatchObject({kind:'group_requested',displayName:'Name member',actionPlayerId:'member',requestStatus:'pending'});expect(await inbox('outsider')).toHaveLength(0);await call(id,'reject',{playerId:'member'});expect((await inbox('member'))[0]).toMatchObject({kind:'group_rejected',displayName:'Group administrator'});await call(id,'request',{},'member');await call(id,'approve',{playerId:'member'});expect((await inbox('member')).some((n:any)=>n.kind==='group_active')).toBe(true);});
 it('revokes old membership-request notifications when an administrator is removed',async()=>{const id=await create();await member(id,'admin');await call(id,'role',{playerId:'admin',role:'coowner'});await call(id,'request',{},'outsider');await call(id,'remove',{playerId:'admin'});const r=await handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens.admin}}),env);expect(r.status).toBe(200);const notes=(await r.json()).notifications;expect(notes.some((n:any)=>n.kind==='group_requested')).toBe(false);expect(JSON.stringify(notes)).not.toContain('Name outsider');});
 
-it('does not search private descriptions and blocks peer-admin management',async()=>{const id=await create();const search=await(await handleGroups(req('?q=PRIVATE-CONTENT-SENTINEL','GET',undefined,''),env)).json();expect(search.groups).toHaveLength(0);await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});await call(id,'role',{playerId:'member',role:'coowner'});expect((await call(id,'remove',{playerId:'member'},'admin')).status).toBe(403);await call(id,'remove',{playerId:'admin'});expect((await call(id,'approve',{playerId:'outsider'},'admin')).status).toBe(403);});
+it('does not search private descriptions and blocks peer-admin management',async()=>{const id=await create();const search=await(await handleGroups(req('?q=PRIVATE-CONTENT-SENTINEL','GET',undefined,''),env)).json();expect(search.groups).toHaveLength(0);await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});expect((await call(id,'role',{playerId:'member',role:'coowner'})).status).toBe(409);expect((await call(id,'role',{playerId:'admin',role:'member'},'admin')).status).toBe(400);await call(id,'remove',{playerId:'admin'});expect((await call(id,'approve',{playerId:'outsider'},'admin')).status).toBe(403);});
 
 it('preserves legacy Admin authority without granting new role-management powers',async()=>{const id=await create();await member(id,'admin');db.sqlite.prepare("UPDATE group_memberships SET role='admin',assigned_role=NULL WHERE group_id=? AND player_id='admin'").run(id);await call(id,'request',{},'member');expect((await call(id,'approve',{playerId:'member'},'admin')).status).toBe(200);expect((await call(id,'role',{playerId:'member',role:'organizer'},'admin')).status).toBe(403);expect((await(await handleGroups(req('/'+id,'GET',undefined,'admin'),env)).json()).membership.role).toBe('admin');});
-it('coowners can assign Organizers but only primary Owner controls coowners/archive/transfer',async()=>{const id=await create();await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});expect((await call(id,'role',{playerId:'member',role:'organizer'},'admin')).status).toBe(200);expect((await call(id,'role',{playerId:'member',role:'coowner'},'admin')).status).toBe(403);expect((await call(id,'archive',{},'admin')).status).toBe(403);expect((await call(id,'transfer',{playerId:'member'},'admin')).status).toBe(403);expect((await call(id,'request',{},'outsider')).status).toBe(200);expect((await call(id,'approve',{playerId:'outsider'},'member')).status).toBe(403);expect((await call(id,'role',{playerId:'admin',role:'member'},'admin')).status).toBe(400);});
+it('only primary Owner assigns roles and controls archive',async()=>{const id=await create();await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});expect((await call(id,'role',{playerId:'member',role:'organizer'},'admin')).status).toBe(403);expect((await call(id,'role',{playerId:'member',role:'organizer'})).status).toBe(200);expect((await call(id,'role',{playerId:'member',role:'coowner'},'admin')).status).toBe(403);expect((await call(id,'archive',{},'admin')).status).toBe(403);expect((await call(id,'transfer',{playerId:'member'},'admin')).status).toBe(403);expect((await call(id,'request',{},'outsider')).status).toBe(200);expect((await call(id,'approve',{playerId:'outsider'},'member')).status).toBe(403);expect((await call(id,'role',{playerId:'admin',role:'member'},'admin')).status).toBe(400);});
 
 function webp(){const b=new Uint8Array(30);b.set(new TextEncoder().encode('RIFF'),0);new DataView(b.buffer).setUint32(4,22,true);b.set(new TextEncoder().encode('WEBPVP8X'),8);new DataView(b.buffer).setUint32(16,10,true);b[24]=31;b[27]=31;return b;}
 it('validates output dimensions/metadata and stores only optimized images for authorized actors',async()=>{const id=await create();const objects=new Map<string,ArrayBuffer>();const bucket={put:async(k:string,v:ArrayBuffer)=>{objects.set(k,v);},get:async(k:string)=>objects.has(k)?{body:new Blob([objects.get(k)!]).stream()}:null,delete:async(k:string)=>{objects.delete(k);}};let calls=0;const mediaEnv:MediaEnv={...env,MEDIA_UPLOADS_ENABLED:'true',PLAY_TOGETHER_MEDIA:bucket,PLAY_TOGETHER_IMAGE_PROCESSOR:{fetch:async()=>{calls++;return new Response(webp());}}};const upload=(who:string)=>new Request(origin+'/api/media/group/'+id,{method:'PUT',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'image/jpeg'},body:'original-input'});expect((await handleMedia(upload('outsider'),mediaEnv)).status).toBe(404);expect(calls).toBe(0);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);const read=new Request(origin+'/api/media/group/'+id);expect((await handleMedia(read,mediaEnv)).status).toBe(200);expect(safeWebp(webp(),'group')).toEqual({width:32,height:32});const bad=webp();bad.set(new TextEncoder().encode('EXIF'),12);expect(()=>safeWebp(bad,'group')).toThrow();});
@@ -104,4 +104,108 @@ it('ZIP and city-state player searches match shared locality labels without expo
 });
 it('ZIP player search fails clearly for unavailable or mismatched location results',async()=>{
  const upstream=vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response('Unavailable',{status:503}));try{const request=()=>new Request(origin+'/api/players?q=22033',{headers:{Cookie:'oc_session='+tokens.owner}});expect((await handlePlayers(request(),env)).status).toBe(503);upstream.mockResolvedValue(Response.json([{display_name:'Other ZIP, Virginia, United States',lat:'38',lon:'-77',address:{postcode:'22034',country_code:'us'}}]));expect((await handlePlayers(request(),env)).status).toBe(400);}finally{upstream.mockRestore();}
+});
+
+it('allows only one active Co-owner and one Organizer and releases slots on demotion',async()=>{
+ const id=await create();await member(id,'member');await member(id,'admin');await member(id,'outsider');
+ expect((await call(id,'role',{playerId:'member',role:'coowner'})).status).toBe(200);
+ expect((await call(id,'role',{playerId:'admin',role:'coowner'})).status).toBe(409);
+ expect((await call(id,'role',{playerId:'admin',role:'organizer'})).status).toBe(200);
+ expect((await call(id,'role',{playerId:'outsider',role:'organizer'})).status).toBe(409);
+ expect((await call(id,'role',{playerId:'admin',role:'member'})).status).toBe(200);
+ expect((await call(id,'role',{playerId:'outsider',role:'organizer'})).status).toBe(200);
+ expect((await call(id,'role',{playerId:'owner',role:'member'})).status).toBe(400);
+});
+
+async function waitGame(){
+ const groupId=await create();for(const p of ['member','admin','outsider'])await member(groupId,p);
+ const id=crypto.randomUUID(),now=Date.now();db.sqlite.prepare(`INSERT INTO games(id,organizer_id,visibility,group_id,title,court_id,court_name,court_lat,court_lon,court_access,starts_at,ends_at,time_zone,format,capacity,request_id,request_hash,created_at,updated_at,join_policy) VALUES (?,?,'group',?,'Waitlist test','court','Park',38,-77,'public',?,?,'UTC','singles',2,?,'hash',?,?,'instant')`).run(id,'owner',groupId,now+86400000,now+90000000,id,now,now);
+ for(const p of ['owner','member'])db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(id,p,now);
+ return {id,groupId};
+}
+async function waitCall(id:string,action:string,who:string,body={}){return handleGames(new Request(origin+'/api/games/'+id+'/'+action,{method:action==='participation'?'GET':'POST',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(action==='participation'?{}:{body:JSON.stringify(body)})}),env);}
+it('queues group players FIFO, reserves openings and accepts only the offered player',async()=>{
+ const {id}=await waitGame();expect((await waitCall(id,'join-waitlist','admin')).status).toBe(200);db.sqlite.prepare('UPDATE game_waitlist SET created_at=created_at-100 WHERE player_id=?').run('admin');
+ expect((await waitCall(id,'join-waitlist','outsider')).status).toBe(200);const state=await(await waitCall(id,'participation','outsider')).json();expect(state.waitlist).toMatchObject({status:'waiting',position:2});
+ expect((await waitCall(id,'leave','member')).status).toBe(200);expect(db.sqlite.prepare('SELECT status FROM game_waitlist WHERE player_id=?').get('admin').status).toBe('offered');
+ expect((await waitCall(id,'join','member')).status).toBe(409);expect((await waitCall(id,'accept-waitlist','outsider')).status).toBe(409);
+ expect((await waitCall(id,'accept-waitlist','admin')).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
+ expect((await waitCall(id,'accept-waitlist','admin')).status).toBe(409);
+});
+it('expires offers, advances the queue, supports withdrawal and respects membership removal',async()=>{
+ const {id,groupId}=await waitGame();await waitCall(id,'join-waitlist','admin');db.sqlite.prepare('UPDATE game_waitlist SET created_at=created_at-100 WHERE player_id=?').run('admin');await waitCall(id,'join-waitlist','outsider');await waitCall(id,'leave','member');
+ db.sqlite.prepare('UPDATE game_waitlist SET offer_expires_at=? WHERE player_id=?').run(Date.now()-1,'admin');
+ const next=await(await waitCall(id,'participation','outsider')).json();expect(next.waitlist.status).toBe('offered');expect((await waitCall(id,'accept-waitlist','admin')).status).toBe(409);
+ await call(groupId,'remove',{playerId:'outsider'});const privateInbox=await handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens.outsider}}),env);expect((await privateInbox.json()).notifications.some((n:any)=>n.kind==='waitlist_offer')).toBe(false);expect((await waitCall(id,'accept-waitlist','outsider')).status).toBe(404);
+ await waitCall(id,'join-waitlist','admin');expect((await waitCall(id,'leave-waitlist','admin')).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_waitlist WHERE player_id=?').get('admin').n).toBe(0);
+});
+it('waitlist notifications expose offers only to eligible recipients and reserve against guests',async()=>{
+ const {id}=await waitGame();await waitCall(id,'join-waitlist','admin');await waitCall(id,'leave','member');
+ const inbox=async(who:string)=>handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens[who]}}),env);
+ const mine=await(await inbox('admin')).json();expect(mine.notifications.some((n:any)=>n.kind==='waitlist_offer'&&n.gameId===id)).toBe(true);
+ const other=await(await inbox('outsider')).json();expect(other.notifications.some((n:any)=>n.kind==='waitlist_offer')).toBe(false);
+ expect(()=>db.sqlite.prepare('UPDATE game_participants SET guest_count=1 WHERE game_id=? AND player_id=?').run(id,'owner')).toThrow(/capacity/);
+ db.sqlite.prepare("INSERT INTO player_blocks VALUES ('owner','admin',?)").run(Date.now());expect((await(await inbox('admin')).json()).notifications.some((n:any)=>n.kind==='waitlist_offer')).toBe(false);
+});
+
+it('host queue is authorized and personal waitlist schedule never leaks after removal',async()=>{
+ const {id,groupId}=await waitGame();await waitCall(id,'join-waitlist','admin');
+ const queue=async(who:string)=>handleGames(new Request(origin+'/api/games/'+id+'/waitlist',{headers:{Cookie:'oc_session='+tokens[who]}}),env);
+ expect((await queue('member')).status).toBe(200);expect((await queue('owner')).status).toBe(200);expect((await(await queue('owner')).json()).players[0]).toMatchObject({id:'admin',status:'waiting'});
+ const mine=async()=>handleGames(new Request(origin+'/api/games/mine?view=waitlisted',{headers:{Cookie:'oc_session='+tokens.admin}}),env);
+ expect((await(await mine()).json()).games[0]).toMatchObject({id,position:1,section:'waitlisted'});
+ await waitCall(id,'leave','member');expect((await(await mine()).json()).games[0].waitlistStatus).toBe('offered');
+ await call(groupId,'remove',{playerId:'admin'});expect((await(await mine()).json()).games).toHaveLength(0);expect((await queue('admin')).status).toBe(404);
+});
+
+it('public group events are visible without membership but outsiders require approval',async()=>{
+ const {id,groupId}=await waitGame();db.sqlite.prepare("UPDATE tennis_groups SET visibility='public' WHERE id=?").run(groupId);
+ db.sqlite.prepare("DELETE FROM group_memberships WHERE group_id=? AND player_id='outsider'").run(groupId);db.sqlite.prepare("UPDATE games SET event_capacity=4 WHERE id=?").run(id);
+ const get=async(path:string,who='outsider')=>handleGames(new Request(origin+'/api/games'+path,{headers:who?{Cookie:'oc_session='+tokens[who]}:{}}),env);
+ expect((await get('/'+id,'')).status).toBe(200);expect((await(await get('','')).json()).games.some((g:any)=>g.id===id)).toBe(true);
+ expect((await(await get('/feed','')).json()).games.some((g:any)=>g.id===id)).toBe(true);expect((await(await get('/feed')).json()).games.some((g:any)=>g.id===id)).toBe(true);
+ expect((await(await get('/feed?filter=groups')).json()).games.some((g:any)=>g.id===id)).toBe(false);
+ const state=await(await get('/'+id+'/participation')).json();expect(state).toMatchObject({joinPolicy:'approval',isGroupMember:false});
+ expect((await waitCall(id,'join','outsider')).status).toBe(200);expect(db.sqlite.prepare('SELECT status FROM game_join_requests WHERE game_id=? AND player_id=?').get(id,'outsider').status).toBe('pending');
+ expect(db.sqlite.prepare('SELECT 1 FROM game_participants WHERE game_id=? AND player_id=?').get(id,'outsider')).toBeUndefined();
+ expect((await waitCall(id,'approve','owner',{playerId:'outsider'})).status).toBe(200);expect((await waitCall(id,'join','admin')).status).toBe(200);
+ expect((await get('/'+id+'/participants')).status).toBe(403);expect((await handleGroups(req('/'+groupId+'/members','GET',undefined,'outsider'),env)).status).toBe(403);
+ expect((await waitCall(id,'join-waitlist','outsider')).status).toBe(403);
+ expect((await waitCall(id,'leave','outsider')).status).toBe(200);
+});
+it('switching a group to private immediately hides events from nonmembers everywhere',async()=>{
+ const {id,groupId}=await waitGame();db.sqlite.prepare("UPDATE tennis_groups SET visibility='public' WHERE id=?").run(groupId);db.sqlite.prepare("DELETE FROM group_memberships WHERE group_id=? AND player_id='outsider'").run(groupId);
+ expect((await waitCall(id,'join','outsider')).status).toBe(200);
+ db.sqlite.prepare("UPDATE tennis_groups SET visibility='private' WHERE id=?").run(groupId);
+ const get=async(path:string)=>handleGames(new Request(origin+'/api/games'+path,{headers:{Cookie:'oc_session='+tokens.outsider}}),env);
+ expect((await get('/'+id)).status).toBe(404);expect((await get('/'+id+'/participation')).status).toBe(404);expect((await get('/feed?groupId='+groupId)).status).toBe(404);
+ for(const path of ['', '/feed','/mine?view=requests','/notifications'])expect(JSON.stringify(await(await get(path)).json())).not.toContain('Waitlist test');
+ expect((await waitCall(id,'accept-waitlist','outsider')).status).toBe(404);
+});
+
+it('series management honors current group roles and hides schedule notes after removal',async()=>{
+ const {id,groupId}=await waitGame();const request=(who:string,suffix='',body?:unknown)=>new Request(origin+'/api/games/'+id+'/series'+suffix,{method:body?'POST':'GET',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ expect((await handleGames(request('member'),env)).status).toBe(404);await call(groupId,'role',{playerId:'admin',role:'coowner'});expect((await handleGames(request('admin'),env)).status).toBe(200);
+ const next=new Date(Date.now()+2*86400000).toISOString().slice(0,16);const input={scope:'single',operation:'reschedule',preserveExceptions:true,startLocal:next};let r=await handleGames(request('admin','/preview',input),env);expect(r.status).toBe(200);const plan=await r.json();r=await handleGames(request('admin','/apply',{...input,planHash:plan.planHash,requestId:crypto.randomUUID()}),env);expect(r.status).toBe(200);
+ await call(groupId,'remove',{playerId:'member'});const inbox=await handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens.member}}),env);expect((await inbox.json()).notifications.some((n:any)=>n.kind==='schedule_changed')).toBe(false);
+ await call(groupId,'role',{playerId:'admin',role:'member'});expect((await handleGames(request('admin'),env)).status).toBe(404);
+});
+
+it('approved group members read player lists without private reasons or management rights',async()=>{
+ const {id,groupId}=await waitGame();await waitCall(id,'leave','member',{reason:'PRIVATE cancellation reason'});
+ const get=async(action:string,who='admin')=>handleGames(new Request(origin+'/api/games/'+id+'/'+action,{headers:{Cookie:'oc_session='+tokens[who]}}),env);
+ expect((await get('participants')).status).toBe(200);
+ const cancellations=await get('cancellations');expect(cancellations.status).toBe(200);const data=await cancellations.json();expect(data.players[0]).toHaveProperty('displayName');expect(data.players[0]).not.toHaveProperty('reason');
+ expect((await get('requests')).status).toBe(403);expect((await waitCall(id,'remove','admin',{playerId:'owner'})).status).toBe(403);
+ await call(groupId,'remove',{playerId:'admin'});for(const action of ['participants','waitlist','cancellations'])expect((await get(action)).status).toBe(404);
+});
+
+it('rejoining clears current player cancellations and guest cancellations are shown separately',async()=>{
+ const {id}=await waitGame();await waitCall(id,'leave','member',{reason:'Earlier cancellation'});
+ const list=async()=> (await(await handleGames(new Request(origin+'/api/games/'+id+'/cancellations',{headers:{Cookie:'oc_session='+tokens.owner}}),env)).json()).players;
+ expect((await list()).some((p:any)=>p.kind==='player'&&p.displayName==='Name member')).toBe(true);
+ await waitCall(id,'join','member');expect((await list()).some((p:any)=>p.kind==='player'&&p.displayName==='Name member')).toBe(false);
+ await waitCall(id,'request-guests','member',{guestCount:1});await waitCall(id,'cancel-guests','member');
+ expect(await list()).toContainEqual(expect.objectContaining({kind:'guests',displayName:'Name member',guestCount:1}));
+ await waitCall(id,'request-guests','member',{guestCount:1});expect((await list()).some((p:any)=>p.kind==='guests')).toBe(false);
 });

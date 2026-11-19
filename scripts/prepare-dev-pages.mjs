@@ -24,3 +24,5 @@ await copyFile(new URL('index.html', output), new URL('play-together/feed.html',
 for(const route of ['players','game-invitation'])await copyFile(new URL('index.html',output),new URL('play-together/'+route+'.html',output));
 
 await copyFile(new URL('index.html',output),new URL('play-together/notifications.html',output));
+
+await copyFile(new URL('index.html',output),new URL('play-together/manage-series.html',output));

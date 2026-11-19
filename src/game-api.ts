@@ -1,6 +1,6 @@
 export interface Game {
-  isHost?:boolean;visibility?:string;groupId?:string|null;id:string;title:string;court:{id:string;name:string;lat:number;lon:number;access:'public'|'unknown'};
-  startsAt:string;endsAt:string;timeZone:string;format:'singles'|'doubles';capacity:number;
+  isHost?:boolean;visibility?:string;groupId?:string|null;groupVisibility?:'public'|'private'|null;id:string;title:string;court:{id:string;name:string;lat:number;lon:number;access:'public'|'unknown'};
+  startsAt:string;endsAt:string;timeZone:string;format:'singles'|'doubles';capacity:number;courtCount?:number;seriesId?:string|null;seriesWeek?:number|null;seriesWeeks?:number|null;
   joinPolicy?:'instant'|'approval';skillPreference:string;status:'scheduled'|'cancelled';organizer:{displayName:string};playerCount:number;notes?:string;distanceMiles?:number;
 }
 export interface GameCourt {id:string;name:string;lat:number;lon:number;access:'public'|'unknown';distanceMiles:number;selectionToken:string}

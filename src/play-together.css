@@ -53,8 +53,6 @@
  .pt-bottom-nav a:hover,.pt-bottom-nav a:focus-visible{background:var(--bg)}
  .pt-bottom-nav a:focus-visible{outline:2px solid var(--text);outline-offset:2px}
  .pt-bottom-nav a.active{background:color-mix(in srgb,var(--lime) 18%,var(--surface));color:var(--text)}
- .pt-bottom-nav .mobile-nav-search{position:relative;min-height:56px;color:var(--text)}
- .pt-bottom-nav .mobile-nav-search-icon{display:grid;place-items:center;width:48px;height:48px;margin-top:-19px;background:var(--text);color:var(--surface);border:4px solid var(--surface);border-radius:50%;box-shadow:var(--shadow)}
  .pt-bottom-nav~main.pt-page{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
 }
 /* The phone dock replaces the page-level back link. Keep useful content near the header. */
@@ -70,7 +68,7 @@
 /* Compact community home, using the existing OpenCourts palette and type. */
 .pt-feed-groups,.pt-feed-events{margin-bottom:28px}.pt-feed-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px}.pt-feed-section-title h2{font:600 20px/1.3 'DM Sans',sans-serif;margin:0}.pt-feed-section-title>a{display:inline-flex;align-items:center;gap:5px;font-size:12px;min-height:44px}.pt-feed-group-rail{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 12px;scroll-snap-type:x proximity}.pt-feed-group{display:flex;align-items:center;gap:12px;flex:0 0 240px;min-width:0;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;scroll-snap-align:start}.pt-feed-group strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}.pt-feed-cover{display:grid;place-items:center;flex-shrink:0;overflow:hidden;width:114px;height:76px;border-radius:12px;background:color-mix(in srgb,var(--lime) 15%,var(--surface));color:var(--text)}.pt-feed-cover img{width:100%;height:100%;object-fit:cover}.pt-feed-group .pt-feed-cover{width:76px;height:56px;border-radius:9px}.pt-feed-create{display:flex;align-items:center;gap:14px;padding:17px 20px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--lime) 13%,var(--surface));min-height:76px}.pt-feed-create span{flex:1}.pt-feed-create strong,.pt-feed-create small{display:block}.pt-feed-create small{color:var(--muted);margin-top:5px}.pt-feed-filters{display:flex;gap:8px;overflow-x:auto;padding:0 2px 12px}.pt-feed-filters button{border-radius:999px;white-space:nowrap;flex-shrink:0;min-height:44px;padding:10px 18px}.pt-feed-day>h3{font:600 14px/1.4 'DM Sans',sans-serif;color:var(--muted);margin:20px 0 6px}.pt-feed-event{padding:18px 0;border-bottom:1px solid var(--line)}.pt-feed-event-main{display:flex;align-items:start;gap:18px}.pt-feed-event-copy{flex:1;min-width:0}.pt-feed-event h2{font:600 19px/1.35 'DM Sans',sans-serif;margin:5px 0 8px;overflow-wrap:anywhere}.pt-feed-event h2 a:hover{text-decoration:underline}.pt-feed-event p{font-size:13px;color:var(--muted);line-height:1.5;margin:4px 0;overflow-wrap:anywhere}.pt-feed-status{font-size:11px;font-weight:600;color:var(--muted)}.pt-feed-location{display:flex;align-items:start;gap:5px}.pt-feed-location svg{flex-shrink:0;margin-top:3px}.pt-feed-event-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}.pt-feed-event-footer>span{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}.pt-feed-event-footer small{color:var(--muted);font-size:11px}.pt-feed-view{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:12px;font-weight:600;white-space:nowrap}.pt-feed-events a:focus-visible,.pt-feed-groups a:focus-visible{outline:2px solid var(--text);outline-offset:3px}@media(max-width:620px){.pt-feed-heading{margin-bottom:12px!important}.pt-feed-groups{margin-bottom:24px}.pt-feed-event-main{gap:12px}.pt-feed-event h2{font-size:16px}.pt-feed-cover{width:96px;height:72px}.pt-feed-event-footer>span{gap:5px}.pt-feed-event-footer{gap:8px}.pt-feed-section-title h2{font-size:19px}}@media(max-width:360px){.pt-feed-event-main>.pt-feed-cover{width:76px;height:64px}.pt-feed-event-footer small{display:none}}
 .pt-page .pt-feed-filters>button{border-radius:999px;padding:10px 18px}.pt-feed-group-rail{scroll-padding-inline:2px}.pt-feed-group:focus-visible{outline-offset:-3px}
-@media(max-width:1100px){.app.dark .pt-bottom-nav .mobile-nav-search{color:var(--text)}}
+@media(max-width:1100px){}
 /* Keep alert badges outside the button; only the photo itself needs clipping. */
 .pt-account-link.pt-notification-bell{overflow:visible}
 .pt-account-link .pt-account-avatar{object-fit:contain;object-position:center;border-radius:0;width:78%;height:78%}
@@ -142,3 +140,73 @@
 .pt-page .pt-primary{border-radius:var(--action-radius)}
 .pt-page .pt-primary:focus-visible{outline-color:var(--action-focus)}
 .pt-page .pt-primary:disabled{opacity:.6}
+
+.pt-player-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
+.pt-player-invite>summary{cursor:pointer;list-style:none}
+.pt-player-invite>summary::-webkit-details-marker{display:none}
+.pt-player-invite[open]{flex-basis:100%;min-width:0}
+.pt-invite-picker{margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.pt-invite-picker .pt-form{margin-top:12px}
+
+/* Keep form controls within their grid on phones, tablets and desktop. Native menu labels stay concise. */
+.pt-form select,.pt-filter-grid select{min-width:0;max-width:100%;width:100%;box-sizing:border-box;text-overflow:ellipsis}.pt-form label,.pt-filter-grid>label{min-width:0}.pt-manual-court{margin-top:18px;min-width:0}.pt-manual-court>.pt-form{margin-top:16px}
+
+.pt-role-choices{display:grid;gap:.5rem;min-width:0;width:100%;max-width:28rem}
+.pt-role-choice{justify-content:flex-start;text-align:left;white-space:normal;width:100%}
+.pt-role-choice span{display:grid;gap:.25rem;min-width:0}
+.pt-role-choice small{font-weight:400;line-height:1.4}
+@media(max-width:600px){.pt-role-choices{max-width:100%}.pt-member-controls:has(.pt-role-choices){width:100%;display:grid;grid-template-columns:minmax(0,1fr)}}
+
+/* Native top layer prevents the fixed dock/header from covering confirmation actions. */
+dialog.pt-confirmation{position:fixed;inset:0;margin:auto;width:min(440px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;overscroll-behavior:contain;padding:24px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);box-shadow:var(--shadow);font:inherit}
+dialog.pt-confirmation::backdrop{background:rgb(0 0 0 / .45)}
+dialog.pt-confirmation p{margin:0 0 18px;line-height:1.6;overflow-wrap:anywhere}
+@media(max-width:600px){.pt-page dialog.pt-confirmation button{display:flex;width:100%;margin:8px 0 0;min-height:46px}}
+
+.pt-page .pt-invitation-list{gap:0;margin-top:16px;padding:0;list-style:none}
+.pt-page .pt-invitation-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);min-width:0}
+.pt-invitation-info{display:grid;gap:4px;flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.pt-invitation-info small{font-size:11px;color:var(--muted);line-height:1.5}
+.pt-invitation-status{font-size:11px;color:var(--muted)}
+.pt-invitation-menu{position:relative;flex-shrink:0}
+.pt-page .pt-invitation-menu>summary{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line);border-radius:8px;list-style:none;cursor:pointer}
+.pt-invitation-menu>summary::-webkit-details-marker{display:none}
+.pt-invitation-menu>button{position:absolute;right:0;top:48px;z-index:25;white-space:nowrap;box-shadow:var(--shadow)}
+
+.pt-waitlist{border-top:1px solid var(--line);margin-top:18px;padding-top:4px}
+.pt-waitlist h3{display:flex;align-items:center;gap:6px}
+.pt-page .pt-waitlist-rows{list-style:none;display:grid;padding:0;margin:8px 0;gap:0}
+.pt-page .pt-waitlist-rows li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);min-height:48px}
+.pt-waitlist-position{width:28px;flex-shrink:0;text-align:center;font-size:12px;color:var(--muted)}
+.pt-waitlist-rows li>span:last-child{min-width:0;overflow-wrap:anywhere}
+.pt-waitlist-rows small{display:block;font-size:12px;line-height:1.5;color:var(--muted);margin-top:2px}
+
+.pt-feed-filters[aria-label="Schedule views"]{flex-wrap:wrap;overflow:visible}
+
+.pt-page .pt-series-dates{list-style:none;margin:12px 0;padding:0;display:grid;gap:0}
+.pt-page .pt-series-dates li{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.pt-series-dates li>div{flex:1;min-width:0;overflow-wrap:anywhere}
+.pt-series-dates small,.pt-series-dates .pt-help{display:block;margin-top:4px}
+.pt-series-dates small{font-size:12px;color:var(--muted)}
+.pt-series-review{padding-left:20px;font-size:13px;line-height:1.6}
+.pt-series-review li{margin:8px 0;overflow-wrap:anywhere}
+
+.pt-series-review{max-height:32dvh;overflow:auto;overscroll-behavior:contain}
+
+/* Compact destination links distinguish group/game context in the inbox. */
+.pt-notification-destination{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-width:0;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;font-weight:600;text-decoration:none;transition:background-color .15s,border-color .15s}
+.pt-notification-destination>svg{flex-shrink:0}.pt-notification-destination>span{min-width:0;overflow-wrap:anywhere}.pt-notification-destination>svg:last-child{color:var(--muted)}
+.pt-notification-destination:hover{background:var(--surface);border-color:var(--muted);text-decoration:none}.pt-notification-destination:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.pt-notification-meta{row-gap:6px;padding:4px 0}
+@media(prefers-reduced-motion:reduce){.pt-notification-destination{transition:none}}
+
+.pt-guest-count{margin:0;padding:0;border:0;min-width:0}.pt-guest-count legend{padding:0;margin-bottom:8px;font-size:13px;font-weight:600}.pt-guest-count>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pt-guest-count button{min-width:0;padding:10px 8px;touch-action:manipulation}.pt-guest-count button[aria-pressed=true]{background:var(--action-bg);border-color:var(--action-bg);color:var(--action-text)}
+
+.pt-guest-request-list{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}.pt-guest-request-list>li{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);min-width:0}.pt-guest-request-list>li>span{flex:0 1 auto;min-width:0;max-width:100%;overflow-wrap:anywhere}.pt-guest-request-list button{flex:0 0 auto;white-space:nowrap;min-height:44px;padding:8px;gap:5px}.pt-guest-request-list button svg{flex-shrink:0}
+
+.pt-guests{--guest-deny-bg:#fcebea;--guest-deny-text:#942f2b;--guest-deny-line:#d8a3a0}.dark .pt-guests{--guest-deny-bg:#402724;--guest-deny-text:#ffc4bd;--guest-deny-line:#95605a}
+.pt-guest-request-list .pt-guest-approve{background:var(--action-bg);border-color:var(--action-bg);color:var(--action-text)}
+.pt-guest-request-list .pt-guest-deny{background:var(--guest-deny-bg);border-color:var(--guest-deny-line);color:var(--guest-deny-text)}
+.pt-guest-request-list .pt-guest-approve:hover:not(:disabled){background:color-mix(in srgb,var(--action-bg) 88%,black);border-color:var(--action-bg);color:var(--action-text)}
+.pt-guest-request-list .pt-guest-deny:hover:not(:disabled){background:color-mix(in srgb,var(--guest-deny-bg) 85%,var(--guest-deny-line));border-color:var(--guest-deny-text);color:var(--guest-deny-text)}
+.pt-guest-request-list button:focus-visible{outline:2px solid var(--text);outline-offset:3px}

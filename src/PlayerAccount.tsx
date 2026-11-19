@@ -1,3 +1,4 @@
+import SiteSelect from './SiteSelect';
 import LocationAutocomplete from './LocationAutocomplete';
 import PhotoUpload from './PhotoUpload';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -121,7 +122,7 @@ export default function PlayerAccount() {
           <PhotoUpload kind="player" id={account.player.id} csrf={account.csrfToken??''}/><form className="pt-form" onSubmit={save}>
             <label>Display name <input required maxLength={60} autoComplete="nickname" value={draft.displayName} onChange={e => edit('displayName', e.target.value)}/></label>
             <LocationAutocomplete label="General location" value={draft.generalLocation} onChange={value=>edit('generalLocation',value)} help="Enter a city or ZIP code. Address suggestions save only the general city/area, never the street address."/>
-            <label>Skill level <select value={draft.skillLevel} onChange={e => edit('skillLevel', e.target.value)}><option value="unspecified">Prefer not to say</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select><span className="pt-help">Self-reported; you can change it anytime.</span></label>
+            <label>Skill level <SiteSelect value={draft.skillLevel} onValueChange={value => edit('skillLevel', value)}><option value="unspecified">Prefer not to say</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></SiteSelect><span className="pt-help">Self-reported; you can change it anytime.</span></label>
             <label>About you <textarea rows={4} maxLength={500} value={draft.bio} onChange={e => edit('bio', e.target.value)} placeholder="What do you enjoy about tennis?"/></label>
             <label className="pt-check"><input type="checkbox" checked={draft.discoverable} onChange={e => edit('discoverable', e.target.checked)}/><span>Allow my profile to appear in player discovery.<small>Off by default. Group membership and private activities stay separate.</small></span></label>
             <button className="pt-primary" type="submit" disabled={busy || !hasChanges}>{busy ? <LoaderCircle size={17} className="search-spinner"/> : <Check size={17}/>} {busy ? 'Saving...' : hasChanges ? 'Save profile' : 'Profile saved'}</button>

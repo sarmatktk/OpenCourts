@@ -4,11 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#123d32" />
-    <meta name="description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta name="description" content="How OpenCourts handles accounts, location, games, groups, photos and privacy choices." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="OpenCourts" />
     <meta property="og:title" content="OpenCourts Privacy" />
-    <meta property="og:description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta property="og:description" content="How OpenCourts handles accounts, location, games, groups, photos and privacy choices." />
     <meta property="og:url" content="https://opencourts.us/privacy" />
     <meta property="og:image" content="https://opencourts.us/social-preview.png" />
     <meta property="og:image:secure_url" content="https://opencourts.us/social-preview.png" />
@@ -18,7 +18,7 @@
     <meta property="og:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="OpenCourts Privacy" />
-    <meta name="twitter:description" content="How OpenCourts handles location, search, analytics, and service data." />
+    <meta name="twitter:description" content="How OpenCourts handles accounts, location, games, groups, photos and privacy choices." />
     <meta name="twitter:image" content="https://opencourts.us/social-preview.png" />
     <meta name="twitter:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
     <link rel="canonical" href="https://opencourts.us/privacy" />
@@ -40,22 +40,56 @@
       <article class="page-card">
         <p class="page-kicker">OpenCourts policies</p>
         <h1>Privacy</h1>
-        <small class="page-updated">Last updated October 15, 2026</small>
-        <p>OpenCourts is free to use. We do not sell personal information.</p>
-        <h2>Location</h2>
-        <p>Your browser location is requested only when you choose a location button. Coordinates are used to load nearby court and weather data. Place searches and results are cached in session storage for the current tab. The location you select is saved in local storage so it can be used when you return. Clear this site’s browser data to remove them.</p>
-        <h2>External services</h2>
-        <p>OpenCourts uses OpenStreetMap for the map and court listings. Place suggestions come from Photon, and submitted place searches are sent to OpenStreetMap’s Nominatim service. Court searches are sent through Cloudflare Pages Functions to Overpass API providers. Forecasts come from the U.S. National Weather Service, and recent-rain estimates use NOAA radar data. Each service receives the search text or coordinates needed to respond and has its own privacy practices.</p>
-        <h2>Analytics</h2>
-        <p>The court-search page uses Google Analytics to measure visits and home-screen installations. Browser-reported installs and first launches in iPhone or iPad standalone mode are counted separately. Google says its default web setup can collect visit and session counts, approximate location, browser and device information, and may use a first-party <code>_ga</code> cookie. Read <a class="page-inline-link" href="https://support.google.com/analytics/answer/11593727" rel="noreferrer">Google’s description of Analytics data collection</a>.</p>
-        <h2>Contact</h2>
-        <p>Questions? Email <a class="page-inline-link" href="mailto:samktk23@gmail.com">samktk23@gmail.com</a>.</p>
+        <small class="page-updated">Last updated November 18, 2026</small>
+        <p>This notice explains how OpenCourts handles information when you browse courts, check weather, or use Play Together. Play Together is currently available in a separate test environment; it is not yet a release of the live website or native iOS app. The Android app displays website content, so these website practices also apply there.</p>
+        <p>OpenCourts does not sell personal information. All first-release Play Together features are free. You can browse courts without creating an account; an account is needed for community actions such as organizing or joining games.</p>
+        <nav class="policy-contents" aria-label="Privacy sections"><a href="#account">Accounts</a><a href="#visibility">Who can see what</a><a href="#location">Location</a><a href="#photos">Photos</a><a href="#services">Services and analytics</a><a href="#choices">Your choices and deletion</a><a href="#retention">Retention</a><a href="#contact">Contact</a></nav>
+        <h2 id="account">Accounts and information you provide</h2>
+        <p>Google and Apple handle sign-in. OpenCourts receives an account identifier and the profile information returned by your provider, such as your email address and, when supplied, your name. Apple may supply a private relay email instead of your personal address. We do not receive or store your Google or Apple password.</p>
+        <p>We store your display name, optional bio, general location, self-reported skill level, player-discovery preference and optional photo. We also store the games and groups you create, membership and role records, invitations, join and guest requests, participation decisions, cancellations, optional cancellation reasons, notifications, blocks and reports you submit. Do not put private contact details, sensitive information or a home address in profile fields or public content.</p>
+        <p>Connected sign-in email addresses are visible in your own Account settings, not in player-search results or group member lists. To use one account with both providers, connect the second method while signed in. Matching names or email addresses do not automatically merge accounts.</p>
+        <h2 id="visibility">Who can see what</h2>
+        <ul><li><strong>Player discovery:</strong> listing is optional and off by default. If enabled, signed-in players can search your display name, general location, skill and bio. Turning it off removes you from player discovery; it does not hide your participation or membership from people authorized to see that game or group.</li>
+        <li><strong>Public games:</strong> game titles, court locations, start times, organizer display names, notes and place counts are publicly discoverable. Host controls and pending requests have additional access restrictions. Treat information you put in a public game as public.</li>
+        <li><strong>Unlisted games:</strong> excluded from public game search, with access through a valid invitation link, a recipient-specific in-app invitation, or existing authorization. Direct player invitations grant access only to the recipient and expire within seven days or at game start. A recipient can forward a link, so unlisted does not mean confidential or group-private. The host can revoke links; requesting a place still requires approval.</li>
+        <li><strong>Public and private groups:</strong> both are discoverable. Nonmembers can see the group name, optional public description, general location, visibility label, public cover and a way to request membership. Public-group events, including their schedules and court locations, are visible to everyone. Private-group events require approved membership. Member lists and other members-only content require approved membership in either group type. Nonmembers need host approval to join public-group events; approved members can join directly. Private-group games, schedules, meeting locations, participant lists and membership-management details are not part of the public preview.</li>
+        <li><strong>Organizers:</strong> authorized hosts and group managers can access the membership or participation information needed for their roles. Group invitation links do not bypass approval. Removing a member revokes their access to private group content. A link cannot override membership checks.</li>
+        <li><strong>Notifications and reports:</strong> activity notifications go to the relevant participants or managers. Hosts receive cancellation information, including an optional reason. Designated site moderators can review submitted report text and references; being a group owner does not make someone a site moderator. Report-review access does not grant general access to private group content.</li></ul>
+        <p>Recipients can copy or capture information they were allowed to see. Revoking a link or removing a member cannot erase copies already made outside OpenCourts.</p>
+        <h2 id="location">Location, searches and browser storage</h2>
+        <p>We request device location when you choose a location action, including the Map button. If permission is already granted, your browser may supply it without another prompt. Coordinates are sent with court, map and weather requests. They are not saved as your player-profile address. You can deny access and search by city, address or ZIP code instead.</p>
+        <p>Search text and coordinates are processed to find places and courts. Place suggestions and searches may be cached in the current tab. Your last chosen court-search location is saved in browser local storage to restore it on return. Favorites and other device preferences may also use local storage. Clear site data to remove browser-stored information; this does not delete your account or server records.</p>
+        <p>Profile and player-search address suggestions are reduced to a general area; a street address is not a profile-location field. Game court locations are different: a selected court or manually entered facility name, address and map coordinates are stored with the game and shown according to that game's visibility. Never use a private home address for a public game.</p>
+        <h2 id="photos">Photos</h2>
+        <p>You can upload one player photo and one cover per group. Player photos are currently available only to the account holder, including their own header avatar. Group covers are public, even for private groups. Only the owner and co-owners can change a group cover.</p>
+        <p>Images are resized and re-encoded before storage, with embedded image metadata removed. Cropping lets you choose the visible area of your avatar. Removing or replacing a photo removes its current reference; storage cleanup can be delayed. Metadata removal does not remove identifying details visible in the picture itself.</p>
+        <h2 id="services">Service providers and external links</h2>
+        <p>Cloudflare hosts the website and its server functions, stores community records in D1 and photos in R2, and processes network requests. Hosting and security services receive technical information such as IP addresses, request details, browser information and timestamps. Preview community data uses separate development storage from production court records.</p>
+        <p>Google and Apple process authentication under their own privacy notices. OpenStreetMap supplies map tiles and court data; Photon and Nominatim support place suggestions and searches; Overpass providers supply map details. Weather sources include the U.S. National Weather Service, NOAA radar, MET Norway, Open-Meteo and WeatherAPI, depending on coverage and availability. These services receive the text, coordinates or network requests needed to respond. Map tiles and online fonts can be requested directly by your browser.</p>
+        <p>Directions open Google Maps with the court destination. Optional support contributions open Buy Me a Coffee. Those services handle their own interactions and any payments; OpenCourts does not process Play Together subscriptions or store payment-card details.</p>
+        <h2>Analytics and cookies</h2>
+        <p>Court pages load Google Analytics to measure usage and installation events. Account and Play Together pages do not load this Google tag. Court-page initialization sends the page origin/path without query strings or fragments and suppresses the referrer. Analytics may receive device/browser information and approximate location, and may set first-party cookies such as <code>_ga</code>. Invitation links may still appear in your browser history or other services' records. See <a class="page-inline-link" href="https://policies.google.com/privacy" rel="noreferrer">Google's privacy notice</a>.</p>
+        <p>Essential session and temporary sign-in cookies support authentication and request protection. Sessions normally expire after seven days; you can sign out sooner or sign out on all devices from Account. Browser cookie restrictions may prevent sign-in. Browser privacy settings and content blockers can restrict analytics; this site does not currently provide a separate analytics-consent toggle.</p>
+        <h2>Security</h2>
+        <p>We use HTTPS, server-side access checks, protected session cookies and request validation. Session tokens are stored as hashes, and retained Apple refresh tokens are encrypted for token-revocation actions. These measures reduce risk but do not guarantee absolute security. Keep invitation links and your sign-in accounts secure.</p>
+        <h2 id="choices">Your choices and account deletion</h2>
+        <p>In <a class="page-inline-link" href="/account">Account</a>, you can edit your profile, change discovery visibility, remove your photo, connect a sign-in method, sign out or request account deletion. You can also leave groups, cancel participation and block or report players through the relevant screens. Blocking does not remove existing shared memberships or confirmed games.</p>
+        <p>Account deletion requires recent sign-in and explicit confirmation. First archive any active groups you own. Deletion removes your profile and linked sign-in/session records, your organized games and related records through their account relationships; archived groups you own are also deleted. Other users' accounts and independently organized activities are not deleted. Apple-linked deletion attempts to revoke the stored Apple token; if that cannot complete, the site reports a failure rather than claiming deletion succeeded.</p>
+        <p>For access, correction, deletion or other privacy questions that the interface cannot resolve, email the contact below. We may need to verify account ownership. A self-service account export is not currently provided. Do not email passwords, private keys or sign-in tokens.</p>
+        <h2 id="retention">Retention and test data</h2>
+        <p>Community records are retained to provide accounts, game history, memberships, notifications and safety handling until removed through available controls or account deletion. Invitations expire or move to History without necessarily being deleted. Notification or directory display limits are not deletion schedules. Expired sign-in attempts and expired or revoked session records are cleaned during later sign-in activity.</p>
+        <p>There is not currently a fixed automatic deletion schedule for all inactive accounts, historical activities, reports or uploaded objects awaiting cleanup. Hosting, analytics, email and support-service copies follow their respective retention practices; immediate erasure from every backup or external copy is not promised. Contact us about a specific record.</p>
+        <p>Preview data may be reset during development. Use test information and do not rely on Preview for permanent records or confirmed real-world arrangements.</p>
+        <h2>Children and changes to this notice</h2>
+        <p>OpenCourts is a general-audience tennis service, not a service designed for children. If you believe a child has provided personal information that should be removed, contact us. We will update this notice as features or data practices change; the date above identifies the latest revision.</p>
+        <h2 id="contact">Contact</h2>
+        <p>OpenCourts is an independent project operated by Sam. Send privacy questions to <a class="page-inline-link" href="mailto:samktk23@gmail.com">samktk23@gmail.com</a>. For practical instructions, read <a class="page-inline-link" href="/play-together-help">Play Together help and safety</a>.</p>
       </article>
     </main>
     <footer class="page-footer">
       <a class="page-brand" href="/" aria-label="OpenCourts home"><span class="page-brand-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M6 4.9c2.5 2.2 4 4.6 4 7.1s-1.5 4.9-4 7.1M18 4.9c-2.5 2.2-4 4.6-4 7.1s1.5 4.9 4 7.1" stroke="currentColor" stroke-width="1.5"/></svg></span><span>open<span class="page-brand-light">courts</span></span></a>
       <span>Find your court. Play your game.</span>
-      <nav class="page-footer-nav" aria-label="Footer"><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact">Contact</a></nav>
+      <nav class="page-footer-nav" aria-label="Footer"><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/play-together-help">Play Together help</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact">Contact</a></nav>
       <span class="page-copyright">© 2026 OpenCourts</span>
     </footer>
   </body>

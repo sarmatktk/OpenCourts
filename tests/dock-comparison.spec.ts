@@ -1,7 +1,7 @@
 import {test,expect,type Locator} from '@playwright/test';
 import {mkdirSync,writeFileSync} from 'node:fs';
 const fingerprint=(control:Locator)=>control.evaluate(el=>{
- const s=getComputedStyle(el),icon=el.querySelector('.mobile-nav-search-icon')!,i=getComputedStyle(icon),svg=getComputedStyle(icon.querySelector('svg')!);
+ const s=getComputedStyle(el),icon=el.querySelector('svg')!,i=getComputedStyle(icon),svg=getComputedStyle(icon);
  return {minHeight:s.minHeight,gap:s.gap,font:s.fontSize,weight:s.fontWeight,label:getComputedStyle(el.lastElementChild!).color,background:s.backgroundColor,outline:s.outlineStyle,outlineWidth:s.outlineWidth,outlineOffset:s.outlineOffset,icon:{width:i.width,height:i.height,margin:i.marginTop,radius:i.borderRadius,border:i.borderWidth,borderColor:i.borderColor,background:i.backgroundColor,color:svg.color,shadow:i.boxShadow,stroke:svg.strokeWidth}};
 });
 for(const theme of ['light','dark'] as const)for(const width of [375,390]){

@@ -1,8 +1,12 @@
 # Play Together implementation plan - current state
 
-Updated November 17, 2026. This current plan supersedes the outdated milestone snapshots
+Updated November 19, 2026. This current plan supersedes the outdated milestone snapshots
 previously collected here. Read PLAY_TOGETHER_HANDOFF.md for deployment and local-work status,
 PLAY_TOGETHER.md for approved product decisions, and the feature guides for implementation detail.
+
+## Latest checkpoint (November 19)
+
+Series management and recurring games are now implemented and published through schema 0023; older phase 8 deferral and schema 0017 snapshots below are historical. Read the latest handoff entries for current Preview releases. Current group roles allow one permanent Owner, at most one Co-owner and one Organizer; ownership transfer is not available. Public-group events are publicly discoverable; private-group events and all group member lists require approved membership. Current work is testing/polish and production readiness, not push/email implementation. Email remains deferred; Android push inspection does not authorize implementation. Native iOS, payments and production release remain separate milestones.
 
 ## Environments and preservation
 
@@ -117,3 +121,33 @@ build passed before publication. Hosted HTML/stylesheet HTTP 200 verified afterw
 Preview COURTS_DB remains opencourts-dev; production deployment 7ef38ff2 and original
 production D1 unchanged. No migrations, GitHub push or production deployment.
 This supersedes earlier local-only notices. Next: user/physical-device review.
+
+
+### November 18 - Useful player discovery and mobile access (LOCAL ONLY)
+
+User approved in-app invitations to the sender's public games, with normal host approval.
+Added Players to the phone/tablet dock and Invite to game on discovered player results.
+The recipient sees an inbox invitation and can Request a place; no place is reserved.
+Opt-in, blocks, own-game permissions, public-only scope, duplicate/rate and capacity
+checks are server-enforced. See play-together-player-invitations.md for architecture.
+
+268 unit tests (18 suites), 107 browser checks and development build passed. New migration
+0018_player_game_invitations.sql applied locally only. Hosted opencourts-dev remains 0017;
+apply the reviewed development migration before any Preview deployment of this backend.
+No production change, remote migration, real invitation, Git push or deployment this milestone.
+
+## November 18 - Future milestone: email notifications (deferred)
+
+Approved for the future roadmap only. Do not implement, activate billing, configure sender DNS, create email resources, or send test/user emails until separately authorized. Existing in-app notifications remain the current delivery channel; this milestone does not block current development or authorize a deployment.
+
+Planned scope:
+- Evaluate Cloudflare Email Service and confirm availability/pricing before activation; verify a sending domain and sender authentication. Provider choice and paid service activation still require approval.
+- Create reusable OpenCourts-branded, mobile-friendly HTML and plain-text templates for game invitations, join/membership requests, approval/rejection, cancellations, schedule changes, and waitlist place offers. Include clear game/group context, relevant date/time/time zone, status, and a link to the appropriate action.
+- Use a shared server-side delivery workflow for web, Android and future native iOS, alongside existing in-app notifications. Native push is a separate future capability.
+- Plan a D1 outbox and background delivery with retries, duplicate prevention, delivery tracking, bounce/suppression handling, notification preferences and opt-out controls appropriate to each email category. No schema or delivery contract is implemented by this plan.
+- Protect private group content: recheck current recipient access before sending, minimize sensitive details in emails, and enforce authorization again when opening a link. Email links must never bypass membership or game permissions.
+- Confirm verified recipient email handling, including Apple Hide My Email sender registration/deliverability. Never expose account email addresses in public profiles.
+- Start in the isolated development environment with an explicit tester recipient allowlist. First rollout candidates: invitations, approvals, cancellations and schedule changes; expand only after delivery/privacy testing.
+
+Next step when authorized: agree email categories/preferences, provider and sender domain, then approve the delivery/schema design before implementing. This is a future milestone, not a completed feature or production setting change.
+

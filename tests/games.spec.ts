@@ -42,7 +42,7 @@ for(const colorScheme of ['light','dark'] as const){
     await expect(page.getByRole('button',{name:'Create public game'})).toBeDisabled();
     await page.getByRole('combobox',{name:'Address, city or ZIP code'}).fill('Paris, France');await page.getByRole('button',{name:'Find courts',exact:true}).click();
     await page.getByRole('radio').check();
-    await page.getByLabel('Game title').fill(sample.title);await page.getByLabel('Start date and time').fill('2030-06-15T10:00');await page.getByLabel('Time zone',{exact:false}).fill('Europe/Paris');
+    await page.getByLabel('Game title').fill(sample.title);await page.getByLabel('Start date and time').fill('2030-06-15T10:00');await page.getByLabel('Time zone',{exact:false}).selectOption('Europe/Paris');
     await page.getByLabel('Notes',{exact:false}).fill(sample.notes);await page.getByRole('checkbox',{name:/does not reserve/}).check();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(393);
     await page.evaluate(()=>window.scrollTo(0,0));
@@ -79,8 +79,8 @@ test('court search suggests locations and uses the selected coordinates',async({
  await page.route('**/api/suggest?**',r=>r.fulfill({json:{suggestions:[{label:'Paris, France',title:'Paris',detail:'France',lat:48.8453,lon:2.1902,countryCode:'fr'}]}}));
  await page.goto('/play-together/create');await page.getByRole('combobox',{name:'Address, city or ZIP code'}).fill('Paris');
  await page.getByRole('combobox',{name:'Address, city or ZIP code'}).press('ArrowDown');
- await expect(page.getByRole('option',{name:/Paris/})).toBeVisible();
- const request=page.waitForRequest(r=>r.url().includes('/api/games/courts?'));await page.getByRole('option',{name:/Paris/}).click();
+ await expect(page.locator('#game-place-suggestions').getByRole('option',{name:/Paris/})).toBeVisible();
+ const request=page.waitForRequest(r=>r.url().includes('/api/games/courts?'));await page.locator('#game-place-suggestions').getByRole('option',{name:/Paris/}).click();
  expect(new URL((await request).url()).searchParams.get('lat')).toBe('48.8453');await expect(page.getByRole('radio')).toBeVisible();
 });
 
@@ -177,14 +177,16 @@ test('group administrator can approve a membership request from the inbox',async
  await page.route('**/api/games/notifications/read',r=>r.fulfill({json:{ok:true}}));
  await page.goto('/play-together/notifications');await page.getByRole('button',{name:'Approve',exact:true}).click();await expect(page.getByRole('status')).toHaveText('Request approved. The requester has been notified.');await expect(page.getByRole('button',{name:'Approve',exact:true})).toHaveCount(0);
 });
+test.describe('touch guest selection',()=>{test.use({hasTouch:true});
 for(const theme of ['light','dark'] as const){test('confirmed player requests and cancels guest places in '+theme,async({page})=>{
  await page.emulateMedia({colorScheme:theme});await page.setViewportSize({width:393,height:852});let status:string|null=null;
  await page.route('**/api/games/'+id+'/participation',r=>r.fulfill({json:{isOrganizer:false,joined:true,requestStatus:'approved',joinPolicy:'approval',version:1}}));
  await page.route('**/api/games/'+id+'/guests',r=>r.fulfill({json:{own:{confirmed:0,requested:status==='pending'?1:null,status},requests:[]}}));
  await page.route('**/api/games/'+id+'/request-guests',r=>{expect(r.request().headers()['x-csrf-token']).toBe('test-csrf');expect(r.request().postDataJSON()).toEqual({guestCount:1});status='pending';return r.fulfill({json:{ok:true}});});
  await page.route('**/api/games/'+id+'/cancel-guests',r=>{status='cancelled';return r.fulfill({json:{ok:true}});});
- await page.goto('/play-together/game?id='+id);await page.getByRole('button',{name:'Request guest places',exact:true}).click();await expect(page.getByText('1 guests awaiting approval.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Cancel guest places',exact:true}).click();await expect(page.getByRole('button',{name:'Request guest places',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(393);
+ await page.goto('/play-together/game?id='+id);const guests=page.getByRole('group',{name:'Number of guests'});await guests.getByRole('button',{name:'3 guests',exact:true}).tap();await expect(guests.getByRole('button',{name:'3 guests',exact:true})).toHaveAttribute('aria-pressed','true');await guests.getByRole('button',{name:'2 guests',exact:true}).tap();await expect(guests.getByRole('button',{name:'2 guests',exact:true})).toHaveAttribute('aria-pressed','true');await guests.getByRole('button',{name:'1 guest',exact:true}).tap();await expect(guests.getByRole('button',{name:'1 guest',exact:true})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'Request guest places',exact:true}).click();await expect(page.getByText('1 guests awaiting approval.',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Cancel guest places',exact:true}).click();await expect(page.getByRole('button',{name:'Request guest places',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(393);
 });}
+});
 test('host can approve guest requests from game management',async({page})=>{
  let approved=false;
  await page.route('**/api/games/'+id+'/participation',r=>r.fulfill({json:{isOrganizer:true,joined:true,requestStatus:null,joinPolicy:'instant',version:1}}));
@@ -192,7 +194,7 @@ test('host can approve guest requests from game management',async({page})=>{
  await page.route('**/api/games/'+id+'/requests',r=>r.fulfill({json:{players:[]}}));
  await page.route('**/api/games/'+id+'/guests',r=>r.fulfill({json:{isHost:true,own:{confirmed:0,status:null,requested:null},requests:approved?[]:[{playerId:'tom',displayName:'Tom',guestCount:1}]}}));
  await page.route('**/api/games/'+id+'/approve-guests',r=>{expect(r.request().headers()['x-csrf-token']).toBe('test-csrf');expect(r.request().postDataJSON()).toEqual({playerId:'tom'});approved=true;return r.fulfill({json:{ok:true}});});
- await page.goto('/play-together/game?id='+id);await expect(page.getByRole('button',{name:'Request guest places',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Approve guests for Tom',exact:true}).click();await expect(page.getByRole('button',{name:'Approve guests for Tom',exact:true})).toHaveCount(0);await expect(page.getByText('Tom + 1 guests',{exact:true})).toBeVisible();
+ await page.setViewportSize({width:375,height:812});await page.goto('/play-together/game?id='+id);await expect(page.getByRole('button',{name:'Approve guests for Tom',exact:true})).toBeVisible();const approveBox=await page.getByRole('button',{name:'Approve guests for Tom',exact:true}).boundingBox();const denyBox=await page.getByRole('button',{name:'Deny guests for Tom',exact:true}).boundingBox();expect(approveBox?.y).toBe(denyBox?.y);await expect(page.getByRole('button',{name:'Request guest places',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Approve guests for Tom',exact:true}).click();await expect(page.getByRole('button',{name:'Approve guests for Tom',exact:true})).toHaveCount(0);await expect(page.getByText('Tom + 1 guests',{exact:true})).toBeVisible();
 });
 test('notifications do not push the schedule down and inbox shows a bounded page',async({page})=>{
  const notes=Array.from({length:100},(_,i)=>({id:'note-'+i,gameId:id,gameTitle:sample.title,displayName:'Player '+i,kind:'requested',createdAt:Date.now()-i*1000,readAt:i<5?null:Date.now()}));

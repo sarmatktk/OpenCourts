@@ -171,7 +171,11 @@ async function createSession(db: AuthDatabase, playerId: string, origin: string,
   setCookie(response, origin, 'session', token, SESSION_SECONDS);
 }
 async function start(request: Request, env: AuthEnv, db: AuthDatabase, origin: string, current: Session | null, provider: Provider) {
-  if (!providerReady(provider, env)) fail(503, 'This sign-in option is not configured yet.');
+  if (!providerReady(provider, env)) {
+    const required=provider==='google'?['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET']:['APPLE_CLIENT_ID','APPLE_TEAM_ID','APPLE_KEY_ID','APPLE_PRIVATE_KEY','APPLE_TOKEN_ENCRYPTION_KEY'];
+    const missing=required.filter(name=>!String((env as unknown as Record<string,unknown>)[name]??'').trim());
+    fail(503, missing.length?`Sign-in configuration is missing: ${missing.join(', ')}. Please contact the site administrator.`:'This sign-in option is not configured yet.');
+  }
   if (origin.startsWith('https:') && !env.AUTH_RATE_LIMIT_SECRET) fail(503, 'Sign-in protection is not configured yet.');
   const body = await readJson(request);
   const linking = body.link === true;
@@ -316,7 +320,7 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
     }
     if (path === 'me' && request.method === 'DELETE') {
       const owned=await db.prepare("SELECT id FROM tennis_groups WHERE owner_id=? AND status='active' LIMIT 1").bind(signedIn.id).first();
-      if(owned)throw new AuthError(409,'Transfer ownership or archive your active groups before deleting your account.');
+      if(owned)throw new AuthError(409,'Archive your active groups before deleting your account.');
       if (Date.now() - signedIn.session_created_at > 15 * 60_000) fail(403, 'Sign in again before deleting your account.');
       const body = await readJson(request);
       if (body.confirm !== 'DELETE') fail(400, 'Confirm account deletion.');

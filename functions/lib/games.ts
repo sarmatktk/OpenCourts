@@ -1,5 +1,6 @@
+import {gameSeries} from './game-series';
 import {gameSharing,canViewUnlisted,unlistedAccessSql} from './game-sharing';
-import {groupGameAccess} from './group-game-access';
+import {groupGameAccess,groupEventViewSql} from './group-game-access';
 import { participation } from './game-participation';
 import { SignJWT, jwtVerify } from 'jose';
 import { AuthError, assertEnvironment, checkCsrf, checkOrigin, hashToken, json, readJson, requireSession, session, type AuthEnv, type AuthDatabase } from './auth';
@@ -12,7 +13,7 @@ import { gameStart } from './game-time';
 
 export type GamesEnv = AuthEnv & { GEOAPIFY_API_KEY?: string };
 type Court = { id:string; name:string; lat:number; lon:number; access:'public'|'unknown' };
-type GameRow = { organizer_id:string;visibility:string;group_id:string|null; id:string; title:string; court_id:string; court_name:string; court_lat:number; court_lon:number; court_access:string; starts_at:number; ends_at:number; time_zone:string; format:string; capacity:number; skill_preference:string; status:string; join_policy:string; notes:string; organizer_name:string; player_count:number };
+type GameRow = { organizer_id:string;visibility:string;group_id:string|null;group_visibility:string|null; id:string; title:string; court_id:string; court_name:string; court_lat:number; court_lon:number; court_access:string; starts_at:number; ends_at:number; time_zone:string; format:string; series_id:string|null;series_week:number|null;series_weeks:number|null;court_count:number; capacity:number; skill_preference:string; status:string; join_policy:string; notes:string; organizer_name:string; player_count:number };
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail=(message:string):never=>{throw new AuthError(400,message);};
 function text(value:unknown,max:number,label:string,required=false){
@@ -83,6 +84,8 @@ async function selectCourts(request:Request,db:AuthDatabase,env:GamesEnv,origin:
   if(country&&!/^[a-z]{2}$/.test(country))return fail('Invalid country.');
   // Forward only known court-search parameters, not arbitrary client query flags.
   const upstream=new URL('/api/courts',origin);upstream.searchParams.set('lat',String(center.lat));upstream.searchParams.set('lon',String(center.lon));if(country)upstream.searchParams.set('country',country);
+  // Fail before expensive map-provider work if court proof signing is unavailable.
+  await signingKey(env,origin);
   const raw=await lookup(upstream,env);
   const courts:Court[]=[];const ids=new Set<string>();
   for(const value of raw){
@@ -98,22 +101,23 @@ async function selectCourts(request:Request,db:AuthDatabase,env:GamesEnv,origin:
   const signed=await Promise.all(courts.slice(0,40).map(async court=>({...court,distanceMiles:Math.round(milesBetween(center,court)*10)/10,selectionToken:await courtSelectionToken(court,player.id,env,origin)})));
   return json({courts:signed});
 }
-const projection=`g.organizer_id,g.visibility,g.group_id,g.id,g.title,g.court_id,g.court_name,g.court_lat,g.court_lon,g.court_access,g.starts_at,g.ends_at,g.time_zone,g.format,g.capacity,g.skill_preference,g.status,g.join_policy,g.notes,p.display_name AS organizer_name,(SELECT COALESCE(SUM(1+gp.guest_count),0) FROM game_participants gp WHERE gp.game_id=g.id) AS player_count`;
+const projection=`g.organizer_id,g.visibility,g.group_id,(SELECT visibility FROM tennis_groups gv WHERE gv.id=g.group_id) AS group_visibility,g.id,g.title,g.court_id,g.court_name,g.court_lat,g.court_lon,g.court_access,g.starts_at,g.ends_at,g.time_zone,g.format,g.series_id,g.series_week,g.series_weeks,g.court_count,COALESCE(g.event_capacity,g.capacity) AS capacity,g.skill_preference,g.status,g.join_policy,g.notes,p.display_name AS organizer_name,(SELECT COALESCE(SUM(1+gp.guest_count),0) FROM game_participants gp WHERE gp.game_id=g.id) AS player_count`;
 function gameDto(row:GameRow,detail=false){
-  return {visibility:row.visibility,groupId:row.group_id,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{displayName:row.organizer_name},playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
+  return {visibility:row.visibility,groupId:row.group_id,groupVisibility:row.group_visibility,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,courtCount:row.court_count,seriesId:row.series_id,seriesWeek:row.series_week,seriesWeeks:row.series_weeks,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{displayName:row.organizer_name},playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
 }
 async function getGame(db:AuthDatabase,id:string,playerId:string|null=null){
   if(!UUID.test(id))throw new AuthError(404,'Game not found.');
-  // Fail closed for BOTH private audiences until their membership policies exist.
+  // Resolve current group visibility/membership on every request; never infer access from a shared URL.
   const row=await db.prepare(`SELECT ${projection} FROM games g JOIN players p ON p.id=g.organizer_id WHERE g.id=? AND g.visibility IN ('public','group','unlisted') AND p.status='active'`).bind(id).first<GameRow>();
   if(!row||(row.visibility==='unlisted'&&!(await canViewUnlisted(db,id,playerId)))||(row.visibility==='group'&&!(await groupGameAccess(db,row.group_id!,playerId)).canView))throw new AuthError(404,'Game not found.');
   return {...gameDto(row,true),isHost:row.organizer_id===playerId};
 }
 async function feed(request:Request,db:AuthDatabase,origin:string){
- const actor=requireSession(await session(request,db,origin));const url=new URL(request.url),filter=url.searchParams.get('filter')??'all',groupId=url.searchParams.get('groupId');if(!['all','mine','groups'].includes(filter))return fail('Invalid feed filter.');
+ const actor={id:(await session(request,db,origin))?.id??null};const url=new URL(request.url),filter=url.searchParams.get('filter')??'all',groupId=url.searchParams.get('groupId');if(!['all','mine','groups'].includes(filter))return fail('Invalid feed filter.');
+ if(!actor.id&&filter!=='all')throw new AuthError(401,'Sign in to see your games and groups.');
  if(groupId&&!(await groupGameAccess(db,groupId,actor.id)).canView)throw new AuthError(404,'Group not found.');
  const after=cursor(url.searchParams.get('cursor'));
- const rows=(await db.prepare(`WITH viewer(id) AS (SELECT ?) SELECT ${projection},t.name AS group_name,EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) AS joined,(SELECT status FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?) AS request_status,g.organizer_id=? AS is_organizer FROM games g JOIN players p ON p.id=g.organizer_id LEFT JOIN tennis_groups t ON t.id=g.group_id WHERE p.status='active' AND g.ends_at>? AND (g.visibility='public' OR (g.visibility='unlisted' AND ${unlistedAccessSql('g','(SELECT id FROM viewer)')}) OR (g.visibility='group' AND t.status='active' AND EXISTS(SELECT 1 FROM group_memberships m WHERE m.group_id=t.id AND m.player_id=? AND m.status='active'))) AND (g.visibility='group' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (?!='groups' OR g.visibility='group') AND (?!='mine' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (? IS NULL OR g.group_id=?) AND (g.starts_at>? OR (g.starts_at=? AND g.id>?)) ORDER BY g.starts_at,g.id LIMIT 26`).bind(actor.id,actor.id,actor.id,actor.id,Date.now(),actor.id,actor.id,actor.id,actor.id,filter,filter,actor.id,actor.id,actor.id,groupId,groupId,after[0],after[0],after[1]).all<GameRow&{group_name:string|null;joined:number;request_status:string|null;is_organizer:number}>()).results;
+ const rows=(await db.prepare(`WITH viewer(id) AS (SELECT ?) SELECT ${projection},t.name AS group_name,EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) AS joined,(SELECT status FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?) AS request_status,g.organizer_id=? AS is_organizer FROM games g JOIN players p ON p.id=g.organizer_id LEFT JOIN tennis_groups t ON t.id=g.group_id WHERE p.status='active' AND g.ends_at>? AND (g.visibility='public' OR (g.visibility='unlisted' AND ${unlistedAccessSql('g','(SELECT id FROM viewer)')}) OR (g.visibility='group' AND ${groupEventViewSql('g','?')})) AND (g.visibility='group' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (?!='groups' OR (g.visibility='group' AND EXISTS(SELECT 1 FROM group_memberships fm WHERE fm.group_id=g.group_id AND fm.player_id=(SELECT id FROM viewer) AND fm.status='active'))) AND (?!='mine' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (? IS NULL OR g.group_id=?) AND (g.starts_at>? OR (g.starts_at=? AND g.id>?)) ORDER BY g.starts_at,g.id LIMIT 26`).bind(actor.id,actor.id,actor.id,actor.id,Date.now(),actor.id,actor.id,actor.id,actor.id,filter,filter,actor.id,actor.id,actor.id,groupId,groupId,after[0],after[0],after[1]).all<GameRow&{group_name:string|null;joined:number;request_status:string|null;is_organizer:number}>()).results;
  const shown=rows.slice(0,25);return json({games:shown.map(r=>({...gameDto(r),groupName:r.group_name,joined:!!r.joined,requestStatus:r.request_status,isOrganizer:!!r.is_organizer})),nextCursor:rows.length>25?btoa(JSON.stringify([shown[24].starts_at,shown[24].id])):null});
 }
 function cursor(value:string|null):[number,string]{
@@ -128,7 +132,7 @@ async function listGames(url:URL,db:AuthDatabase,actorId:string|null=null){
   if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>366*86400_000)return fail('Choose a valid date range.');
   const format=p.get('format')??'any',skill=p.get('skill')??'any';
   if(!['any','singles','doubles'].includes(format)||!['any','beginner','intermediate','advanced'].includes(skill))return fail('Invalid game filter.');
-  const clauses=["g.visibility='public'","g.status='scheduled'","p.status='active'",'g.starts_at>=?','g.starts_at<?'];const values:unknown[]=[Math.max(from,Date.now()),to];
+  const clauses=["(g.visibility='public' OR (g.visibility='group' AND EXISTS(SELECT 1 FROM tennis_groups dt WHERE dt.id=g.group_id AND dt.status='active' AND dt.visibility='public')))","g.status='scheduled'","p.status='active'",'g.starts_at>=?','g.starts_at<?'];const values:unknown[]=[Math.max(from,Date.now()),to];
   if(actorId){clauses.push('NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=? AND b.blocked_id=g.organizer_id) OR (b.blocker_id=g.organizer_id AND b.blocked_id=?))');values.push(actorId,actorId);}
   if(format!=='any'){clauses.push('g.format=?');values.push(format);}
   if(skill!=='any'){clauses.push("g.skill_preference IN ('any',?)");values.push(skill);}
@@ -154,31 +158,43 @@ async function createGame(request:Request,db:AuthDatabase,env:GamesEnv,origin:st
   checkOrigin(request,origin);const player=requireSession(await session(request,db,origin));checkCsrf(request,player);
   if(!player.display_name.trim())throw new AuthError(403,'Complete your player display name in Account before creating a game.');
   const body=await readJson(request,8192);
-  if(Object.keys(body).some(k=>!['title','courtToken','startLocal','timeZone','durationMinutes','format','capacity','skillPreference','notes','requestId','acknowledgeNoReservation','confirmAccess','joinPolicy','groupId','visibility'].includes(k)))return fail('Unexpected game field.');
+  if(Object.keys(body).some(k=>!['title','courtToken','manualCourt','startLocal','timeZone','durationMinutes','format','capacity','courtCount','repeatWeeks','skillPreference','notes','requestId','acknowledgeNoReservation','confirmAccess','joinPolicy','groupId','visibility'].includes(k)))return fail('Unexpected game field.');
   if(body.acknowledgeNoReservation!==true)return fail('Confirm that this game does not reserve a court.');
   const groupId=body.groupId??null;if(groupId!==null&&(typeof groupId!=='string'||!UUID.test(groupId)||!(await groupGameAccess(db,groupId,player.id)).canCreate))throw new AuthError(403,'Group event organizer access is required.');
   const visibility=groupId?'group':body.visibility??'public';if(!['public','unlisted','group'].includes(String(visibility))||(!groupId&&visibility==='group')||(groupId&&body.visibility&&body.visibility!=='group'))return fail('Choose public or unlisted games, or an approved group.');
   const joinPolicy=groupId?'instant':body.joinPolicy??'approval';if(!groupId&&joinPolicy!=='approval')return fail('Public games require organizer approval.');
-  const court=await readCourtToken(body.courtToken,player.id,env,origin);
+  let court:Court;
+  if(body.manualCourt!==undefined){
+    if(body.courtToken!==undefined)return fail('Choose one court location.');
+    const c=body.manualCourt as Record<string,unknown>;
+    if(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).some(k=>!['name','address','lat','lon'].includes(k)))return fail('Invalid manual court.');
+    const name=text(c.name,80,'court name',true),address=text(c.address,110,'court address',true);
+    if(typeof c.lat!=='number'||typeof c.lon!=='number'||!Number.isFinite(c.lat)||!Number.isFinite(c.lon)||Math.abs(c.lat)>90||Math.abs(c.lon)>180)return fail('Find the court address on the map first.');
+    court={id:'manual-'+await hashToken(JSON.stringify([name,address,c.lat,c.lon])),name:`${name} - ${address}`,lat:c.lat,lon:c.lon,access:'unknown'};
+  }else court=await readCourtToken(body.courtToken,player.id,env,origin);
   if(court.access==='unknown'&&body.confirmAccess!==true)return fail('Confirm that you will check access at this court.');
   const title=text(body.title,80,'game title',true),notes=text(body.notes,1000,'notes');
   const {startsAt,timeZone}=gameStart(body.startLocal,body.timeZone);
   const duration=body.durationMinutes;
   if(typeof duration!=='number'||!Number.isInteger(duration)||duration<30||duration>240||duration%15!==0)return fail('Choose a duration from 30 to 240 minutes in 15-minute steps.');
-  if(!['singles','doubles'].includes(String(body.format))||body.capacity!==(body.format==='singles'?2:4))return fail('Singles has two players; doubles has four, including the organizer.');
+  const courtCount=body.courtCount??1,perCourt=body.format==='singles'?2:4;
+  if(!['singles','doubles'].includes(String(body.format))||!Number.isInteger(courtCount)||Number(courtCount)<1||Number(courtCount)>16||!Number.isInteger(body.capacity)||Number(body.capacity)<Number(courtCount)*perCourt||Number(body.capacity)>128)return fail('Choose 1-16 courts and a whole player capacity from the planned court places up to 128, including the organizer and guests.');
   if(!['any','beginner','intermediate','advanced'].includes(String(body.skillPreference)))return fail('Invalid skill preference.');
   if(typeof body.requestId!=='string'||!UUID.test(body.requestId))return fail('Invalid submission ID. Refresh and try again.');
-  const requestHash=await hashToken(JSON.stringify({groupId,visibility,joinPolicy,title,notes,court,startsAt,timeZone,duration,format:body.format,capacity:body.capacity,skill:body.skillPreference}));
+  const repeatWeeks=body.repeatWeeks??1;
+  if(!Number.isInteger(repeatWeeks)||Number(repeatWeeks)<1||Number(repeatWeeks)>12)return fail('Choose one game or 2-12 weekly occurrences.');
+  const occurrences=Array.from({length:Number(repeatWeeks)},(_,i)=>{const d=new Date(body.startLocal+':00Z');d.setUTCDate(d.getUTCDate()+i*7);return gameStart(d.toISOString().slice(0,16),timeZone);});
+  const requestHash=await hashToken(JSON.stringify({groupId,visibility,joinPolicy,title,notes,court,startsAt,timeZone,duration,format:body.format,capacity:body.capacity,...(courtCount!==1?{courtCount}:{}),...(repeatWeeks!==1?{repeatWeeks}:{}),skill:body.skillPreference}));
   const existing=await db.prepare('SELECT id,request_hash FROM games WHERE organizer_id=? AND request_id=?').bind(player.id,body.requestId).first<{id:string;request_hash:string}>();
   if(existing){if(existing.request_hash!==requestHash)throw new AuthError(409,'This submission ID was already used. Refresh before creating a different game.');return json({game:await getGame(db,existing.id,player.id)},200);}
   const id=crypto.randomUUID(),now=Date.now();
   try{
-    await db.batch([
-      db.prepare(`INSERT INTO games (id,organizer_id,visibility,group_id,title,court_id,court_name,court_lat,court_lon,court_access,starts_at,ends_at,time_zone,format,capacity,skill_preference,notes,request_id,request_hash,created_at,updated_at,join_policy)
-        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM auth_sessions s JOIN players p ON p.id=s.player_id WHERE p.id=? AND p.status='active' AND s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>?) AND (SELECT COUNT(*) FROM games WHERE organizer_id=? AND created_at>?)<10 AND (? IS NULL OR EXISTS(SELECT 1 FROM tennis_groups t JOIN group_memberships m ON m.group_id=t.id WHERE t.id=? AND t.status='active' AND m.player_id=? AND m.status='active' AND (t.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role) IN ('coowner','organizer'))))`)
-        .bind(id,player.id,visibility,groupId,title,court.id,court.name,court.lat,court.lon,court.access,startsAt,startsAt+duration*60_000,timeZone,body.format,body.capacity,body.skillPreference,notes,body.requestId,requestHash,now,now,joinPolicy,player.id,player.token_hash,now,player.id,now-60_000,groupId,groupId,player.id),
-      db.prepare('INSERT INTO game_participants (game_id,player_id,joined_at) SELECT id,organizer_id,? FROM games WHERE id=? AND organizer_id=?').bind(now,id,player.id),
-    ]);
+    await db.batch(occurrences.flatMap((occurrence,index)=>{const occurrenceId=index===0?id:crypto.randomUUID();return [
+      db.prepare(`INSERT INTO games (id,organizer_id,visibility,group_id,title,court_id,court_name,court_lat,court_lon,court_access,starts_at,ends_at,time_zone,format,capacity,skill_preference,notes,request_id,request_hash,created_at,updated_at,join_policy,court_count,event_capacity,series_id,series_week,series_weeks)
+        SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM auth_sessions s JOIN players p ON p.id=s.player_id WHERE p.id=? AND p.status='active' AND s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>?) AND (?=0 AND (SELECT COUNT(*) FROM games WHERE organizer_id=? AND created_at>?)<10 OR ?>0 AND EXISTS(SELECT 1 FROM games WHERE id=? AND organizer_id=?)) AND (? IS NULL OR EXISTS(SELECT 1 FROM tennis_groups t JOIN group_memberships m ON m.group_id=t.id WHERE t.id=? AND t.status='active' AND m.player_id=? AND m.status='active' AND (t.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role) IN ('coowner','organizer'))))`)
+        .bind(occurrenceId,player.id,visibility,groupId,title,court.id,court.name,court.lat,court.lon,court.access,occurrence.startsAt,occurrence.startsAt+duration*60_000,timeZone,body.format,perCourt,body.skillPreference,notes,index===0?body.requestId:crypto.randomUUID(),requestHash,now,now,joinPolicy,courtCount,body.capacity,repeatWeeks===1?null:id,repeatWeeks===1?null:index+1,repeatWeeks===1?null:repeatWeeks,player.id,player.token_hash,now,index,player.id,now-60_000,index,id,player.id,groupId,groupId,player.id),
+      db.prepare('INSERT INTO game_participants (game_id,player_id,joined_at) SELECT id,organizer_id,? FROM games WHERE id=? AND organizer_id=?').bind(now,occurrenceId,player.id),
+    ];}));
   }catch(error){
     const duplicate=await db.prepare('SELECT id,request_hash FROM games WHERE organizer_id=? AND request_id=?').bind(player.id,body.requestId).first<{id:string;request_hash:string}>();
     if(duplicate?.request_hash===requestHash)return json({game:await getGame(db,duplicate.id,player.id)});
@@ -196,6 +212,7 @@ export async function handleGames(request:Request,env:GamesEnv,lookup= courtElem
   try{
     const {db,origin}=assertEnvironment(request,env),url=new URL(request.url);
     const path=url.pathname.replace(/^\/api\/games\/?/,'').replace(/\/$/,'');
+    const series=await gameSeries(request,db,origin,path);if(series)return series;
     if(path==='feed'&&request.method==='GET')return await feed(request,db,origin);
     const shared=await gameSharing(request,db,origin,path);if(shared)return shared;
     const managed=await participation(request,env,db,origin,path);if(managed)return managed;

@@ -23,15 +23,15 @@ for(const theme of ['light','dark'] as const)for(const width of [375,390,1440]){
   if(width<620){
    const nav=page.getByRole('navigation',{name:'Play Together quick navigation'});
    const dock=nav.getByRole('link',{name:'My Feed',exact:true});expect(await colors(dock)).toEqual(selected);
-   const search=nav.getByRole('link',{name:'Find games',exact:true}),icon=search.locator('.mobile-nav-search-icon');
+   const search=nav.getByRole('link',{name:'Find games',exact:true}),icon=search.locator('svg');
    for(const colorScheme of [theme,theme==='dark'?'light':'dark'] as const){
     await page.emulateMedia({colorScheme,reducedMotion:'reduce'});
-    await expect(icon).toHaveCSS('background-color','rgb(18, 61, 50)');
-    await expect(icon.locator('svg')).toHaveCSS('color','rgb(255, 255, 255)');
+    await expect(icon).toHaveCSS('width','21px');await expect(icon).toHaveCSS('height','21px');await expect(icon).toHaveCSS('margin-top','0px');
+    await expect(icon).toHaveCSS('stroke-width','1.9px');expect(await nav.locator('.mobile-nav-search-icon').count()).toBe(0);const boxes=await nav.locator('a svg').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));expect(Math.max(...boxes)-Math.min(...boxes)).toBeLessThanOrEqual(1);
    }
    await search.click();await expect(search).toHaveAttribute('aria-current','page');
-   await expect(icon).toHaveCSS('background-color','rgb(18, 61, 50)');
-   await expect(icon.locator('svg')).toHaveCSS('color','rgb(255, 255, 255)');
+   await expect(icon).toHaveCSS('width','21px');await expect(icon).toHaveCSS('height','21px');await expect(icon).toHaveCSS('margin-top','0px');
+   await expect(icon).toHaveCSS('stroke-width','1.9px');expect(await nav.locator('.mobile-nav-search-icon').count()).toBe(0);const boxes=await nav.locator('a svg').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));expect(Math.max(...boxes)-Math.min(...boxes)).toBeLessThanOrEqual(1);
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
  });
