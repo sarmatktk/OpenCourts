@@ -1,0 +1,9 @@
+{
+  "branch": "feature/play-together",
+  "revision": "a0d245ab5a91b435d2d34173a58e50697f6b0128",
+  "includesIntentionalUncommittedWork": true,
+  "sourceFiles": 224,
+  "sourceManifestSha256": "4d089e40a866a27685002d68fb704a540b74ae95a0dd8bfbea398670b277afe2",
+  "artifactDirectory": "dist-release",
+  "gitBranchOrMainChanged": false
+}

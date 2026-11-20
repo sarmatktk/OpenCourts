@@ -1,3 +1,5 @@
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import SiteBrand from './SiteBrand';
 import SiteSelect from './SiteSelect';
 import {focusSearch} from './search-focus';
 import AccountAvatar from './AccountAvatar';
@@ -175,6 +177,10 @@ function App() {
     if (park && PARK_PRESETS[park]) return PARK_PRESETS[park];
     try { return JSON.parse(localStorage.getItem('opencourts-place-v2') || 'null') ?? INITIAL; } catch { return INITIAL; }
   });
+  const [needsSearch, setNeedsSearch] = useState(() => {
+    if (!window.matchMedia('(max-width: 767px)').matches || new URLSearchParams(location.search).has('park')) return false;
+    try { const saved=JSON.parse(localStorage.getItem('opencourts-place-v2')||'null'); return !saved || !Number.isFinite(saved.lat) || !Number.isFinite(saved.lon); } catch { return true; }
+  });
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const localWeatherDemo = import.meta.env.DEV ? (() => {
@@ -224,6 +230,7 @@ function App() {
   }
 
   useEffect(() => {
+    if(needsSearch)return;
     if (Boolean((place.countryCode || internationalCountryCode(place.label)) && (place.countryCode || internationalCountryCode(place.label)) !== 'us') || !selected || selected.contextCached) return;
     const controller = new AbortController();
     getSelectedCourtContext(selected, place.label, controller.signal).then(enriched => {
@@ -249,10 +256,14 @@ function App() {
       setHighlightedPark(null);
     }
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
-    setLoading(true); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place-v2', JSON.stringify(p)); } catch { /* storage optional */ }
+    setNeedsSearch(false); setMobileList(false); requestAnimationFrame(()=>map.current?.resize());
+    let savedCourts: Court[] = [];
+    try { const saved=JSON.parse(localStorage.getItem('opencourts-last-courts-v1')||'null'); if(saved && saved.lat===p.lat && saved.lon===p.lon && Date.now()-saved.savedAt>=0 && Date.now()-saved.savedAt<24*60*60_000 && Array.isArray(saved.courts)) savedCourts=saved.courts; } catch { /* Storage is optional. */ }
+    setCourts(savedCourts);
+    setLoading(savedCourts.length===0); setError(''); setPlace(p); try { localStorage.setItem('opencourts-place-v2', JSON.stringify(p)); } catch { /* storage optional */ }
     setRainAssessments([]); setRainError(''); setSelectedRainLoading(false); setSelectedRainError(''); setHourlyForecast([]); setWeatherSource('NWS'); setWeatherAlerts([]); setWeatherAlertStatus('loading');
     const resolvedCountryCode = p.countryCode || internationalCountryCode(p.label);
-    getCourts(p.lat, p.lon, controller.signal, p.label, enriched => { if (!controller.signal.aborted) setCourts(enriched); }, resolvedCountryCode).then(setCourts).catch(e => { if (e.name !== 'AbortError') { setCourts([]); setError(e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    getCourts(p.lat, p.lon, controller.signal, p.label, enriched => { if (!controller.signal.aborted) setCourts(enriched); }, resolvedCountryCode, savedCourts.length>0).then(results => { if(controller.signal.aborted)return; setCourts(results); try { if(!results.some(c=>c.dataStale)) localStorage.setItem('opencourts-last-courts-v1',JSON.stringify({lat:p.lat,lon:p.lon,savedAt:Date.now(),courts:results})); } catch { /* Storage is optional. */ } }).catch(e => { if (e.name !== 'AbortError') { setCourts(savedCourts); setError(savedCourts.length?'Showing saved courts. Live updates are unavailable. Try again before travelling.':e.message); } }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     setWeatherLoading(true); setWeatherError(''); getWeather(p.lat, p.lon, controller.signal, resolvedCountryCode).then(data => { setHourlyForecast(data.periods); setTimeZone(data.timeZone); setWeatherSource(data.source || 'NWS'); }).catch(e => { if (e.name !== 'AbortError') { setHourlyForecast([]); setWeatherError(e.message); } }).finally(() => { if (!controller.signal.aborted) setWeatherLoading(false); });
   }, []);
   useEffect(() => {
@@ -272,14 +283,14 @@ function App() {
     refreshWeatherAlerts();
     const timer = window.setInterval(refreshWeatherAlerts, 60_000);
     return () => { window.clearInterval(timer); controller.abort(); };
-  }, [place.lat, place.lon, place.label, place.countryCode]);
+  }, [place.lat, place.lon, place.label, place.countryCode, needsSearch]);
   useEffect(() => {
     if (!loading) { setSearchSlow(false); return; }
     setSearchSlow(false);
     const timer = window.setTimeout(() => setSearchSlow(true), 7000);
     return () => window.clearTimeout(timer);
   }, [loading, place]);
-  useEffect(() => { void load(place); return () => request.current?.abort(); }, []);
+  useEffect(() => { if(!needsSearch) void load(place); else {setLoading(false);setWeatherLoading(false);} return () => request.current?.abort(); }, []);
   useEffect(() => {
     const targetId = window.location.hash.slice(1);
     if (!['top', 'search', 'explore', 'rain-planner-title', 'conditions', 'about', 'support'].includes(targetId)) return;
@@ -289,8 +300,9 @@ function App() {
   useEffect(() => {
     if (!mapEl.current || map.current) return;
     let disposed = false;
-    void import('maplibre-gl').then(async ({ default: ml }) => {
+    void import('maplibre-gl').then(async (ml) => {
     if (disposed || !mapEl.current) return;
+    ml.setWorkerUrl(mapWorkerUrl);
     const initialPlace = placeRef.current;
     const m = new ml.Map({ container: mapEl.current, style: {
       version: 8,
@@ -352,7 +364,7 @@ function App() {
     if (!mapReady || !map.current || !park) return;
     let removed = false;
     let marker: import('maplibre-gl').Marker | undefined;
-    void import('maplibre-gl').then(({ default: ml }) => {
+    void import('maplibre-gl').then((ml) => {
       if (removed || !map.current) return;
       const element = document.createElement('div');
       element.className = 'park-focus-marker';
@@ -373,7 +385,7 @@ function App() {
     if (!mapReady || !map.current || highlightedPark) return;
     let removed = false;
     let marker: import('maplibre-gl').Marker | undefined;
-    void import('maplibre-gl').then(({ default: ml }) => {
+    void import('maplibre-gl').then((ml) => {
       if (removed || !map.current) return;
       const element = document.createElement('div');
       element.className = 'search-origin-marker';
@@ -512,13 +524,13 @@ function App() {
       setLocationNotice(e.code===1?'Location access is disabled or blocked. Enable location for this site in your browser settings, or search by address, city or ZIP code.':e.code===3?'Finding your location timed out. Try again or search by address, city or ZIP code.':'Your device location is unavailable. Turn on location services or search by address, city or ZIP code.');
     },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
   }
-  function openNearbyMap(){setMobileNavSection('explore');showMapView();document.getElementById('explore')?.scrollIntoView({behavior:'smooth'});locate();}
+  function openNearbyMap(){setMobileNavSection('explore');showMapView();document.getElementById('explore')?.scrollIntoView({behavior:'smooth'});}
   function directions(c: Court) {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lon}`, '_blank', 'noopener,noreferrer');
     window.dispatchEvent(new Event('opencourts:directions-used'));
   }
   return <div id="top" className={dark ? 'app dark' : 'app'}>
-    <header className="topbar"><a className="brand" href="#top" aria-label="OpenCourts home"><span className="brand-mark"><TennisBall size={20}/></span><span>open<span className="brand-light">courts</span></span></a>
+    <header className="topbar"><SiteBrand href="#top"/>
       <nav className={menuOpen ? 'nav open' : 'nav'} aria-label="Main navigation"><a href="#explore">Explore courts</a>{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true')&&<a href="/play-together">Play Together</a>}<a href="#conditions">Weather</a><a href="/support">Support</a></nav>
       <div className="top-actions">{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true')&&<a className="site-area-switch" href="/play-together"><UsersRound size={17} aria-hidden="true"/><span>Play Together</span></a>}{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <NotificationBell/>}{(import.meta.env.DEV || import.meta.env.VITE_PLAY_TOGETHER === 'true') && <a className="pt-account-link" href="/account" aria-label="Account and settings"><AccountAvatar/></a>}<button className="quiet desktop-locate" onClick={locate}><LocateFixed size={16}/> Near me</button><a className="mobile-support" href="/support" aria-label="Open Support page"><Heart size={19} strokeWidth={2} aria-hidden="true"/></a><button className="mobile-menu" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button></div>
     </header>
@@ -530,7 +542,7 @@ function App() {
       <a className={mobileNavSection === 'weather' ? 'active' : ''} href="#conditions" aria-current={mobileNavSection === 'weather' ? 'location' : undefined} onClick={() => setMobileNavSection('weather')}><CloudSun size={21} strokeWidth={1.9} aria-hidden="true"/><span>Weather</span></a>
 
     </nav>
-    <main id="top">
+    <main id="top" className={needsSearch?'court-start':undefined}>
       <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Compare nearby courts, check recent rain, and plan your next match around the seven-day forecast.</p>
         <div className="search-wrap" id="search" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
           <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input role="combobox" aria-haspopup="listbox" aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{(placeLookupLoading || loading) && <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/>}</button></form>
@@ -542,6 +554,7 @@ function App() {
           </div>}
         </div>
       </section>
+      {needsSearch && <section className="court-start-panel" aria-labelledby="court-start-title"><MapPin size={28} aria-hidden="true"/><h2 id="court-start-title">Where would you like to play?</h2><p>Use your location to find nearby courts, or search for a city or ZIP code above.</p><button className="search-submit" onClick={locate} disabled={locating}>{locating?'Finding your location...':'Find courts near me'}</button>{locationNotice&&<p role="alert">{locationNotice}</p>}{error&&<p role="alert">{error}</p>}</section>}
       <section className={mobileList ? 'explore list-open' : 'explore'} id="explore" aria-label="Explore tennis courts"><div className="mobile-view-switch" role="group" aria-label="Choose map or list view"><button type="button" aria-pressed={!mobileList} className={!mobileList ? 'active' : ''} onClick={openNearbyMap}>Map</button><button type="button" aria-pressed={mobileList} className={mobileList ? 'active' : ''} onClick={() => setMobileList(true)}>List <span>{filtered.length}</span></button></div><div className="results-panel">
           <div className="results-head"><div><div className="section-kicker">COURTS NEAR</div><h2>{place.label}</h2></div><button className="round-action" title="Center map on location" aria-label="Center map on location" onClick={() => { showMapView(); map.current?.flyTo({ center: [place.lon, place.lat], zoom: 12 }); }}><Compass size={18}/></button></div>
           <div className="result-meta"><span>{loading ? <><LoaderCircle size={14} className="search-spinner" aria-hidden="true"/> Searching nearby…</> : error ? 'Results unavailable' : `${filtered.length} ${filtered.length === 1 ? 'court' : 'courts'}`}</span><label className="sort-control"><span>Sort</span><SiteSelect aria-label="Sort courts" value={sort} onValueChange={value => setSort(value as 'near' | 'lighted')}><option value="near">Nearest first</option><option value="lighted">Lighted first</option></SiteSelect><ChevronDown size={13}/></label></div>
@@ -563,7 +576,7 @@ function App() {
           {!loading && displayed.length < filtered.length && <button className="load-more" onClick={() => setVisibleCount(n => n + 30)}>Show 30 more courts <span>({filtered.length - displayed.length} remaining)</span></button>}
           {!loading && <div className="data-note"><span className="note-line"/><p>Court details come from OpenStreetMap and may change. Please confirm access and amenities locally.</p></div>}
         </div>
-        <div className="map-panel"><div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div><div className="map-alert-stack">{(locating||locationNotice)&&<div className="map-location-notice" role={locationNotice?'alert':'status'}><span>{locating?'Finding courts near your location...':locationNotice}</span>{locationNotice&&<div><button type="button" onClick={locate}>Try location again</button><button type="button" onClick={()=>{setLocationNotice('');focusSearch();}}>Search instead</button><button type="button" aria-label="Dismiss location message" onClick={()=>setLocationNotice('')}>Dismiss</button></div>}</div>}{areaRainAlert && <div className="map-weather-alert" role="status"><CloudRain size={14} aria-hidden="true"/><span>Recent rain nearby. Check court conditions.</span></div>}{alertsForDisplay.slice(0, 2).map(alert => <div className={`map-heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={alert.id}><strong><WeatherAlertIcon alert={alert} size={13}/>{alert.event}</strong>{alert.headline}</div>)}{showWinterForecastAlert && <div className={`map-winter-alert winter-risk-${showWinterForecastAlert}`} role="status">{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={14} aria-hidden="true"/> : <Snowflake size={14} aria-hidden="true"/>}{winterMapMessage}</div>}{courtHeatCaution && !activeHeatAlert && <div className={`map-heat-alert ${courtHeatCaution.high ? "heat-alert-warning" : "heat-alert-advisory"}`} role="status"><strong><ThermometerSun size={13} aria-hidden="true"/>{courtHeatCaution.label}</strong></div>}</div><button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
+        <div className="map-panel">{!needsSearch&&!locating&&!locationNotice&&(loading||courts.length===0)&&<div className="map-search-state" role="status"><strong>{loading?'Finding nearby courts...':error?'Court results are unavailable':'No courts found in this area'}</strong><p>{loading?'You can search another city or ZIP code while we look.':error||'Try a nearby city or use your location.'}</p><button className="text-action" onClick={()=>focusSearch()}>Search another area</button></div>}<div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div><div className="map-alert-stack">{(locating||locationNotice)&&<div className="map-location-notice" role={locationNotice?'alert':'status'}><span>{locating?'Finding courts near your location...':locationNotice}</span>{locationNotice&&<div><button type="button" onClick={locate}>Try location again</button><button type="button" onClick={()=>{setLocationNotice('');focusSearch();}}>Search instead</button><button type="button" aria-label="Dismiss location message" onClick={()=>setLocationNotice('')}>Dismiss</button></div>}</div>}{areaRainAlert && <div className="map-weather-alert" role="status"><CloudRain size={14} aria-hidden="true"/><span>Recent rain nearby. Check court conditions.</span></div>}{alertsForDisplay.slice(0, 2).map(alert => <div className={`map-heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={alert.id}><strong><WeatherAlertIcon alert={alert} size={13}/>{alert.event}</strong>{alert.headline}</div>)}{showWinterForecastAlert && <div className={`map-winter-alert winter-risk-${showWinterForecastAlert}`} role="status">{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={14} aria-hidden="true"/> : <Snowflake size={14} aria-hidden="true"/>}{winterMapMessage}</div>}{courtHeatCaution && !activeHeatAlert && <div className={`map-heat-alert ${courtHeatCaution.high ? "heat-alert-warning" : "heat-alert-advisory"}`} role="status"><strong><ThermometerSun size={13} aria-hidden="true"/>{courtHeatCaution.label}</strong></div>}</div><button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
           <div className="map-legend" aria-label="Map legend"><span className="legend-item"><img className="legend-ball-image" src={legendBalls.lit} alt=""/>Lighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unlit} alt=""/>Unlighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unknown} alt=""/>Unknown</span><span className="legend-item"><img className="legend-search-pin" src={SEARCH_CENTER_PIN} alt=""/>Search center</span><span className="legend-label">{internationalPlace ? 'Area forecast estimate' : 'Radar quality'}</span><span className="legend-item"><span className="legend-quality high"/>High</span><span className="legend-item"><span className="legend-quality moderate"/>Moderate</span><span className="legend-item"><span className="legend-quality low"/>Low</span></div>
           <button className="mobile-list-toggle" onClick={() => setMobileList(!mobileList)}>{mobileList ? <><ArrowDown size={16}/> Show map</> : <><ArrowLeft size={16}/> View {filtered.length} courts</>}</button>
           {selected && <CourtDetailSheet international={internationalPlace} court={selected} distance={distanceMiles(selected, place)} rain={selectedRain} rainLoading={selectedRainLoading || rainLoading || (internationalPlace && weatherLoading)} rainError={selectedRainError || rainError} caution={courtWinterLabel || courtHeatCaution?.label} nearbyRain={areaRainAlert && rainCandidateIds.has(selected.id) && Boolean(selectedRain && selectedRain.score > 80)} onClose={() => setSelected(null)} onDirections={() => directions(selected)}/>}
@@ -597,7 +610,7 @@ function App() {
     </main>
     <InstallPrompt courtOpen={Boolean(selected)} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
     <ReviewPrompt courtId={selected?.id} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
-    <footer><a className="brand footer-brand" href="#top"><span className="brand-mark"><TennisBall size={18}/></span><span>open<span className="brand-light">courts</span></span></a><span>Find Your Court. Play Your Game.</span><GetAppLink/><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
+    <footer><SiteBrand footer href="#top"/><span>Find Your Court. Play Your Game.</span><GetAppLink/><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
   </div>;
 }
 export default App;

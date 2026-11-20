@@ -18,6 +18,8 @@ const pages = [
   ['public/contact.html', 'https://opencourts.us/contact'],
   ['public/privacy.html', 'https://opencourts.us/privacy'],
   ['public/support.html', 'https://opencourts.us/support'],
+  ['public/terms.html', 'https://opencourts.us/terms'],
+  ['public/delete-account.html', 'https://opencourts.us/delete-account'],
 ] as const;
 
 describe('social share metadata', () => {
@@ -200,7 +202,7 @@ describe('social share metadata', () => {
     const allPages = [...pages.map(([file, url]) => [file, url]), ...landingPages.map(([file]) => [`public/${file}`, `https://opencourts.us/${file.replace(/\.html$/, '')}`])];
     const sitemap = readFileSync(resolve(process.cwd(), 'public/sitemap.xml'), 'utf8');
     const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
-    expect(sitemapUrls.sort()).toEqual(allPages.map(([, url]) => url).sort());
+    expect(sitemapUrls.sort()).toEqual([...allPages.map(([, url]) => url),'https://opencourts.us/play-together','https://opencourts.us/play-together/groups','https://opencourts.us/play-together-help'].sort());
     for (const [file, url] of allPages) {
       const html = readFileSync(resolve(process.cwd(), file), 'utf8');
       expect(html).toContain(`rel="canonical" href="${url}"`);
@@ -211,8 +213,8 @@ describe('social share metadata', () => {
   it('describes the court finder and weather planner in crawlable page metadata', () => {
     const home = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
     const about = readFileSync(resolve(process.cwd(), 'public/about.html'), 'utf8');
-    expect(home).toContain('<title>Find Public Tennis Courts');
-    expect(home).toContain('name="description" content="Find public tennis courts near you');
+    expect(home).toContain('<title>Find Tennis Courts, Games &amp; Groups');
+    expect(home).toContain('name="description" content="Find public tennis courts, check local weather');
     expect(about).toContain('Check recent precipitation near courts');
     expect(about).toContain('Plan with a seven-day playing forecast');
     const jsonLd = home.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];

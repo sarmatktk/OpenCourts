@@ -1,3 +1,4 @@
+import {gameChat} from './game-chat';
 import {gameSeries} from './game-series';
 import {gameSharing,canViewUnlisted,unlistedAccessSql} from './game-sharing';
 import {groupGameAccess,groupEventViewSql} from './group-game-access';
@@ -13,7 +14,7 @@ import { gameStart } from './game-time';
 
 export type GamesEnv = AuthEnv & { GEOAPIFY_API_KEY?: string };
 type Court = { id:string; name:string; lat:number; lon:number; access:'public'|'unknown' };
-type GameRow = { organizer_id:string;visibility:string;group_id:string|null;group_visibility:string|null; id:string; title:string; court_id:string; court_name:string; court_lat:number; court_lon:number; court_access:string; starts_at:number; ends_at:number; time_zone:string; format:string; series_id:string|null;series_week:number|null;series_weeks:number|null;court_count:number; capacity:number; skill_preference:string; status:string; join_policy:string; notes:string; organizer_name:string; player_count:number };
+type GameRow = { organizer_id:string;visibility:string;group_id:string|null;group_visibility:string|null; id:string; title:string; court_id:string; court_name:string; court_lat:number; court_lon:number; court_access:string; starts_at:number; ends_at:number; time_zone:string; format:string; series_id:string|null;series_week:number|null;series_weeks:number|null;court_count:number; capacity:number; skill_preference:string; status:string; join_policy:string; notes:string; organizer_name:string; organizer_playing:number; player_count:number };
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail=(message:string):never=>{throw new AuthError(400,message);};
 function text(value:unknown,max:number,label:string,required=false){
@@ -101,9 +102,9 @@ async function selectCourts(request:Request,db:AuthDatabase,env:GamesEnv,origin:
   const signed=await Promise.all(courts.slice(0,40).map(async court=>({...court,distanceMiles:Math.round(milesBetween(center,court)*10)/10,selectionToken:await courtSelectionToken(court,player.id,env,origin)})));
   return json({courts:signed});
 }
-const projection=`g.organizer_id,g.visibility,g.group_id,(SELECT visibility FROM tennis_groups gv WHERE gv.id=g.group_id) AS group_visibility,g.id,g.title,g.court_id,g.court_name,g.court_lat,g.court_lon,g.court_access,g.starts_at,g.ends_at,g.time_zone,g.format,g.series_id,g.series_week,g.series_weeks,g.court_count,COALESCE(g.event_capacity,g.capacity) AS capacity,g.skill_preference,g.status,g.join_policy,g.notes,p.display_name AS organizer_name,(SELECT COALESCE(SUM(1+gp.guest_count),0) FROM game_participants gp WHERE gp.game_id=g.id) AS player_count`;
+const projection=`g.organizer_id,g.visibility,g.group_id,(SELECT visibility FROM tennis_groups gv WHERE gv.id=g.group_id) AS group_visibility,g.id,g.title,g.court_id,g.court_name,g.court_lat,g.court_lon,g.court_access,g.starts_at,g.ends_at,g.time_zone,g.format,g.series_id,g.series_week,g.series_weeks,g.court_count,COALESCE(g.event_capacity,g.capacity) AS capacity,g.skill_preference,g.status,g.join_policy,g.notes,p.display_name AS organizer_name,EXISTS(SELECT 1 FROM game_participants op WHERE op.game_id=g.id AND op.player_id=g.organizer_id) AS organizer_playing,(SELECT COALESCE(SUM(1+gp.guest_count),0) FROM game_participants gp WHERE gp.game_id=g.id) AS player_count`;
 function gameDto(row:GameRow,detail=false){
-  return {visibility:row.visibility,groupId:row.group_id,groupVisibility:row.group_visibility,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,courtCount:row.court_count,seriesId:row.series_id,seriesWeek:row.series_week,seriesWeeks:row.series_weeks,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{displayName:row.organizer_name},playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
+  return {visibility:row.visibility,groupId:row.group_id,groupVisibility:row.group_visibility,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,courtCount:row.court_count,seriesId:row.series_id,seriesWeek:row.series_week,seriesWeeks:row.series_weeks,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{displayName:row.organizer_name},organizerPlaying:!!row.organizer_playing,playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
 }
 async function getGame(db:AuthDatabase,id:string,playerId:string|null=null){
   if(!UUID.test(id))throw new AuthError(404,'Game not found.');
@@ -215,6 +216,7 @@ export async function handleGames(request:Request,env:GamesEnv,lookup= courtElem
     const series=await gameSeries(request,db,origin,path);if(series)return series;
     if(path==='feed'&&request.method==='GET')return await feed(request,db,origin);
     const shared=await gameSharing(request,db,origin,path);if(shared)return shared;
+    const chat=await gameChat(request,db,origin,path);if(chat)return chat;
     const managed=await participation(request,env,db,origin,path);if(managed)return managed;
     if(!path&&request.method==='GET')return await listGames(url,db,(await session(request,db,origin))?.id??null);
     if(!path&&request.method==='POST')return await createGame(request,db,env,origin);

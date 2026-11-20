@@ -1,0 +1,17 @@
+{
+  "preview": "9811481a",
+  "reproducedDesktopFailures": 4,
+  "oldInputWidth": 227.90625,
+  "footerWidth": 758,
+  "browserChecksPassed": 15,
+  "seconds": 31.1,
+  "shortDesktopWindowTested": true,
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "developmentBuild": "passed",
+  "snapshotsUpdated": false,
+  "productionChanged": false,
+  "physicalDeviceRetest": false
+}

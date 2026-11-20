@@ -1,0 +1,20 @@
+{
+  "deployment": "be84f6fc",
+  "browserPassed": 5,
+  "seconds": 21.9,
+  "widths": [
+    320,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "minimumContrast": {
+    "dotRing": 3,
+    "badgePanel": 3,
+    "badgeText": 4.5
+  },
+  "build": "build:dev passed, Vite 10.15s",
+  "snapshotUpdates": false
+}

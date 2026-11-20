@@ -1,0 +1,27 @@
+/* Main court page branding, shared by application and static page chrome. */
+:root{--brand-text:#17221e;--brand-muted:#59685f;--brand-ink:#123d32;--brand-line:#e6ebe5;--brand-mark-bg:transparent}
+:root[data-theme="dark"],.app.dark{--brand-text:#edf2ed;--brand-muted:#b9c7bd;--brand-ink:#e1f2ae;--brand-line:#405348}
+:is(.brand,.page-brand){display:inline-flex;align-items:center;flex:none;gap:9px;min-height:44px;padding:0;border:0;background:transparent;color:var(--brand-text);font-family:Manrope,sans-serif;font-size:22px;font-weight:800;font-style:normal;line-height:normal;letter-spacing:-.8px;white-space:nowrap;text-decoration:none}
+:is(.brand,.page-brand):hover{color:var(--brand-text);text-decoration:none}
+:is(.brand-mark,.page-brand-mark){display:grid;place-items:center;flex:none;width:36px;height:36px;padding:0;border:1px solid var(--brand-line);border-radius:50%;background:var(--brand-mark-bg);color:var(--brand-ink)}
+:is(.brand-mark,.page-brand-mark)>svg{display:block;flex:none;width:20px;height:20px;fill:none}
+:is(.brand-light,.page-brand-light){font-weight:500;color:var(--brand-muted)}
+:is(.footer-brand,.page-footer .page-brand){font-size:16px}
+:is(.footer-brand,.page-footer .page-brand) :is(.brand-mark,.page-brand-mark){width:26px;height:26px}
+:is(.footer-brand,.page-footer .page-brand) :is(.brand-mark,.page-brand-mark)>svg{width:18px;height:18px}
+:is(.brand,.page-brand):focus-visible{outline:3px solid var(--brand-text);outline-offset:3px;border-radius:5px}
+@media(max-width:620px){
+ :root{--brand-muted:#59685f;--brand-line:#e0e4e1;--brand-mark-bg:#fff}
+ :root[data-theme="dark"],.app.dark{--brand-muted:#b9c7bd;--brand-line:#405348;--brand-mark-bg:#17231e}
+ :is(.brand,.page-brand){font-size:20px;letter-spacing:-.7px}
+ :is(.brand-mark,.page-brand-mark){width:37px;height:37px}
+ :is(.brand-mark,.page-brand-mark)>svg{width:23px;height:23px}
+ :is(.footer-brand,.page-footer .page-brand){font-size:16px}
+ :is(.footer-brand,.page-footer .page-brand) :is(.brand-mark,.page-brand-mark){width:26px;height:26px}
+ :is(.footer-brand,.page-footer .page-brand) :is(.brand-mark,.page-brand-mark)>svg{width:23px;height:23px}
+}
+@media(max-width:480px){
+ :is(.topbar,.page-header,.landing-header) :is(.brand,.page-brand){gap:0}
+ :is(.topbar,.page-header,.landing-header) :is(.brand,.page-brand)>span:last-child{display:none}
+}
+@media(forced-colors:active){:is(.brand-mark,.page-brand-mark){color:CanvasText;border-color:CanvasText}:is(.brand,.page-brand):focus-visible{outline-color:Highlight}}

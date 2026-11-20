@@ -1,0 +1,41 @@
+{
+  "preview": "ef0ceaad",
+  "unitTests": {
+    "passed": 427,
+    "files": 25,
+    "seconds": 5.85
+  },
+  "browserRuns": [
+    {
+      "passed": 21,
+      "seconds": 41.2
+    },
+    {
+      "passed": 22,
+      "seconds": 41.3
+    }
+  ],
+  "snapshotsUpdated": false,
+  "builds": [
+    "development",
+    "local production candidate"
+  ],
+  "devMigrations": [
+    "0030",
+    "0031"
+  ],
+  "worker": "d1a76c66-7bf6-4215-83b1-08ef1feaf76b",
+  "productionChanged": false,
+  "remaining": [
+    "Earlier full-site visual reconciliation",
+    "Physical device review of latest changes",
+    "Production rollout and Google Play approvals"
+  ],
+  "browserFinalEditorRerun": {
+    "passed": 6,
+    "seconds": 18.9,
+    "overlapsPriorCases": true,
+    "detectedAxeViolations": 0,
+    "savedValuesPersist": true
+  }
+}

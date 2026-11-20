@@ -1,0 +1,22 @@
+{
+  "oneTestEventQueued": true,
+  "eligibleDeviceSubscriptions": 1,
+  "deliveryStatus": [
+    {
+      "status": "pending",
+      "attempts": 0,
+      "lastError": null
+    }
+  ],
+  "testType": "unlisted game invitation",
+  "destinationRetainedForTapTest": true,
+  "userReceiptConfirmed": false,
+  "lastCheckedDeliveries": [
+    {
+      "status": "sent",
+      "attempts": 1,
+      "last_error": null,
+      "sent_at": 1795200863952
+    }
+  ]
+}

@@ -75,7 +75,7 @@ async function metNorwayForecast(lat: number, lon: number, origin: string, waitU
   if (cached) return cached;
   try {
     const response = await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`, {
-      headers: { 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us/contact; samktk23@gmail.com)', Accept: 'application/json' },
+      headers: { 'User-Agent': 'OpenCourts.us/1.0 (https://opencourts.us/contact; support@opencourts.us)', Accept: 'application/json' },
       signal: AbortSignal.timeout(4500),
     });
     if (!response.ok) return Response.json({ error: 'Forecast temporarily unavailable.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });

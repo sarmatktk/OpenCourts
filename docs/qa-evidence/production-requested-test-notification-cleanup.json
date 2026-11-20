@@ -1,0 +1,14 @@
+{
+  "ownerReportedReceiptAndTap": true,
+  "providerAccepted": true,
+  "temporaryTestCleanup": {
+    "hosts": 0,
+    "games": 0,
+    "invitations": 0,
+    "events": 0,
+    "rooms": 0,
+    "realAccountPreserved": 1
+  },
+  "realAccountAndDevicePreferencesUntouched": true,
+  "platformSpecificAndroidAcceptanceInferred": false
+}

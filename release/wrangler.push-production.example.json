@@ -1,0 +1,36 @@
+{
+  "name": "opencourts-push-production",
+  "main": "../functions/push-worker.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "vars": {
+    "AUTH_ORIGIN": "https://opencourts.us",
+    "CF_PAGES_BRANCH": "main",
+    "PLAY_TOGETHER_ENABLED": "true",
+    "PLAY_TOGETHER_ENVIRONMENT": "production",
+    "PLAY_TOGETHER_PRODUCTION_ENABLED": "true",
+    "PUSH_ENVIRONMENT": "production",
+    "PUSH_ENABLED": "false",
+    "PUSH_VAPID_SUBJECT": "https://opencourts.us/contact"
+  },
+  "d1_databases": [
+    {
+      "binding": "COURTS_DB",
+      "database_name": "opencourts-courts",
+      "database_id": "56c414b7-aca5-429b-acfa-b9e8e87b052b",
+      "migrations_dir": "../functions/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PLAY_TOGETHER_MEDIA",
+      "bucket_name": "opencourts-media"
+    }
+  ]
+}

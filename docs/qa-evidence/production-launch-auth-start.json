@@ -1,0 +1,14 @@
+{
+  "origin": "https://opencourts.us",
+  "checks": [
+    "Adult confirmation required",
+    "Cross-origin sign-in blocked",
+    "google sign-in startup and production redirect passed",
+    "apple sign-in startup and production redirect passed"
+  ],
+  "passed": 4,
+  "actualProviderLoginCompleted": false,
+  "appleSigningStartupPassed": true,
+  "temporaryLoginAttemptsRemaining": 0,
+  "secretsInspected": false
+}

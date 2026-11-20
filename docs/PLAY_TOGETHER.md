@@ -1,3 +1,81 @@
+## Direct guest contract - November 20, 2026
+
+Preview 1019f776: GET games/:id/guests includes canAddGuestsDirectly. It is true
+for current active group owners/co-owners/assigned organizers or the non-group
+host; it does not imply a confirmed playing place. own remains null until the
+player confirms a place. POST request-guests atomically confirms eligible staff's
+own guests immediately (response approved:true), subject to occupancy, reserved
+places, live role/session and open-game checks. Other players create pending
+requests. Existing confirmed/pending guest places must be cancelled before
+replacement. One to three guests, confirmed sponsor required. No schema change.
+This supersedes historical blanket guest-approval descriptions below.
+
+## App testing readiness ? November 19, 2026
+
+See [APP_TESTING_CHECKLIST.md](APP_TESTING_CHECKLIST.md) for the ordered current acceptance gates and evidence. Public information pages were updated for current series, group visibility and optional push behavior. 339 unit tests, development build, 18 focused browser checks and Android debug/manifest checks passed. Store upload remains blocked by signing/version/destination decisions, physical-device acceptance and dependency review. No production deployment, store upload or authentication-secret changes.
+
+## November 19 - Cache improvements Preview7bfb84b9
+
+Published court expiry/background refresh and versioned public cover caching. Verified live HTML/sw.js no-cache must-revalidate and hashed JS public max-age31536000 immutable. Google/Apple readiness true; production deployment unchanged.339 unit tests and build passed before deployment. Private API/avatar no-store preserved; no migrations, auth secret changes or settings patches. Stable Preview https://feature-play-together.opencourts.pages.dev.
+
+## November 19 - Cache improvements (local)
+
+US court session cache v26 now stores savedAt/courts. Up to6h returns saved results;6-24h returns saved results immediately and refreshes in background; older/malformed/legacy arrays refetch. Background failures preserve bounded saved data. International persistent fallback unchanged. Updated context writes match timestamp format. Public group covers redirect unversioned/mismatched versions to actual stored version with no-store redirect, then public max-age3600. Public cover removal/archive can remain visible in browser cache for up to1h; never use this for private avatars. Player images remain private no-store. Upload responses return actual committed media version.
+
+Content-hashed /assets/* now cache1year immutable; HTML and sw.js revalidate. No private pages/API responses cached, no offline data caching, no production/settings change.339 unit tests passed including US fresh/stale/expired caches and image privacy/version rollover; build passed. Not deployed yet.
+
+## November 19 - Direct links and opt-in prompts Preview release8107cffc
+
+Published development sender and Preview8107cffc. Direct validated game/group targets, optional successful-action prompts,30-day dismissal and unavailable-game inbox/account fallback included.35 focused push backend/worker tests,10 prompt/settings browser checks and final build passed. Served service-worker routing verified; Google/Apple ready; production deployment unchanged. No auth secrets or Pages vars changed. Physical Home Screen/Android tap and OS permission acceptance still required; reopen/refresh Home Screen app for worker update. Email/APNs remain deferred.
+
+## November 19 - Direct notification destinations and contextual opt-in (local)
+
+Encrypted payload includes target {type:game|group,id}; service worker validates fixed destination types and UUIDs and builds same-origin URLs itself. Invalid/old targets open inbox. Game/group APIs retain sign-in/current-access checks; unavailable game screen offers inbox/account links. No private text in push payloads.
+
+Optional prompt after successful join/join-waitlist, or hosted created-game landing; never blocks submission. Enable uses same opt-in code; Not now stores30-day per-account/browser cooldown. Hidden for already enabled preference/current device, denied permission, unsupported browsers and unavailable tester configuration. No auto permission prompt. Direct link + safe fallback35 focused backend/worker tests passed; browser prompt/settings validation recorded separately. Existing installed Home Screen worker must refresh before direct-link testing. No auth secret/config changes.
+
+## November 19 - Distinct notification wording published (198b7cbc)
+
+Replaced identical push message with fixed privacy-safe wording for all19 supported event kinds. Sender transmits version1/kind/tag only using encrypted raw payload; service worker selects trusted fixed text, rejects arbitrary payload body/title/URL, and falls back for unknown/malformed kinds. No private names, locations, meeting times or reasons in lock-screen messages. Taps remain same-origin inbox. Updated future APNs/email contract: adapters should share equivalent type-specific safe templates, not arbitrary caller text.
+
+33 focused push/API/service-worker tests passed, including all19 distinct texts, unknown/prototype-like kind values, null payloads, sender encryption and privacy. Development build passed. Published sender and feature Preview198b7cbc; served sw.js templates verified, Google/Apple readiness true, production unchanged. No authentication secret or Pages variable update. Home Screen users must reopen/refresh Preview to receive the new service worker before testing; already displayed messages retain old text. No unsolicited new test pushes sent.
+
+## November 19 - Confirmed Sam push tester added; Preview 1d203b57
+
+User-supplied player ID matched development account a4746f68-1be9-49dd-87ae-170494349ee6 (message omitted initial a). Added alongside original tester87be695a-f00f-4689-b0c7-16ad9a50346d in PUSH_ALLOWED_PLAYER_IDS for Pages Preview and development sender. Pages PATCH contained ONLY that public key; no authentication secrets read as values/resubmitted/changed. Sender and existing build republished; Google/Apple readiness true and production deployment unchanged. Next: refresh stable Preview Account on affected device, enable notifications, then verify a real event from another account. Phone delivery remains unverified.
+
+## November 19 - Preview authentication restored; push device opt-in next
+
+Owner restored authentication secrets. Redeployed existing build only as c9d0b7b3 at stable Preview, without any env/config/secret mutation. Read-only verification: Google=true, Apple=true, Account HTTP200, production deployment/config unchanged. Development push database: zero registered devices, zero provider-accepted deliveries. Sender is Sam-only; real phone delivery awaits opt-in. Next: Sam signs into stable Preview Account on Android, enables notifications, then generates real activity from another account. Separate debug APK is android-app/app/build/outputs/apk/debug/app-debug.apk. Installed production app still points to production and cannot test this Preview feature.
+
+USER REQUIREMENT: never modify, rotate, replace or resubmit existing authentication secrets. All future config patches must include only explicitly changed new keys; never GET/redacted secret fields. Restoration readiness is verified but actual OAuth callback still requires user sign-in. Email and native APNs remain deferred.
+
+## November 19 - IMPORTANT: Preview push activation interrupted; sign-in recovery required
+
+Approved remote migration0024 successfully applied to opencourts-dev. Created opencourts-push-dev Worker, uploaded VAPID private secret, enabled Sam-only cron sender (version fa773791-54e0-4b11-bed1-e233e2a3ca93), and deployed Preview 0d8fffd7. Production deployment/configuration compared unchanged. Preview account/sw/games HTTP200 and dev Android assetlinks published, BUT auth/me reports Google=false and Apple=false.
+
+Cause: agent PATCH resubmitted GET-redacted secret_text fields along with public Preview vars. This left Preview sign-in secrets unusable. NEVER resubmit secret placeholders from GET responses. Future patches must contain ONLY explicit changed variables; omitted variables are preserved. Do not repeat the activation instructions' full env merge approach. No secret values can be recovered from GET/deployment metadata.
+
+Recovery: owner must re-enter original GOOGLE_CLIENT_SECRET, APPLE_PRIVATE_KEY (full .p8), APPLE_TOKEN_ENCRYPTION_KEY (original 64-hex value; do not rotate), AUTH_RATE_LIMIT_SECRET in Cloudflare Pages opencourts > Settings > Preview > Variables and secrets. Do not paste credentials in chat. Preserve public IDs, origin, bindings and existing encryption key. Then redeploy feature Preview and verify both providers true, actual Google/Apple callback, and court endpoint readiness. Only afterward proceed to phone opt-in/real push delivery. No email implementation/activation yet.
+
+Attempt to pause sender with `npx.cmd wrangler deploy --config development/wrangler.push-dev.json` was NOT executed: automatic approval review failed due to usage limit, not an unsafe-action decision. Do not bypass approval. Sender therefore remains enabled Sam-only; real delivery unverified. If needed owner can pause opencourts-push-dev by setting its PUSH_ENABLED=false in Workers settings and deploying that Worker only. Pages PUSH_ENABLED=false alone does not pause the Worker.
+
+Current feature source/docs/Android changes are uncommitted; last Git checkpoint a0d245a precedes push implementation. Private keys remain ignored. No production change, Play release, or push implementation Git push. Read NOTIFICATION_ARCHITECTURE.md but this incident entry overrides its old full env merge instruction.
+
+## November 19 - Push implementation validated; remote activation requires approval
+
+331 unit tests passed (31 new push/API/worker tests); 14 browser checks passed (opt-in phone/desktop light/dark, permission denial, disabled state and information pages). Development build and Worker dry-run passed. Separate Android debug APK built and release manifest validated; actual debug signing fingerprint matches development assetlinks. Mobile dark opt-in UI visually inspected. Local migration0024 applied; remote list confirms only0024 pending. No remote migration, new Worker, Pages binding/secret change, Preview deployment, Git push or production operation.
+
+Generated private VAPID keys stay in ignored .wrangler/push-dev-secrets.json; ignored .wrangler/push-dev-ready.json and push-preview-vars.json prepare tester-only activation for Sam (87be695a-f00f-4689-b0c7-16ad9a50346d). VAPID contact URI uses existing https://opencourts.us/contact. Never print/commit secret values. Review/approve exact activation commands in NOTIFICATION_ARCHITECTURE.md before running them. Physical Android delivery/delegation/notification taps remain pending, and no end-to-end phone delivery is claimed. Email/APNs remain future adapters.
+
+## November 19 - Push foundation and Android development build (local, activation pending)
+
+Shared event/channel delivery architecture documented in NOTIFICATION_ARCHITECTURE.md. Migration 0024 adds routing events, opt-in preferences, session-bound devices and leased delivery records. New push settings APIs and Account controls; generic service-worker messages and inbox taps; separate minute-scheduled development sender with allowlist, retries/expiry and current access checks. Email stays deferred. APNs schema/adapter contract is reserved for future native iOS, not implemented.
+
+Android source adds permission/delegation/icon/deep links; debug installs separately as us.opencourts.app.dev pointed at stable Preview. Release package/domain preserved. Debug APK and release manifest compile; no Play release. Ignored development VAPID keys generated locally; no secrets printed or committed. Local SQLite migration only; remote opencourts-dev remains schema0023. No Cloudflare worker/secrets/settings created, no Preview/production deployment and no Git push. Read architecture activation checklist before any remote operation.
+
+Next: finish automated verification, then request approval for remote migration0024 and development sender/Preview configuration with named testers/contact address. Real Chrome/Android notification delivery remains unverified until activation and physical-device acceptance. Do not call push live based on mocks/builds. Existing in-app notifications are unchanged.
+
 ## November 19 - Git checkpoint pushed and Preview published
 
 Feature code checkpoint f3a0a07 pushed to origin/feature/play-together. Verified development build published as 758ff97b at https://feature-play-together.opencourts.pages.dev. Includes latest compact guest rows and light/dark decision colors. All 300 unit tests and seven focused guest/series browser checks passed. Game page, notification page, auth API and game discovery returned HTTP 200; production deployment unchanged and bindings isolated. No migrations, production changes, email or push implementation. Maintained source/tests/docs and reviewed QA images/baselines committed; credentials, uploads, databases, build/log output remain excluded. Physical-device review remains next. A documentation-only follow-up records this release; automatic Preview builds from that commit may receive a new deployment ID with the same application code.

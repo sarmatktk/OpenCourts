@@ -1,3 +1,4 @@
+import {cleanupMedia,type MediaCleanupBucket} from './media-cleanup';
 import * as oauth from 'oauth4webapi';
 import { EncryptJWT, importPKCS8, jwtDecrypt, SignJWT } from 'jose';
 
@@ -13,7 +14,10 @@ export interface AuthDatabase {
 }
 export interface AuthEnv {
   COURTS_DB?: AuthDatabase;
+  PLAY_TOGETHER_MEDIA?: MediaCleanupBucket;
   PLAY_TOGETHER_ENABLED?: string;
+  PLAY_TOGETHER_ENVIRONMENT?: string;
+  PLAY_TOGETHER_PRODUCTION_ENABLED?: string;
   AUTH_ORIGIN?: string;
   CF_PAGES_BRANCH?: string;
   GOOGLE_CLIENT_ID?: string;
@@ -38,7 +42,7 @@ export class AuthError extends Error { constructor(public status: number, messag
 const appleKeyMessages = {
   'apple-key-format': 'The Apple private key must contain the complete .p8 PEM text, including BEGIN PRIVATE KEY and END PRIVATE KEY lines.',
   'apple-key-import': 'The Apple private key could not be imported as a P-256 signing key. Check that it is the unmodified Sign in with Apple .p8 file.',
-  'apple-key-sign': 'The Apple private key was imported, but signing failed. The development signing configuration needs review.',
+  'apple-key-sign': 'The Apple private key was imported, but signing failed. The sign-in configuration needs review.',
 };
 class AppleSigningError extends AuthError {
   constructor(public reason: keyof typeof appleKeyMessages) { super(503, appleKeyMessages[reason]); }
@@ -76,14 +80,19 @@ function readCookie(request: Request, name: string) {
 function setCookie(response: Response, origin: string, kind: string, value: string, age: number, crossSite = false) {
   response.headers.append('Set-Cookie', `${cookieName(origin, kind)}=${value}; Path=/; HttpOnly; SameSite=${crossSite ? 'None' : 'Lax'}; Max-Age=${age}${origin.startsWith('https:') ? '; Secure' : ''}`);
 }
+export function productionCommunityEnabled(env: AuthEnv) {
+  return env.AUTH_ORIGIN === 'https://opencourts.us' && env.CF_PAGES_BRANCH === 'main' && env.PLAY_TOGETHER_ENABLED === 'true' && env.PLAY_TOGETHER_ENVIRONMENT === 'production' && env.PLAY_TOGETHER_PRODUCTION_ENABLED === 'true';
+}
 export function assertEnvironment(request: Request, env: AuthEnv): { db: AuthDatabase; origin: string } {
   if (env.PLAY_TOGETHER_ENABLED !== 'true' || !env.COURTS_DB || !env.AUTH_ORIGIN) fail(404, 'Not found.');
   const origin = new URL(request.url).origin;
   const url = new URL(origin);
-  // Production cannot be enabled by setting the feature flag alone.
+  // Production requires an exact origin, main branch and two deliberate rollout markers.
   const local = ['localhost', '127.0.0.1'].includes(url.hostname) && url.protocol === 'http:';
   const preview = url.hostname === 'feature-play-together.opencourts.pages.dev' && url.protocol === 'https:';
-  if ((!local && !preview) || env.AUTH_ORIGIN !== origin || env.CF_PAGES_BRANCH === 'main') fail(404, 'Not found.');
+  const production = origin === 'https://opencourts.us' && productionCommunityEnabled(env);
+  const development = (local || preview) && env.CF_PAGES_BRANCH !== 'main' && env.PLAY_TOGETHER_ENVIRONMENT !== 'production';
+  if ((!development && !production) || env.AUTH_ORIGIN !== origin) fail(404, 'Not found.');
   return { db: env.COURTS_DB, origin };
 }
 function providerReady(provider: Provider, env: AuthEnv) {
@@ -183,11 +192,12 @@ async function start(request: Request, env: AuthEnv, db: AuthDatabase, origin: s
     const signedIn = requireSession(current); checkCsrf(request, signedIn);
     if (Date.now() - signedIn.session_created_at > 15 * 60_000) fail(403, 'Sign in again before connecting another sign-in method.');
   } else if (current) fail(409, 'You are already signed in.');
+  if (!linking && body.adultConfirmed !== true) fail(400, 'Play Together accounts are for adults 18 and older. Confirm your age to continue.');
   // Persistent per-browser throttle; Cloudflare edge rate limits are also required before public rollout.
   const browser = readCookie(request, cookieName(origin, 'flow')) || randomToken();
   const browserHash = await hashToken(browser);
   const requesterHash = await hashToken(`${env.AUTH_RATE_LIMIT_SECRET ?? 'loopback-only'}:${request.headers.get('CF-Connecting-IP') ?? 'local'}`);
-  if (provider === 'apple' && !origin.startsWith('https:')) fail(503, 'Apple sign-in requires the HTTPS development preview.');
+  if (provider === 'apple' && !origin.startsWith('https:')) fail(503, 'Apple sign-in requires a secure HTTPS connection.');
   // Validate/sign before redirecting, so key setup errors do not force a full
   // Apple login attempt. No token, key material or provider claims are exposed.
   if (provider === 'apple') await providerAuth(provider, env);
@@ -277,7 +287,7 @@ async function callback(request: Request, env: AuthEnv, db: AuthDatabase, origin
       ]);
     }
     const player = await db.prepare("SELECT id FROM players WHERE id=? AND status='active'").bind(playerId).first();
-    if (!player) return responseError();
+    if (!player) return responseError('account-suspended');
     if (appleToken) await db.prepare('UPDATE auth_identities SET provider_token_encrypted=? WHERE issuer=? AND subject=?').bind(appleToken, as.issuer, claims.sub).run();
     const response = redirect(attempt.return_path);
     if (attempt.link_session_hash) await db.prepare('UPDATE auth_sessions SET revoked_at=? WHERE token_hash=?').bind(Date.now(), attempt.link_session_hash).run();
@@ -321,7 +331,7 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
     if (path === 'me' && request.method === 'DELETE') {
       const owned=await db.prepare("SELECT id FROM tennis_groups WHERE owner_id=? AND status='active' LIMIT 1").bind(signedIn.id).first();
       if(owned)throw new AuthError(409,'Archive your active groups before deleting your account.');
-      if (Date.now() - signedIn.session_created_at > 15 * 60_000) fail(403, 'Sign in again before deleting your account.');
+      if (Date.now() - signedIn.session_created_at > 15 * 60_000) fail(403, 'For your security, sign out and sign back in, then try deleting your account again.');
       const body = await readJson(request);
       if (body.confirm !== 'DELETE') fail(400, 'Confirm account deletion.');
       const appleIdentity = await db.prepare("SELECT provider_token_encrypted FROM auth_identities WHERE player_id=? AND provider='apple'").bind(signedIn.id).first<{ provider_token_encrypted: string | null }>();
@@ -333,6 +343,7 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
         await oauth.processRevocationResponse(revoked);
       }
       await db.batch([db.prepare("DELETE FROM tennis_groups WHERE owner_id=? AND status='archived'").bind(signedIn.id),db.prepare('DELETE FROM players WHERE id=?').bind(signedIn.id)]);
+      if(env.PLAY_TOGETHER_MEDIA)await cleanupMedia(db,env.PLAY_TOGETHER_MEDIA).catch(()=>{/* Scheduled worker retries queued objects. */});
       const response = json({ ok: true }); setCookie(response, origin, 'session', '', 0); return response;
     }
     return json({ error: 'Not found.' }, 404);

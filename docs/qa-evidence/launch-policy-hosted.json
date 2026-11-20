@@ -1,0 +1,36 @@
+{
+  "preview": "50d37245",
+  "checks": [
+    {
+      "page": "/privacy",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    },
+    {
+      "page": "/terms",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    },
+    {
+      "page": "/play-together-help",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    },
+    {
+      "page": "/delete-account",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    },
+    {
+      "page": "/about",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    },
+    {
+      "page": "/contact",
+      "http": 200,
+      "matchesReviewedArtifact": true
+    }
+  ],
+  "productionChanged": false
+}

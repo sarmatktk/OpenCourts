@@ -342,18 +342,18 @@ function refreshCourtContext(courts: Court[], lat: number, lon: number, locality
     if (enriched.length === 0 || missingDetails < enriched.length * 0.8) {
       const cacheKey = countryCode && countryCode !== 'us'
         ? `opencourts-courts-v21-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
-        : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(enriched)); } catch { /* storage can be disabled */ }
+        : `opencourts-courts-v26-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+      try { sessionStorage.setItem(cacheKey, JSON.stringify({savedAt:Date.now(),courts:enriched})); } catch { /* storage can be disabled */ }
     }
     onUpdate?.(enriched);
   }).catch(error => { if (error.name !== 'AbortError') console.info('[OpenCourts] Nearby court details are still unavailable.'); });
 }
-export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void, selectedCountryCode?: string): Promise<Court[]> {
+export async function getCourts(lat: number, lon: number, signal?: AbortSignal, locality = '', onUpdate?: (courts: Court[]) => void, selectedCountryCode?: string, refresh = false): Promise<Court[]> {
   const countryCode = selectedCountryCode?.toLowerCase();
   const international = Boolean(countryCode && countryCode !== 'us');
   const key = international
     ? `opencourts-courts-v25-${countryCode}-${lat.toFixed(3)}-${lon.toFixed(3)}`
-    : `opencourts-courts-v20-${lat.toFixed(3)}-${lon.toFixed(3)}`;
+    : `opencourts-courts-v26-${lat.toFixed(3)}-${lon.toFixed(3)}`;
   // International Overpass is backed by shared public endpoints, so retain a
   // successful result across visits for this user. The US catalog/cache path
   // remains unchanged.
@@ -370,17 +370,19 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   };
   try {
     const saved = sessionStorage.getItem(key);
-    if (saved) {
+    if (saved && !refresh) {
       const entry = JSON.parse(saved);
-      const courts = (international ? entry.courts : entry) as Court[];
+      const courts = entry.courts as Court[];
       if (international) {
         if (!Array.isArray(courts) || !Number.isFinite(entry.savedAt) || Date.now() - entry.savedAt > 30 * 24 * 60 * 60_000) sessionStorage.removeItem(key);
         else if (Date.now() - entry.savedAt <= 6 * 60 * 60_000) return courts;
         else if (courts.length) fallback = { savedAt: entry.savedAt, courts };
       } else {
-      const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
-      if (courts.length === 0 || missingDetails < courts.length * 0.8) {
-        if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);
+      const age=Date.now()-entry.savedAt;
+      if(Array.isArray(courts)&&Number.isFinite(entry.savedAt)&&age>=0&&age<=24*60*60_000){
+        if(age>6*60*60_000){
+          void getCourts(lat,lon,signal,locality,onUpdate,selectedCountryCode,true).then(fresh=>{if(!signal?.aborted)onUpdate?.(fresh);}).catch(()=>{/* Keep bounded saved results if the refresh fails. */});
+        }else refreshCourtContext(courts,lat,lon,locality,signal,onUpdate,countryCode);
         return courts;
       }
       sessionStorage.removeItem(key);
@@ -397,7 +399,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
     } catch { /* storage can be disabled */ }
   }
   try {
-  const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}${international ? `&country=${countryCode}` : ''}`, { signal });
+  const res = await fetch(`/api/courts?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}${international ? `&country=${countryCode}` : ''}`, { signal, ...(refresh?{cache:'reload' as RequestCache}:{}) });
   if (!res.ok) {
     const failure = await res.json().catch(() => ({} as Record<string, unknown>));
     const diagnostic = typeof failure.diagnostic === 'string' && failure.diagnostic ? ` (${failure.diagnostic})` : '';
@@ -415,7 +417,7 @@ export async function getCourts(lat: number, lon: number, signal?: AbortSignal, 
   const missingDetails = courts.filter(court => !court.address && !court.contextName).length;
   if (international || courts.length === 0 || missingDetails < courts.length * 0.8) {
     const savedAt = international && data.stale ? Math.min(Date.parse(data.dataUpdatedAt || '') || Date.now(), Date.now() - 6 * 60 * 60_000 - 1) : Date.now();
-    try { sessionStorage.setItem(key, JSON.stringify(international ? { savedAt, courts } : courts)); } catch { /* storage can be disabled */ }
+    try { sessionStorage.setItem(key, JSON.stringify({ savedAt, courts })); } catch { /* storage can be disabled */ }
     if (international) try { localStorage.setItem(persistentKey, JSON.stringify({ savedAt, courts })); } catch { /* storage can be disabled */ }
   }
   if (!international) refreshCourtContext(courts, lat, lon, locality, signal, onUpdate, countryCode);

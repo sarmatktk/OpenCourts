@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-20",
+  "preview": "31411e87",
+  "developmentMigration": "0029_series_chat_staff.sql",
+  "developmentWorker": "994ba867-74bf-4e64-a2ea-c21ed91d2a7a",
+  "units": {
+    "passed": 415,
+    "files": 25,
+    "seconds": 5.89
+  },
+  "browser": {
+    "passed": 36,
+    "duration": "1.1m",
+    "noSnapshotUpdates": true
+  },
+  "hostedChecks": {
+    "environment": "feature/play-together Preview / opencourts-dev",
+    "passed": 7,
+    "checks": [
+      "Owner, co-owner and group organizer access a long-quiet series without attendance or membership records",
+      "Named audience includes all three current staff roles",
+      "All three roles can post across dates after the ordinary room deadline",
+      "Demotion removes role-only access immediately",
+      "Promotion restores role-based access immediately",
+      "Staff re-confirmation emits no false inactivity departure",
+      "Group departure overrides staff exemption"
+    ],
+    "temporaryFixturesRemaining": {
+      "players": 0,
+      "groups": 0,
+      "games": 0,
+      "rooms": 0
+    },
+    "realUserNotificationsSent": false,
+    "oauthProviderSignInTested": false
+  },
+  "backupDryRun": {
+    "restore": "passed",
+    "migration29": "passed",
+    "tableCountsPreserved": {
+      "game_chat_messages": 18,
+      "game_chat_rooms": 2,
+      "game_chat_reports": 1,
+      "series_chat_members": 0
+    },
+    "foreignKeyViolations": 0
+  },
+  "builds": {
+    "development": "passed, Vite 13.76s",
+    "productionCandidate": "passed, Vite 15.43s",
+    "backendAfterD1Fix": "Full units and functions TypeScript check passed; client bundles unchanged"
+  },
+  "d1CompatibilityFix": "Series audience joins approved group memberships; series push candidates use an indexed membership predicate instead of compound UNION candidates. Four remote access/audience/push EXPLAIN checks passed.",
+  "productionChanged": false,
+  "secretsReadOrChanged": false,
+  "fullBrowserSuite": "Not rerun; earlier visual baselines remain pending",
+  "hostedPolicies": [
+    {
+      "route": "/privacy",
+      "status": "HTTP/1.1 200 OK",
+      "staffPolicy": true,
+      "noindex": true
+    },
+    {
+      "route": "/terms",
+      "status": "HTTP/1.1 200 OK",
+      "staffPolicy": true,
+      "noindex": true
+    },
+    {
+      "route": "/play-together-help",
+      "status": "HTTP/1.1 200 OK",
+      "staffPolicy": true,
+      "noindex": true
+    }
+  ]
+}

@@ -125,3 +125,19 @@ UI includes compact read-only lists for members, with no remove/approve/edit con
 
 Cancellation roster excludes players currently confirmed again; historical game_cancellations records remain stored. Guest cancellation notifications supply separately labelled sponsor name/guest-count/time rows; latest cancellation per sponsor is shown, hidden while a replacement guest request is pending or approved. Guest-only cancellation does not label the sponsor cancelled. Member responses omit private reasons; existing organizer-only reason access unchanged. No schema changes. All 36 group tests and development build passed. Not deployed; includes pending guest touch-button work for next Preview. Native clients should use optional kind (player/guests) and guestCount in cancellation rows, defaulting older responses to player.
 
+
+## Shared notifications foundation (November 19, local only)
+
+Read [NOTIFICATION_ARCHITECTURE.md](NOTIFICATION_ARCHITECTURE.md). Migration0024 reserves event/channel/device delivery state for Web Push, APNs and future email. Only Web Push registration/sending is implemented locally. APNs requires approved native authentication, token/topic/environment registration, an APNs adapter and invalid-token cleanup. Never send APNs tokens to the web subscription endpoint. Native push, email and native auth remain unimplemented; remote schema is still0023 until explicit migration approval.
+
+## Notification targets and contextual opt-in
+
+Version1 push payload now carries target {type:game|group,id:UUID}. Swift should resolve only supported entity types through its own navigation and shared authorized APIs; never open arbitrary payload URLs. Old/invalid/unavailable targets fall back to the native inbox. Opt-in prompt follows successful join/waitlist/create, never blocks it, respects denied/enabled state and remembers Not now for30days. APNs adapter remains unimplemented.
+> November 19 web contract follow-up (no native iOS app is being shipped): organizer
+> attendance is independent of management in group/public/unlisted games. Existing
+> POST games/:id/leave releases the organizer's place without cancelling the game;
+> POST .../join reclaims a place directly, subject to capacity/reserved waitlist places.
+> Participation adds isGameOrganizer (actual organizer), separate from isOrganizer
+> (management capability). Game DTO adds organizerPlaying. Organizers not playing
+> remain in My Games and retain management; attendance changes affect one occurrence.
+

@@ -1,0 +1,30 @@
+{
+  "preview": "1019f776",
+  "unitTests": {
+    "passed": 432,
+    "files": 25,
+    "seconds": 5.47
+  },
+  "browserTests": {
+    "passed": 20,
+    "seconds": 35.5,
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "phoneAndDesktop": true
+  },
+  "builds": [
+    "development",
+    "local production candidate"
+  ],
+  "snapshotsUpdated": false,
+  "migrationsAdded": false,
+  "workerChanged": false,
+  "productionChanged": false,
+  "physicalDeviceRetest": false,
+  "hostedScenariosPassed": 8,
+  "temporaryFixturesRemaining": 0,
+  "realUserNotificationsSent": false,
+  "latestPreviewBundleVerified": true
+}

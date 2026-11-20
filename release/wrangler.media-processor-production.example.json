@@ -1,0 +1,10 @@
+{
+  "name": "opencourts-media-processor",
+  "main": "../development/media-processor/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "images": {
+    "binding": "IMAGES"
+  }
+}

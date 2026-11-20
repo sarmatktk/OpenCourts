@@ -151,3 +151,7 @@ Planned scope:
 
 Next step when authorized: agree email categories/preferences, provider and sender domain, then approve the delivery/schema design before implementing. This is a future milestone, not a completed feature or production setting change.
 
+
+## Active milestone - notification foundation and Android Web Push
+
+November19: implement/test locally under NOTIFICATION_ARCHITECTURE.md, then seek approval for migration0024 and the isolated development sender/configuration. Share events with future APNs/email, but implement Web Push first. Email remains deferred. Physical Android delivery and sign-out/privacy acceptance are release gates. Production deployment is a separate decision.

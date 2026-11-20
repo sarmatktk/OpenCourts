@@ -13,12 +13,12 @@ for(const theme of ['light','dark'] as const)for(const width of [390,1440]){
   });
   const appearance=(button:Locator)=>button.evaluate(el=>{const s=getComputedStyle(el);return {background:s.backgroundColor,color:s.color,radius:s.borderRadius};});
   await page.goto('/');
-  const original=page.locator('.search-submit');
+  const original=page.locator('.searchbox .search-submit');
   const normal=await appearance(original);
   expect(normal.color).toBe('rgb(255, 255, 255)');
   await original.hover();await expect(original).toHaveCSS('background-color','rgb(32, 86, 70)');
   const hover=await appearance(original);
-  for(const [path,label] of [['/play-together','Find games'],['/play-together/players','Find players'],['/play-together/groups','Search groups'],['/play-together/create','Find courts']]){
+  for(const [path,label] of [['/play-together?find=1','Find games'],['/play-together/players','Find players'],['/play-together/groups','Search groups'],['/play-together/create','Find courts']]){
    await page.goto(path);const action=page.getByRole('button',{name:label,exact:true});
    await expect(action).toBeEnabled();expect(await appearance(action)).toEqual(normal);
    await action.hover();await expect.poll(()=>appearance(action)).toEqual(hover);

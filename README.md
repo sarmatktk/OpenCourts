@@ -53,7 +53,7 @@ The frontend uses the same origin for the Pages Functions. No secret keys are em
 
 1. Push this directory to a GitHub repository.
 2. In Cloudflare, create a Pages project connected to that repository.
-3. Set the framework preset to **Vite**, build command to `npm run build`, and output directory to `dist`. Use Node 20 or newer.
+3. Set the framework preset to **Vite**, build command to `npm run build`, and output directory to `dist`. Use Node 22.21 or newer (Node 24 LTS is also supported).
 4. Deploy. Cloudflare Pages automatically publishes the `functions/` endpoints alongside the static assets.
 5. Add `opencourts.us` in the Pages project's **Custom domains** settings. Follow Cloudflare's DNS setup instructions and verify both apex and `www` routing if you use both.
 
@@ -109,3 +109,5 @@ Phase 2 public games: [implementation and testing guide](docs/play-together-game
 Phase 3 participation: [implementation and rollout guide](docs/play-together-participation.md).
 
 Phase 4 groups: [implementation, privacy and rollout guide](docs/play-together-groups.md).
+
+Android internal testing readiness and the current release gates: [docs/APP_TESTING_CHECKLIST.md](docs/APP_TESTING_CHECKLIST.md). There is no native iOS Play Together app in this release.

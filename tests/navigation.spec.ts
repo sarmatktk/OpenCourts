@@ -7,6 +7,8 @@ const courts = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(()=>localStorage.setItem('opencourts-place-v2',JSON.stringify({label:'Fairfax, VA',lat:38.8462,lon:-77.3064})));
+
   const start = Date.now() - 60 * 60_000;
   const periods = Array.from({ length: 72 }, (_, index) => ({
     time: new Date(start + index * 60 * 60_000).toISOString(),
@@ -65,7 +67,7 @@ test('filters and menu links work on a phone', async ({ page }) => {
   await page.getByRole('button', { name: 'Reset' }).click();
   await expect(page.locator('.result-meta')).toContainText('3 courts');
 
-  await expect(page.getByRole('link', { name: 'Open Support page' })).toHaveAttribute('href', '/support');
+  await expect(page.getByRole('link', { name: 'Support',exact:true }).last()).toHaveAttribute('href', '/support');
   await expect(page.getByRole('button', { name: 'Toggle menu' })).toBeHidden();
   await expect(page.getByRole('link',{name:'About',exact:true}).last()).toHaveAttribute('href','/about');
   await expect(page.locator('nav.nav')).not.toHaveClass(/open/);

@@ -1,0 +1,134 @@
+{
+  "project": "opencourts",
+  "environment": "production",
+  "existing": [
+    {
+      "name": "GEOAPIFY_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "WEATHERAPI_KEY",
+      "type": "secret_text"
+    }
+  ],
+  "add": [
+    {
+      "name": "AUTH_ORIGIN",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PLAY_TOGETHER_ENVIRONMENT",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PLAY_TOGETHER_ENABLED",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PLAY_TOGETHER_PRODUCTION_ENABLED",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "MEDIA_UPLOADS_ENABLED",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PUSH_ENVIRONMENT",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PUSH_ENABLED",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "PUSH_VAPID_SUBJECT",
+      "type": "plain_text",
+      "ownerMustFill": false
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "APPLE_CLIENT_ID",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "APPLE_TEAM_ID",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "APPLE_KEY_ID",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "PUSH_VAPID_PUBLIC_KEY",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "MODERATOR_PLAYER_IDS",
+      "type": "plain_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "type": "secret_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "APPLE_PRIVATE_KEY",
+      "type": "secret_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "APPLE_TOKEN_ENCRYPTION_KEY",
+      "type": "secret_text",
+      "ownerMustFill": true
+    },
+    {
+      "name": "AUTH_RATE_LIMIT_SECRET",
+      "type": "secret_text",
+      "ownerMustFill": true
+    }
+  ],
+  "skipExisting": [],
+  "activatesFeatures": false,
+  "added": [
+    "AUTH_ORIGIN",
+    "PLAY_TOGETHER_ENVIRONMENT",
+    "PLAY_TOGETHER_ENABLED",
+    "PLAY_TOGETHER_PRODUCTION_ENABLED",
+    "MEDIA_UPLOADS_ENABLED",
+    "PUSH_ENVIRONMENT",
+    "PUSH_ENABLED",
+    "PUSH_VAPID_SUBJECT",
+    "GOOGLE_CLIENT_ID",
+    "APPLE_CLIENT_ID",
+    "APPLE_TEAM_ID",
+    "APPLE_KEY_ID",
+    "PUSH_VAPID_PUBLIC_KEY",
+    "MODERATOR_PLAYER_IDS",
+    "GOOGLE_CLIENT_SECRET",
+    "APPLE_PRIVATE_KEY",
+    "APPLE_TOKEN_ENCRYPTION_KEY",
+    "AUTH_RATE_LIMIT_SECRET"
+  ],
+  "existingUnchanged": true,
+  "previewUnchanged": true,
+  "productionBindingsUnchanged": true,
+  "deploymentUnchanged": true,
+  "secretValuesPrinted": false,
+  "realCredentialsSupplied": false
+}

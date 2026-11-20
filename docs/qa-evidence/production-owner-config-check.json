@@ -1,0 +1,74 @@
+{
+  "project": "opencourts",
+  "environment": "production",
+  "authIds": {
+    "GOOGLE_CLIENT_ID": {
+      "present": true,
+      "filled": true
+    },
+    "APPLE_CLIENT_ID": {
+      "present": true,
+      "filled": true
+    },
+    "APPLE_TEAM_ID": {
+      "present": true,
+      "filled": true
+    },
+    "APPLE_KEY_ID": {
+      "present": true,
+      "filled": true
+    }
+  },
+  "secrets": {
+    "GOOGLE_CLIENT_SECRET": {
+      "present": true,
+      "encrypted": true,
+      "valueInspected": false,
+      "credentialVerified": false
+    },
+    "APPLE_PRIVATE_KEY": {
+      "present": true,
+      "encrypted": true,
+      "valueInspected": false,
+      "credentialVerified": false
+    },
+    "APPLE_TOKEN_ENCRYPTION_KEY": {
+      "present": true,
+      "encrypted": true,
+      "valueInspected": false,
+      "credentialVerified": false
+    },
+    "AUTH_RATE_LIMIT_SECRET": {
+      "present": true,
+      "encrypted": true,
+      "valueInspected": false,
+      "credentialVerified": false
+    }
+  },
+  "settings": {
+    "AUTH_ORIGIN": "https://opencourts.us",
+    "PLAY_TOGETHER_ENVIRONMENT": "production",
+    "PLAY_TOGETHER_ENABLED": "false",
+    "PLAY_TOGETHER_PRODUCTION_ENABLED": "false",
+    "MEDIA_UPLOADS_ENABLED": "false",
+    "PUSH_ENVIRONMENT": "production",
+    "PUSH_ENABLED": "false"
+  },
+  "pushPublicKeyFilled": true,
+  "publicPushKeyValid": true,
+  "moderatorIdsFilled": true,
+  "bindings": {
+    "database": {
+      "id": "56c414b7-aca5-429b-acfa-b9e8e87b052b"
+    },
+    "media": {
+      "name": "opencourts-media"
+    },
+    "imageProcessor": {
+      "service": "opencourts-media-processor",
+      "environment": "production"
+    }
+  },
+  "productionBranch": "main",
+  "configurationChanged": false
+}

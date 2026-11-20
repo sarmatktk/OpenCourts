@@ -1,0 +1,67 @@
+{
+  "production": "0edd7fe3",
+  "passed": 8,
+  "checks": [
+    {
+      "page": "/account",
+      "width": 390,
+      "theme": "light",
+      "providersEnabledAfterAdultConfirmation": true,
+      "overflow": false,
+      "jsErrors": 0
+    },
+    {
+      "page": "/privacy",
+      "width": 390,
+      "theme": "light",
+      "emailProtectionDecoded": true,
+      "overflow": false
+    },
+    {
+      "page": "/account",
+      "width": 390,
+      "theme": "dark",
+      "providersEnabledAfterAdultConfirmation": true,
+      "overflow": false,
+      "jsErrors": 0
+    },
+    {
+      "page": "/privacy",
+      "width": 390,
+      "theme": "dark",
+      "emailProtectionDecoded": true,
+      "overflow": false
+    },
+    {
+      "page": "/account",
+      "width": 1440,
+      "theme": "light",
+      "providersEnabledAfterAdultConfirmation": true,
+      "overflow": false,
+      "jsErrors": 0
+    },
+    {
+      "page": "/privacy",
+      "width": 1440,
+      "theme": "light",
+      "emailProtectionDecoded": true,
+      "overflow": false
+    },
+    {
+      "page": "/account",
+      "width": 1440,
+      "theme": "dark",
+      "providersEnabledAfterAdultConfirmation": true,
+      "overflow": false,
+      "jsErrors": 0
+    },
+    {
+      "page": "/privacy",
+      "width": 1440,
+      "theme": "dark",
+      "emailProtectionDecoded": true,
+      "overflow": false
+    }
+  ],
+  "realProviderLoginCompleted": false
+}

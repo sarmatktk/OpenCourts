@@ -10,7 +10,7 @@ import {hashToken,type AuthDatabase,type AuthStatement,type AuthEnv} from '../fu
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class DB implements AuthDatabase{
  sqlite=new DatabaseSync(':memory:');
- constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0012_media_assets.sql','0013_group_invitations.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
+ constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0012_media_assets.sql','0013_group_invitations.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql','0024_notification_delivery.sql','0025_notification_action_actor.sql','0026_account_moderation.sql','0027_game_chat.sql','0028_series_chat.sql','0029_series_chat_staff.sql','0030_chat_lifecycle_notices.sql','0031_game_capacity_edit.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
  prepare(sql:string):AuthStatement{let args:unknown[]=[];const s:AuthStatement={bind(...v){args=v;return s;},first:async<T>()=>(this.sqlite.prepare(sql).get(...args)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...args) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...args).changes)}})};return s;}
  async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -42,7 +42,7 @@ it('preserves legacy Admin authority without granting new role-management powers
 it('only primary Owner assigns roles and controls archive',async()=>{const id=await create();await member(id,'admin');await member(id,'member');await call(id,'role',{playerId:'admin',role:'coowner'});expect((await call(id,'role',{playerId:'member',role:'organizer'},'admin')).status).toBe(403);expect((await call(id,'role',{playerId:'member',role:'organizer'})).status).toBe(200);expect((await call(id,'role',{playerId:'member',role:'coowner'},'admin')).status).toBe(403);expect((await call(id,'archive',{},'admin')).status).toBe(403);expect((await call(id,'transfer',{playerId:'member'},'admin')).status).toBe(403);expect((await call(id,'request',{},'outsider')).status).toBe(200);expect((await call(id,'approve',{playerId:'outsider'},'member')).status).toBe(403);expect((await call(id,'role',{playerId:'admin',role:'member'},'admin')).status).toBe(400);});
 
 function webp(){const b=new Uint8Array(30);b.set(new TextEncoder().encode('RIFF'),0);new DataView(b.buffer).setUint32(4,22,true);b.set(new TextEncoder().encode('WEBPVP8X'),8);new DataView(b.buffer).setUint32(16,10,true);b[24]=31;b[27]=31;return b;}
-it('validates output dimensions/metadata and stores only optimized images for authorized actors',async()=>{const id=await create();const objects=new Map<string,ArrayBuffer>();const bucket={put:async(k:string,v:ArrayBuffer)=>{objects.set(k,v);},get:async(k:string)=>objects.has(k)?{body:new Blob([objects.get(k)!]).stream()}:null,delete:async(k:string)=>{objects.delete(k);}};let calls=0;const mediaEnv:MediaEnv={...env,MEDIA_UPLOADS_ENABLED:'true',PLAY_TOGETHER_MEDIA:bucket,PLAY_TOGETHER_IMAGE_PROCESSOR:{fetch:async()=>{calls++;return new Response(webp());}}};const upload=(who:string)=>new Request(origin+'/api/media/group/'+id,{method:'PUT',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'image/jpeg'},body:'original-input'});expect((await handleMedia(upload('outsider'),mediaEnv)).status).toBe(404);expect(calls).toBe(0);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);const read=new Request(origin+'/api/media/group/'+id);expect((await handleMedia(read,mediaEnv)).status).toBe(200);expect(safeWebp(webp(),'group')).toEqual({width:32,height:32});const bad=webp();bad.set(new TextEncoder().encode('EXIF'),12);expect(()=>safeWebp(bad,'group')).toThrow();});
+it('validates output dimensions/metadata and stores only optimized images for authorized actors',async()=>{const id=await create();const objects=new Map<string,ArrayBuffer>();const bucket={put:async(k:string,v:ArrayBuffer)=>{objects.set(k,v);},get:async(k:string)=>objects.has(k)?{body:new Blob([objects.get(k)!]).stream()}:null,delete:async(k:string)=>{objects.delete(k);}};let calls=0;const mediaEnv:MediaEnv={...env,MEDIA_UPLOADS_ENABLED:'true',PLAY_TOGETHER_MEDIA:bucket,PLAY_TOGETHER_IMAGE_PROCESSOR:{fetch:async()=>{calls++;return new Response(webp());}}};const upload=(who:string)=>new Request(origin+'/api/media/group/'+id,{method:'PUT',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'image/jpeg'},body:'original-input'});expect((await handleMedia(upload('outsider'),mediaEnv)).status).toBe(404);expect(calls).toBe(0);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);expect((await handleMedia(upload('owner'),mediaEnv)).status).toBe(200);expect(objects.size).toBe(1);const read=new Request(origin+'/api/media/group/'+id);const redirected=await handleMedia(read,mediaEnv);expect(redirected.status).toBe(302);expect((await handleMedia(new Request(origin+redirected.headers.get('Location')),mediaEnv)).status).toBe(200);expect(safeWebp(webp(),'group')).toEqual({width:32,height:32});const bad=webp();bad.set(new TextEncoder().encode('EXIF'),12);expect(()=>safeWebp(bad,'group')).toThrow();});
 it('player photo reads require the same account and uploads fail closed without bindings',async()=>{const read=new Request(origin+'/api/media/player/owner');expect((await handleMedia(read,env)).status).toBe(404);const upload=new Request(origin+'/api/media/player/owner',{method:'PUT',headers:{Origin:origin,Cookie:'oc_session='+tokens.owner,'X-CSRF-Token':'csrf','Content-Type':'image/jpeg'},body:'x'});expect((await handleMedia(upload,env)).status).toBe(503);});
 
 it('invitations preserve preview privacy and require fresh approval',async()=>{const id=await create();const r=await call(id,'invitations',{expiresInDays:7});expect(r.status).toBe(201);const invite=await r.json();const token=invite.url.split('#')[1];expect(token).toHaveLength(64);expect(JSON.stringify(db.sqlite.prepare('SELECT * FROM group_invitations').get())).not.toContain(token);const preview=await(await handleGroups(req('/invitation-preview','POST',{token},''),env)).json();expect(JSON.stringify(preview)).not.toContain('PRIVATE-CONTENT');for(let i=0;i<2;i++)expect((await handleGroups(req('/invitation-accept','POST',{token},'member'),env)).status).toBe(200);expect(db.sqlite.prepare('SELECT status FROM group_memberships WHERE player_id=?').get('member').status).toBe('pending');expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_invitation_redemptions').get().n).toBe(1);await call(id,'revoke-invitation',{invitationId:invite.id});expect((await handleGroups(req('/invitation-preview','POST',{token},''),env)).status).toBe(404);});
@@ -80,11 +80,11 @@ it('player discovery is opt-in, blocks are symmetric, and reports are moderator-
  expect((await(await handlePlayers(pReq(),env)).json()).players).toHaveLength(0);db.sqlite.prepare("UPDATE players SET discoverable=1 WHERE id IN ('member','outsider')").run();
  let list=await(await handlePlayers(pReq(),env)).json();expect(list.players).toHaveLength(2);expect(JSON.stringify(list)).not.toMatch(/token|email|identity|membership|created_at/);
  expect((await handlePlayers(pReq('/block','POST',{playerId:'member'}),env)).status).toBe(200);expect((await(await handlePlayers(pReq(),env)).json()).players.map((p:any)=>p.id)).toEqual(['outsider']);expect((await(await handlePlayers(pReq('','GET',undefined,'member'),env)).json()).players.some((p:any)=>p.id==='owner')).toBe(false);
- expect((await handlePlayers(pReq('/report','POST',{subjectType:'player',subjectId:'member',category:'harassment',details:'Synthetic test report'}),env)).status).toBe(201);expect((await handlePlayers(pReq('/report','POST',{subjectType:'player',subjectId:'member',category:'harassment'}),env)).status).toBe(429);
+ expect((await handlePlayers(pReq('/report','POST',{subjectType:'player',subjectId:'member',category:'harassment',details:'Synthetic test report'}),env)).status).toBe(201);expect((await handlePlayers(pReq('/report','POST',{subjectType:'player',subjectId:'member',category:'harassment',details:'Duplicate report explanation'}),env)).status).toBe(429);
  expect((await handlePlayers(pReq('/reports'),env)).status).toBe(403);const moderatorEnv={...env,MODERATOR_PLAYER_IDS:'owner'};const reports=await(await handlePlayers(pReq('/reports'),moderatorEnv)).json();expect(reports.reports).toHaveLength(1);expect((await handlePlayers(pReq('/review-report','POST',{id:reports.reports[0].id,status:'resolved'}),moderatorEnv)).status).toBe(200);
  await handlePlayers(pReq('/unblock','POST',{playerId:'member'}),env);expect((await(await handlePlayers(pReq(),env)).json()).players).toHaveLength(2);db.sqlite.prepare("UPDATE players SET discoverable=0 WHERE id='member'").run();expect((await(await handlePlayers(pReq(),env)).json()).players.map((p:any)=>p.id)).toEqual(['outsider']);
 });
-it('reports cannot infer an inaccessible group-only game',async()=>{const r=new Request(origin+'/api/players/report',{method:'POST',headers:{Origin:origin,Cookie:'oc_session='+tokens.outsider,'X-CSRF-Token':'csrf','Content-Type':'application/json'},body:JSON.stringify({subjectType:'game',subjectId:'missing-private-game',category:'privacy'})});expect((await handlePlayers(r,env)).status).toBe(404);});
+it('reports cannot infer an inaccessible group-only game',async()=>{const r=new Request(origin+'/api/players/report',{method:'POST',headers:{Origin:origin,Cookie:'oc_session='+tokens.outsider,'X-CSRF-Token':'csrf','Content-Type':'application/json'},body:JSON.stringify({subjectType:'game',subjectId:'missing-private-game',category:'privacy',details:'Private game concern'})});expect((await handlePlayers(r,env)).status).toBe(404);});
 it('player safety mutations require CSRF and reports cannot grant moderator privileges',async()=>{
  const base=origin+'/api/players';const h={Origin:origin,Cookie:'oc_session='+tokens.owner,'Content-Type':'application/json'};expect((await handlePlayers(new Request(base+'/block',{method:'POST',headers:h,body:JSON.stringify({playerId:'member'})}),env)).status).toBe(403);
  expect((await handlePlayers(new Request(base+'/reports',{headers:{Cookie:'oc_session='+tokens.owner}}),{...env,MODERATOR_PLAYER_IDS:'outsider'})).status).toBe(403);
@@ -124,6 +124,21 @@ async function waitGame(){
  return {id,groupId};
 }
 async function waitCall(id:string,action:string,who:string,body={}){return handleGames(new Request(origin+'/api/games/'+id+'/'+action,{method:action==='participation'?'GET':'POST',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(action==='participation'?{}:{body:JSON.stringify(body)})}),env);}
+for(const visibility of ['public','private'])it(`organizer attendance is independent of managing a ${visibility} group game and respects offered places`,async()=>{
+ const {id,groupId}=await waitGame();db.sqlite.prepare('UPDATE tennis_groups SET visibility=? WHERE id=?').run(visibility,groupId);
+ expect((await waitCall(id,'join-waitlist','admin')).status).toBe(200);
+ expect((await waitCall(id,'leave','owner')).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT status,organizer_id FROM games WHERE id=?').get(id)).toMatchObject({status:'scheduled',organizer_id:'owner'});
+ expect(db.sqlite.prepare('SELECT status FROM game_waitlist WHERE game_id=? AND player_id=?').get(id,'admin').status).toBe('offered');
+ expect((await waitCall(id,'join','owner')).status).toBe(409);
+ expect((await(await waitCall(id,'participation','owner')).json())).toMatchObject({isOrganizer:true,isGameOrganizer:true,joined:false,availablePlaces:0});
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_notifications WHERE recipient_id='owner'").get().n).toBe(0);
+ expect((await waitCall(id,'accept-waitlist','admin')).status).toBe(200);
+ expect((await waitCall(id,'leave','member')).status).toBe(200);
+ expect((await waitCall(id,'join','owner')).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
+ expect((await waitCall(id,'cancel','owner')).status).toBe(200);
+});
 it('queues group players FIFO, reserves openings and accepts only the offered player',async()=>{
  const {id}=await waitGame();expect((await waitCall(id,'join-waitlist','admin')).status).toBe(200);db.sqlite.prepare('UPDATE game_waitlist SET created_at=created_at-100 WHERE player_id=?').run('admin');
  expect((await waitCall(id,'join-waitlist','outsider')).status).toBe(200);const state=await(await waitCall(id,'participation','outsider')).json();expect(state.waitlist).toMatchObject({status:'waiting',position:2});
@@ -187,8 +202,43 @@ it('series management honors current group roles and hides schedule notes after 
  const {id,groupId}=await waitGame();const request=(who:string,suffix='',body?:unknown)=>new Request(origin+'/api/games/'+id+'/series'+suffix,{method:body?'POST':'GET',headers:{Origin:origin,Cookie:'oc_session='+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  expect((await handleGames(request('member'),env)).status).toBe(404);await call(groupId,'role',{playerId:'admin',role:'coowner'});expect((await handleGames(request('admin'),env)).status).toBe(200);
  const next=new Date(Date.now()+2*86400000).toISOString().slice(0,16);const input={scope:'single',operation:'reschedule',preserveExceptions:true,startLocal:next};let r=await handleGames(request('admin','/preview',input),env);expect(r.status).toBe(200);const plan=await r.json();r=await handleGames(request('admin','/apply',{...input,planHash:plan.planHash,requestId:crypto.randomUUID()}),env);expect(r.status).toBe(200);
+ expect(db.sqlite.prepare('SELECT recipient_id,actor_id FROM game_schedule_notifications WHERE recipient_id=?').get('owner')).toMatchObject({recipient_id:'owner',actor_id:'admin'});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications WHERE recipient_id=?').get('admin').n).toBe(0);
  await call(groupId,'remove',{playerId:'member'});const inbox=await handleGames(new Request(origin+'/api/games/notifications',{headers:{Cookie:'oc_session='+tokens.member}}),env);expect((await inbox.json()).notifications.some((n:any)=>n.kind==='schedule_changed')).toBe(false);
  await call(groupId,'role',{playerId:'admin',role:'member'});expect((await handleGames(request('admin'),env)).status).toBe(404);
+});
+
+for(const operation of ['cancel','series-cancel','archive','reschedule'])it(`excludes acting group owner but not the game's organizer on ${operation}`,async()=>{
+ const {id,groupId}=await waitGame();
+ // Both Owner and the delegated game organizer participate in this game.
+ db.sqlite.prepare("UPDATE games SET organizer_id='member' WHERE id=?").run(id);
+ await call(groupId,'role',{playerId:'member',role:'organizer'});
+ if(operation==='archive')expect((await call(groupId,'archive')).status).toBe(200);
+ else if(operation==='cancel')expect((await waitCall(id,'cancel','owner')).status).toBe(200);
+ else {
+  const input={scope:'single',operation:operation==='reschedule'?'reschedule':'cancel',preserveExceptions:true,startLocal:new Date(Date.now()+2*86400000).toISOString().slice(0,16)};
+  const seriesReq=(suffix:string,body:unknown)=>new Request(origin+'/api/games/'+id+'/series/'+suffix,{method:'POST',headers:{Origin:origin,Cookie:'oc_session='+tokens.owner,'X-CSRF-Token':'csrf','Content-Type':'application/json'},body:JSON.stringify(body)});
+  const preview=await handleGames(seriesReq('preview',input),env);expect(preview.status).toBe(200);const plan=await preview.json();
+  expect((await handleGames(seriesReq('apply',{...input,planHash:plan.planHash,requestId:crypto.randomUUID()}),env)).status).toBe(200);
+ }
+ const table=operation==='reschedule'?'game_schedule_notifications':'game_notifications';
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table+' WHERE recipient_id=?').get('owner').n).toBe(0);
+ expect(db.sqlite.prepare('SELECT actor_id FROM '+table+' WHERE recipient_id=?').get('member')).toMatchObject({actor_id:'owner'});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_action_context').get().n).toBe(0);
+});
+
+it('does not notify a Co-owner approving their own guests, but notifies them when another manager acts',async()=>{
+ const {id,groupId}=await waitGame();await call(groupId,'role',{playerId:'admin',role:'coowner'});
+ db.sqlite.prepare('UPDATE games SET event_capacity=4 WHERE id=?').run(id);
+ db.sqlite.prepare("INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,'admin',?)").run(id,Date.now());
+ expect((await waitCall(id,'request-guests','admin',{guestCount:1})).status).toBe(200);
+ expect((await waitCall(id,'approve-guests','admin',{playerId:'admin'})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_guest_notifications WHERE recipient_id='admin'").get().n).toBe(0);
+ expect((await waitCall(id,'cancel-guests','admin')).status).toBe(200);
+ await call(groupId,'role',{playerId:'admin',role:'member'});
+ expect((await waitCall(id,'request-guests','admin',{guestCount:1})).status).toBe(200);
+ expect((await waitCall(id,'approve-guests','owner',{playerId:'admin'})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT actor_id FROM game_guest_notifications WHERE recipient_id='admin' AND kind='guest_approved'").get()).toMatchObject({actor_id:'owner'});
 });
 
 it('approved group members read player lists without private reasons or management rights',async()=>{
@@ -208,4 +258,13 @@ it('rejoining clears current player cancellations and guest cancellations are sh
  await waitCall(id,'request-guests','member',{guestCount:1});await waitCall(id,'cancel-guests','member');
  expect(await list()).toContainEqual(expect.objectContaining({kind:'guests',displayName:'Name member',guestCount:1}));
  await waitCall(id,'request-guests','member',{guestCount:1});expect((await list()).some((p:any)=>p.kind==='guests')).toBe(false);
+});
+
+it('public group covers use bounded versioned caching while player images stay private',async()=>{
+ const id=await create();db.sqlite.prepare("INSERT INTO media_assets VALUES('group',?,'cover','version1',?)").run(id,Date.now());db.sqlite.prepare("INSERT INTO media_assets VALUES('player','owner','avatar','avatar1',?)").run(Date.now());
+ const mediaEnv={...env,PLAY_TOGETHER_MEDIA:{get:async()=>({body:new Response('image').body!}),put:async()=>{},delete:async()=>{}}};
+ const original=await handleMedia(new Request(origin+'/api/media/group/'+id),mediaEnv);expect(original.status).toBe(302);expect(original.headers.get('Cache-Control')).toBe('no-store');
+ const cover=await handleMedia(new Request(origin+original.headers.get('Location')),mediaEnv);expect(cover.headers.get('Cache-Control')).toBe('public, max-age=3600');
+ const avatar=await handleMedia(new Request(origin+'/api/media/player/owner?v=avatar1',{headers:{Cookie:'oc_session='+tokens.owner}}),mediaEnv);expect(avatar.headers.get('Cache-Control')).toBe('private, no-store');
+ db.sqlite.prepare("UPDATE media_assets SET version='version2' WHERE kind='group'").run();const changed=await handleMedia(new Request(origin+'/api/media/group/'+id+'?v=version1'),mediaEnv);expect(changed.status).toBe(302);expect(changed.headers.get('Location')).toContain('version2');
 });

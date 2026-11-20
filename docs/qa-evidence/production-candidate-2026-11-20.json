@@ -1,0 +1,26 @@
+{
+  "branch": "feature/play-together",
+  "head": "a0d245ab5a91b435d2d34173a58e50697f6b0128",
+  "intentionalDirtyTree": true,
+  "artifact": "dist-release",
+  "files": 74,
+  "forbiddenArtifactFiles": [],
+  "migrations": 29,
+  "assets": [
+    {
+      "file": "assets/index-BrxzJzNT.js",
+      "sha256": "a65696a140ef4bf6c8c4f8af698064f9bd870921d3503dabbd1427f26f30b81e"
+    },
+    {
+      "file": "assets/index-hgSz5bye.css",
+      "sha256": "c94de1e100a7ebf2f585b99f9bf72f4c53016f80391067659dc9dad6d3449961"
+    }
+  ],
+  "productionDeployed": false,
+  "productionDatabaseTouched": false,
+  "secretsAccessed": false,
+  "physicalAndroid": "Owner reports sign-in, second-account game join, chat, closed-app push receipt and tap passed; device/version details not supplied",
+  "latestReviewEvidence": "series-chat-staff-verification.json",
+  "visualBaselinesPending": 20,
+  "newPhysicalPhoneAcceptance": "Pending for dialog keyboard/navigation and shared series chat"
+}

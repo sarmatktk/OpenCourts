@@ -1,3 +1,4 @@
+import {cleanupMedia} from './media-cleanup';
 import {AuthError,assertEnvironment,session,requireSession,checkOrigin,checkCsrf,json,type AuthEnv,type AuthDatabase} from './auth';
 interface Bucket {put(key:string,value:ArrayBuffer,options?:unknown):Promise<unknown>;get(key:string):Promise<{body:ReadableStream}|null>;delete(key:string):Promise<void>}
 export type MediaEnv=AuthEnv&{MEDIA_UPLOADS_ENABLED?:string;PLAY_TOGETHER_MEDIA?:Bucket;PLAY_TOGETHER_IMAGE_PROCESSOR?:{fetch(request:Request):Promise<Response>}};
@@ -16,7 +17,7 @@ export async function handleMedia(request:Request,env:MediaEnv){try{
  if(write){checkOrigin(request,origin);checkCsrf(request,requireSession(actor));}
  if(!await permission(db,kind,id,actor?.id??null,write))return fail(404,'Image not found.');
  const existing=await db.prepare('SELECT object_key,version FROM media_assets WHERE kind=? AND subject_id=?').bind(kind,id).first<{object_key:string;version:string}>();
- if(request.method==='GET'){if(!existing||!env.PLAY_TOGETHER_MEDIA)return fail(404,'Image not found.');const object=await env.PLAY_TOGETHER_MEDIA.get(existing.object_key);if(!object)return fail(404,'Image not found.');return new Response(object.body,{headers:{'Content-Type':'image/webp','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});}
+ if(request.method==='GET'){if(!existing||!env.PLAY_TOGETHER_MEDIA)return fail(404,'Image not found.');if(kind==='group'&&new URL(request.url).searchParams.get('v')!==existing.version){const target=new URL(request.url);target.searchParams.set('v',existing.version);return new Response(null,{status:302,headers:{Location:target.pathname+target.search,'Cache-Control':'no-store'}});}const object=await env.PLAY_TOGETHER_MEDIA.get(existing.object_key);if(!object)return fail(404,'Image not found.');return new Response(object.body,{headers:{'Content-Type':'image/webp','Cache-Control':kind==='group'?'public, max-age=3600':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});}
  if(!['PUT','DELETE'].includes(request.method))return fail(405,'Method not allowed.');if(env.MEDIA_UPLOADS_ENABLED!=='true'||!env.PLAY_TOGETHER_MEDIA||!env.PLAY_TOGETHER_IMAGE_PROCESSOR)return fail(503,'Photo uploads are not enabled yet.');
  const bucket=env.PLAY_TOGETHER_MEDIA,now=Date.now(),actorId=actor!.id;
  const live=`EXISTS(SELECT 1 FROM auth_sessions s JOIN players p ON p.id=s.player_id WHERE s.player_id=? AND s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? AND p.status='active')`;
@@ -26,13 +27,13 @@ export async function handleMedia(request:Request,env:MediaEnv){try{
  if(request.method==='PUT'){
  const type=request.headers.get('Content-Type')??'';if(!['image/jpeg','image/png','image/webp'].includes(type))return fail(415,'Choose JPEG, PNG or WebP.');const input=await bounded(request,5*1024*1024);const response=await env.PLAY_TOGETHER_IMAGE_PROCESSOR.fetch(new Request('https://image-processor/'+(kind==='player'?'avatar':'cover'),{method:'POST',headers:{'Content-Type':type},body:input}));if(!response.ok)return fail(400,'Image could not be resized. Try a different image.');const output=await bounded(response,1024*1024);safeWebp(output,kind);key=kind+'/'+crypto.randomUUID()+'.webp';await bucket.put(key,output.buffer,{httpMetadata:{contentType:'image/webp'}});
  }
- let committed=false;
+ let committed=false;let savedVersion:string|null=null;
  try{
  const version=crypto.randomUUID();const mutation=request.method==='DELETE'?db.prepare(`DELETE FROM media_assets WHERE kind=? AND subject_id=? AND version=? AND ${live} AND ${allowed}`).bind(kind,id,existing?.version??'',...auth,id,actorId):existing?db.prepare(`UPDATE media_assets SET object_key=?,version=?,updated_at=? WHERE kind=? AND subject_id=? AND version=? AND ${live} AND ${allowed}`).bind(key,version,now,kind,id,existing.version,...auth,id,actorId):db.prepare(`INSERT INTO media_assets(kind,subject_id,object_key,version,updated_at) SELECT ?,?,?,?,? WHERE ${live} AND ${allowed} ON CONFLICT(kind,subject_id) DO NOTHING`).bind(kind,id,key,version,now,...auth,id,actorId);
  const result=await mutation.run();if(!result.meta.changes&&!(request.method==='DELETE'&&!existing))throw new AuthError(409,'Photo or permissions changed. Refresh and try again.');
- committed=true;
+ committed=true;savedVersion=version;
  if(existing)await db.prepare('INSERT OR IGNORE INTO media_cleanup(object_key,queued_at) VALUES (?,?)').bind(existing.object_key,now).run();
  }catch(e){if(key&&!committed)await bucket.delete(key).catch(()=>{});throw e;}
- const cleanup=(await db.prepare('SELECT object_key FROM media_cleanup ORDER BY queued_at LIMIT 10').all<{object_key:string}>()).results;for(const item of cleanup){try{await bucket.delete(item.object_key);await db.prepare('DELETE FROM media_cleanup WHERE object_key=?').bind(item.object_key).run();}catch{/* Retry on next authorized media write. */}}
- return json({ok:true,url:request.method==='DELETE'?null:'/api/media/'+kind+'/'+id+'?v='+crypto.randomUUID()});
+ await cleanupMedia(db,bucket);
+ return json({ok:true,url:request.method==='DELETE'?null:'/api/media/'+kind+'/'+id+'?v='+savedVersion});
  }catch(e){return json({error:e instanceof AuthError?e.message:'Photo service is unavailable.'},e instanceof AuthError?e.status:503);}}

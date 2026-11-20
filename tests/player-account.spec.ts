@@ -25,7 +25,7 @@ for (const colorScheme of ['light','dark'] as const) {
     await page.emulateMedia({ colorScheme,reducedMotion:'reduce' });
     await page.setViewportSize({ width:1280,height:900 });
     await page.goto('/account');
-    await expect(page.getByRole('button',{ name:'Continue with Google' })).toBeEnabled();
+    await expect(page.getByRole('button',{ name:'Continue with Google' })).toBeDisabled();await page.getByRole('checkbox',{name:'I confirm I am 18 or older.'}).check();await expect(page.getByRole('button',{ name:'Continue with Google' })).toBeEnabled();
     await expect(page.getByRole('button',{ name:'Continue with Apple' })).toBeEnabled();
     await expect(page.getByRole('button',{ name:/password|email sign/i })).toHaveCount(0);
     await expect(page.locator('.app')).toHaveClass(colorScheme==='dark' ? 'app dark' : 'app');

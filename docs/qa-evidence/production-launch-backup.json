@@ -1,0 +1,24 @@
+{
+  "productionChanged": false,
+  "remoteSchemaWrites": false,
+  "privateBackup": "production-pre-play-together-20261120-175644.sql",
+  "isolatedRestore": "passed",
+  "localMigrationDryRun": 31,
+  "catalogColumns": [
+    "osm_type",
+    "osm_id",
+    "lat",
+    "lon",
+    "tags_json"
+  ],
+  "catalogCountsBefore": {
+    "tennis_courts": 201799,
+    "tennis_courts_staging": 100750
+  },
+  "catalogCountsAfter": {
+    "tennis_courts": 201799,
+    "tennis_courts_staging": 100750
+  },
+  "foreignKeyViolations": 0,
+  "migrationLedgerExistsOnProduction": false
+}

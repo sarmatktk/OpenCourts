@@ -1,0 +1,23 @@
+{
+  "environment": "feature/play-together Preview / opencourts-dev",
+  "checks": [
+    "Confirmed first-date player reads shared room from second date; two quiet join notices, zero unread",
+    "Message sent on first date appears on second with shared unread",
+    "Mute and read state shared across both dates",
+    "Second account sends from another occurrence",
+    "Both inactive criteria deny access and append one quiet expiry notice",
+    "New confirmed place restores shared access while preserving explicit mute",
+    "Group removal immediately denies chat",
+    "Cancelling one date leaves the shared conversation open",
+    "No chat push events, notification deliveries or report cases created by synthetic fixtures"
+  ],
+  "passed": 9,
+  "temporaryFixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "games": 0,
+    "rooms": 0
+  },
+  "oauthProviderSignInTested": false,
+  "realUserNotificationsSent": false
+}

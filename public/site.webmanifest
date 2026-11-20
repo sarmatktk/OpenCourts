@@ -2,7 +2,7 @@
     "id":  "/",
     "name":  "OpenCourts",
     "short_name":  "OpenCourts",
-    "description":  "Find public tennis courts and plan around local weather.",
+    "description":  "Find tennis courts, join games and organize local tennis groups.",
     "start_url":  "/",
     "scope":  "/",
     "display":  "standalone",

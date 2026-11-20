@@ -13,7 +13,7 @@ for(const theme of ['light','dark'] as const){
    return route.fulfill({json});
   });
   await page.goto('/play-together/players');await expect(page.getByText('Tom Tennis',{exact:true})).toBeVisible();expect(pickerReads).toBe(0);
-  await page.getByLabel('Invite Tom Tennis to a game',{exact:true}).click();await expect(page.getByLabel('Your upcoming public games')).toHaveValue(id);expect(sent).toBe(0);
+  await page.getByLabel('Invite Tom Tennis to a game',{exact:true}).click();await expect(page.getByRole('combobox',{name:'Your upcoming public games'})).toContainText('Public doubles');expect(sent).toBe(0);
   await page.getByRole('button',{name:'Send invitation',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Invitation sent.'})).toBeVisible();expect(sent).toBe(1);await expect(page.getByRole('button',{name:'Invitation sent',exact:true})).toBeDisabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
  });

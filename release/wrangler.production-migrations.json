@@ -1,0 +1,11 @@
+{
+  "name": "opencourts-production-migrations-only",
+  "d1_databases": [
+    {
+      "binding": "COURTS_DB",
+      "database_name": "opencourts-courts",
+      "database_id": "56c414b7-aca5-429b-acfa-b9e8e87b052b",
+      "migrations_dir": "../functions/db/migrations"
+    }
+  ]
+}

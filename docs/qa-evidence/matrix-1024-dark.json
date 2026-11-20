@@ -4,55 +4,21 @@
     "path": "/",
     "width": 1024,
     "theme": "dark",
-    "ms": 2319,
+    "ms": 1879,
     "errors": [],
+    "pageHeight": 3988,
+    "panels": [],
     "scrollWidth": 1024,
     "viewport": 1024,
-    "title": "Find Public Tennis Courts & Plan Around the Weather | OpenCourts",
+    "title": "Find Tennis Courts, Games & Groups | OpenCourts",
     "headings": 1,
     "overflow": [],
     "smallTargets": [
-      {
-        "selector": "a",
-        "label": "Explore courts",
-        "w": 91,
-        "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "Weather",
-        "w": 54,
-        "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 39,
-        "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "Support",
-        "w": 51,
-        "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "Play Together",
-        "w": 84,
-        "h": 17
-      },
       {
         "selector": "input",
         "label": "Search by address, city, or ZIP code",
         "w": 478,
         "h": 23
-      },
-      {
-        "selector": "select",
-        "label": "Sort courts",
-        "w": 66,
-        "h": 12
       },
       {
         "selector": "a",
@@ -86,6 +52,12 @@
       },
       {
         "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
         "label": "Data & attribution",
         "w": 92,
         "h": 14
@@ -98,7 +70,7 @@
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
+    "requests": 6,
     "violations": [],
     "incomplete": [
       {
@@ -120,33 +92,10 @@
     "path": "/play-together",
     "width": 1024,
     "theme": "dark",
-    "ms": 916,
+    "ms": 1189,
     "errors": [],
-    "scrollWidth": 1024,
-    "viewport": 1024,
-    "title": "Find games · OpenCourts",
-    "headings": 1,
-    "overflow": [],
-    "smallTargets": [
-      {
-        "selector": "a",
-        "label": "Privacy policy",
-        "w": 71,
-        "h": 14
-      }
-    ],
-    "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
-    "violations": [],
-    "incomplete": []
-  },
-  {
-    "name": "feed",
-    "path": "/play-together/feed",
-    "width": 1024,
-    "theme": "dark",
-    "ms": 773,
-    "errors": [],
+    "pageHeight": 1141,
+    "panels": [],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Your tennis feed · OpenCourts",
@@ -158,10 +107,73 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
+    "requests": 6,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "name": "feed",
+    "path": "/play-together/feed",
+    "width": 1024,
+    "theme": "dark",
+    "ms": 720,
+    "errors": [],
+    "pageHeight": 1141,
+    "panels": [],
+    "scrollWidth": 1024,
+    "viewport": 1024,
+    "title": "Your tennis feed · OpenCourts",
+    "headings": 1,
+    "overflow": [],
+    "smallTargets": [
+      {
+        "selector": "a",
+        "label": "Privacy policy",
+        "w": 71,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
+      }
+    ],
+    "themeBackground": "rgb(16, 26, 22)",
+    "requests": 6,
     "violations": [],
     "incomplete": []
   },
@@ -170,8 +182,21 @@
     "path": "/play-together/create",
     "width": 1024,
     "theme": "dark",
-    "ms": 851,
+    "ms": 1026,
     "errors": [],
+    "pageHeight": 2238,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 284,
+        "padding": "24px"
+      },
+      {
+        "selector": "section.pt-panel.pt-create-details",
+        "height": 1349,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Create game · OpenCourts",
@@ -189,15 +214,33 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 6
+        "count": 5
       }
     ]
   },
@@ -206,8 +249,21 @@
     "path": "/play-together/game?id=10000000-0000-4000-8000-000000000001",
     "width": 1024,
     "theme": "dark",
-    "ms": 891,
+    "ms": 897,
     "errors": [],
+    "pageHeight": 2329,
+    "panels": [
+      {
+        "selector": "section.pt-panel.pt-game-details-panel",
+        "height": 523,
+        "padding": "24px"
+      },
+      {
+        "selector": "aside.pt-panel.pt-aside.pt-game-aside",
+        "height": 1698,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Game details · OpenCourts",
@@ -219,10 +275,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 12,
+    "requests": 16,
     "violations": [],
     "incomplete": [
       {
@@ -236,8 +310,21 @@
     "path": "/play-together/game?id=10000000-0000-4000-8000-000000000001&qa=member",
     "width": 1024,
     "theme": "dark",
-    "ms": 811,
+    "ms": 864,
     "errors": [],
+    "pageHeight": 1356,
+    "panels": [
+      {
+        "selector": "section.pt-panel.pt-game-details-panel",
+        "height": 523,
+        "padding": "24px"
+      },
+      {
+        "selector": "aside.pt-panel.pt-aside.pt-game-aside",
+        "height": 725,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Game details · OpenCourts",
@@ -249,10 +336,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 12,
+    "requests": 16,
     "violations": [],
     "incomplete": [
       {
@@ -266,8 +371,16 @@
     "path": "/play-together/my-games",
     "width": 1024,
     "theme": "dark",
-    "ms": 851,
+    "ms": 737,
     "errors": [],
+    "pageHeight": 900,
+    "panels": [
+      {
+        "selector": "article.pt-panel",
+        "height": 182,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "My Games · OpenCourts",
@@ -279,10 +392,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
+    "requests": 6,
     "violations": [],
     "incomplete": []
   },
@@ -291,8 +422,116 @@
     "path": "/play-together/notifications",
     "width": 1024,
     "theme": "dark",
-    "ms": 945,
+    "ms": 980,
     "errors": [],
+    "pageHeight": 4251,
+    "panels": [
+      {
+        "selector": "section.pt-panel.pt-notifications",
+        "height": 3642,
+        "padding": "24px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      },
+      {
+        "selector": "article.pt-notification-card",
+        "height": 160,
+        "padding": "12px 16px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Notifications · OpenCourts",
@@ -304,10 +543,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": []
   },
@@ -316,8 +573,21 @@
     "path": "/account",
     "width": 1024,
     "theme": "dark",
-    "ms": 1010,
+    "ms": 796,
     "errors": [],
+    "pageHeight": 1571,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 939,
+        "padding": "24px"
+      },
+      {
+        "selector": "aside.pt-panel.pt-aside",
+        "height": 969,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Your account · OpenCourts",
@@ -335,10 +605,16 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": [
       {
@@ -352,8 +628,21 @@
     "path": "/account?qa=signedout",
     "width": 1024,
     "theme": "dark",
-    "ms": 888,
+    "ms": 722,
     "errors": [],
+    "pageHeight": 974,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 444,
+        "padding": "24px"
+      },
+      {
+        "selector": "aside.pt-panel.pt-aside",
+        "height": 357,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Your account · OpenCourts",
@@ -361,9 +650,21 @@
     "overflow": [],
     "smallTargets": [
       {
+        "selector": "input",
+        "label": "",
+        "w": 19,
+        "h": 19
+      },
+      {
         "selector": "a",
-        "label": "privacy policy",
-        "w": 77,
+        "label": "Terms of Use",
+        "w": 72,
+        "h": 16
+      },
+      {
+        "selector": "a",
+        "label": "Privacy policy",
+        "w": 76,
         "h": 16
       },
       {
@@ -371,10 +672,16 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": []
   },
@@ -383,8 +690,16 @@
     "path": "/play-together/groups",
     "width": 1024,
     "theme": "dark",
-    "ms": 782,
+    "ms": 720,
     "errors": [],
+    "pageHeight": 982,
+    "panels": [
+      {
+        "selector": "article.pt-panel",
+        "height": 254,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Find groups · OpenCourts",
@@ -396,10 +711,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
+    "requests": 6,
     "violations": [],
     "incomplete": []
   },
@@ -408,8 +741,16 @@
     "path": "/play-together/my-groups",
     "width": 1024,
     "theme": "dark",
-    "ms": 795,
+    "ms": 770,
     "errors": [],
+    "pageHeight": 916,
+    "panels": [
+      {
+        "selector": "article.pt-panel",
+        "height": 258,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "My Groups · OpenCourts",
@@ -421,10 +762,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
+    "requests": 6,
     "violations": [],
     "incomplete": []
   },
@@ -433,8 +792,16 @@
     "path": "/play-together/create-group",
     "width": 1024,
     "theme": "dark",
-    "ms": 822,
+    "ms": 774,
     "errors": [],
+    "pageHeight": 1537,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 879,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Create group · OpenCourts",
@@ -446,15 +813,33 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": [
       {
         "id": "color-contrast",
-        "count": 7
+        "count": 2
       }
     ]
   },
@@ -463,40 +848,41 @@
     "path": "/play-together/group?id=20000000-0000-4000-8000-000000000001",
     "width": 1024,
     "theme": "dark",
-    "ms": 968,
+    "ms": 952,
     "errors": [],
-    "scrollWidth": 1024,
-    "viewport": 1024,
-    "title": "Group details · OpenCourts",
-    "headings": 1,
-    "overflow": [
-      "label.pt-member-role",
-      "span",
-      "select",
-      "label.pt-member-role",
-      "span",
-      "select"
-    ],
-    "smallTargets": [
+    "pageHeight": 2336,
+    "panels": [
       {
-        "selector": "a",
-        "label": "Privacy policy",
-        "w": 71,
-        "h": 14
+        "selector": "section.pt-panel",
+        "height": 905,
+        "padding": "24px"
+      },
+      {
+        "selector": "li.pt-member-row",
+        "height": 48,
+        "padding": "2px"
+      },
+      {
+        "selector": "li.pt-member-row",
+        "height": 49,
+        "padding": "2px"
+      },
+      {
+        "selector": "li.pt-member-row",
+        "height": 49,
+        "padding": "2px"
+      },
+      {
+        "selector": "section.pt-panel.pt-create-details",
+        "height": 346,
+        "padding": "24px"
+      },
+      {
+        "selector": "section.pt-panel.pt-create-details",
+        "height": 233,
+        "padding": "24px"
       }
     ],
-    "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
-    "violations": [],
-    "incomplete": []
-  },
-  {
-    "name": "group-preview",
-    "path": "/play-together/group?id=20000000-0000-4000-8000-000000000001&qa=visitor",
-    "width": 1024,
-    "theme": "dark",
-    "ms": 860,
-    "errors": [],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Group details · OpenCourts",
@@ -508,10 +894,79 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "name": "group-preview",
+    "path": "/play-together/group?id=20000000-0000-4000-8000-000000000001&qa=visitor",
+    "width": 1024,
+    "theme": "dark",
+    "ms": 721,
+    "errors": [],
+    "pageHeight": 900,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 190,
+        "padding": "24px"
+      }
+    ],
+    "scrollWidth": 1024,
+    "viewport": 1024,
+    "title": "Group details · OpenCourts",
+    "headings": 1,
+    "overflow": [],
+    "smallTargets": [
+      {
+        "selector": "a",
+        "label": "Privacy policy",
+        "w": 71,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
+      }
+    ],
+    "themeBackground": "rgb(16, 26, 22)",
+    "requests": 8,
     "violations": [],
     "incomplete": []
   },
@@ -520,8 +975,16 @@
     "path": "/play-together/invitation#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "width": 1024,
     "theme": "dark",
-    "ms": 943,
+    "ms": 720,
     "errors": [],
+    "pageHeight": 900,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 294,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Group invitation · OpenCourts",
@@ -533,10 +996,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": []
   },
@@ -545,8 +1026,16 @@
     "path": "/play-together/game-invitation#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "width": 1024,
     "theme": "dark",
-    "ms": 884,
+    "ms": 683,
     "errors": [],
+    "pageHeight": 900,
+    "panels": [
+      {
+        "selector": "section.pt-panel",
+        "height": 148,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Game invitation · OpenCourts",
@@ -558,10 +1047,28 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Support",
+        "w": 41,
+        "h": 14
+      },
+      {
+        "selector": "a",
+        "label": "Help & safety",
+        "w": 69,
+        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
-    "requests": 6,
+    "requests": 8,
     "violations": [],
     "incomplete": []
   },
@@ -570,8 +1077,31 @@
     "path": "/play-together/players",
     "width": 1024,
     "theme": "dark",
-    "ms": 874,
+    "ms": 933,
     "errors": [],
+    "pageHeight": 1978,
+    "panels": [
+      {
+        "selector": "section.pt-panel.pt-moderation",
+        "height": 847,
+        "padding": "24px"
+      },
+      {
+        "selector": "form.pt-form.pt-panel.pt-player-search",
+        "height": 240,
+        "padding": "24px"
+      },
+      {
+        "selector": "li.pt-member-row",
+        "height": 78,
+        "padding": "2px"
+      },
+      {
+        "selector": "details.pt-panel",
+        "height": 94,
+        "padding": "24px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Find players · OpenCourts",
@@ -583,37 +1113,12 @@
         "label": "Privacy policy",
         "w": 71,
         "h": 14
-      }
-    ],
-    "themeBackground": "rgb(16, 26, 22)",
-    "requests": 4,
-    "violations": [],
-    "incomplete": []
-  },
-  {
-    "name": "about",
-    "path": "/about.html",
-    "width": 1024,
-    "theme": "dark",
-    "ms": 669,
-    "errors": [],
-    "scrollWidth": 1024,
-    "viewport": 1024,
-    "title": "Public Tennis Court Finder and Weather Planner | OpenCourts",
-    "headings": 1,
-    "overflow": [],
-    "smallTargets": [
-      {
-        "selector": "a.page-inline-link",
-        "label": "Read our privacy information",
-        "w": 187,
-        "h": 18
       },
       {
-        "selector": "a.page-inline-link",
-        "label": "Contact OpenCourts",
-        "w": 136,
-        "h": 18
+        "selector": "a",
+        "label": "Terms",
+        "w": 31,
+        "h": 14
       },
       {
         "selector": "a",
@@ -623,27 +1128,60 @@
       },
       {
         "selector": "a",
-        "label": "About",
-        "w": 31,
+        "label": "Help & safety",
+        "w": 69,
         "h": 14
+      }
+    ],
+    "themeBackground": "rgb(16, 26, 22)",
+    "requests": 6,
+    "violations": [],
+    "incomplete": []
+  },
+  {
+    "name": "about",
+    "path": "/about.html",
+    "width": 1024,
+    "theme": "dark",
+    "ms": 719,
+    "errors": [],
+    "pageHeight": 2091,
+    "panels": [
+      {
+        "selector": "article.page-card",
+        "height": 1766,
+        "padding": "51.2px"
+      }
+    ],
+    "scrollWidth": 1024,
+    "viewport": 1024,
+    "title": "About OpenCourts",
+    "headings": 1,
+    "overflow": [],
+    "smallTargets": [
+      {
+        "selector": "a.page-inline-link",
+        "label": "help and safety information",
+        "w": 203,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "privacy notice",
+        "w": 106,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "Read our privacy information",
+        "w": 214,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "Contact OpenCourts",
+        "w": 156,
+        "h": 21
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -656,8 +1194,16 @@
     "path": "/support.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 720,
+    "ms": 641,
     "errors": [],
+    "pageHeight": 956,
+    "panels": [
+      {
+        "selector": "article.page-card.support-page-card",
+        "height": 623,
+        "padding": "51.2px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Support OpenCourts",
@@ -665,34 +1211,16 @@
     "overflow": [],
     "smallTargets": [
       {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
+        "selector": "a.page-inline-link",
         "label": "Contact",
-        "w": 41,
-        "h": 14
+        "w": 60,
+        "h": 21
+      },
+      {
+        "selector": "a.page-inline-link",
+        "label": "Play Together help",
+        "w": 135,
+        "h": 21
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -705,8 +1233,16 @@
     "path": "/privacy.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 580,
+    "ms": 765,
     "errors": [],
+    "pageHeight": 7527,
+    "panels": [
+      {
+        "selector": "article.page-card",
+        "height": 7202,
+        "padding": "51.2px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Privacy | OpenCourts",
@@ -715,45 +1251,33 @@
     "smallTargets": [
       {
         "selector": "a.page-inline-link",
-        "label": "Google’s description of Analytics data collection",
-        "w": 313,
-        "h": 18
+        "label": "Google's privacy notice",
+        "w": 172,
+        "h": 21
       },
       {
         "selector": "a.page-inline-link",
-        "label": "samktk23@gmail.com",
-        "w": 143,
-        "h": 18
+        "label": "Account",
+        "w": 63,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "Delete your account",
+        "w": 150,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "support@opencourts.us",
+        "w": 181,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "Play Together help and safety",
+        "w": 216,
+        "h": 21
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -766,55 +1290,45 @@
     "path": "/contact.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 576,
+    "ms": 662,
     "errors": [],
+    "pageHeight": 1223,
+    "panels": [
+      {
+        "selector": "article.page-card",
+        "height": 898,
+        "padding": "51.2px"
+      }
+    ],
     "scrollWidth": 1024,
     "viewport": 1024,
-    "title": "Contact | OpenCourts",
+    "title": "Contact OpenCourts",
     "headings": 1,
     "overflow": [],
     "smallTargets": [
       {
         "selector": "a.page-inline-link",
-        "label": "samktk23@gmail.com",
-        "w": 143,
-        "h": 18
+        "label": "support@opencourts.us",
+        "w": 181,
+        "h": 21
+      },
+      {
+        "selector": "a.page-inline-link",
+        "label": "privacy notice",
+        "w": 106,
+        "h": 21
       },
       {
         "selector": "a.page-inline-link",
         "label": "OpenStreetMap",
-        "w": 103,
-        "h": 18
+        "w": 118,
+        "h": 21
       },
       {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
+        "selector": "a.page-inline-link",
+        "label": "Play Together help and safety",
+        "w": 217,
+        "h": 21
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -827,8 +1341,10 @@
     "path": "/public-tennis-courts-fairfax-va.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 801,
+    "ms": 850,
     "errors": [],
+    "pageHeight": 2765,
+    "panels": [],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Public Tennis Courts in Fairfax, VA | Map and Weather | OpenCourts",
@@ -900,36 +1416,6 @@
         "label": "Does this guide cover both Fairfax City and Fairfax County?",
         "w": 498,
         "h": 23
-      },
-      {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -947,8 +1433,10 @@
     "path": "/tennis-courts-after-rain.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 783,
+    "ms": 687,
     "errors": [],
+    "pageHeight": 2117,
+    "panels": [],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Tennis Courts After Rain | Compare Recent Radar Rain | OpenCourts",
@@ -978,36 +1466,6 @@
         "label": "Support",
         "w": 51,
         "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",
@@ -1025,8 +1483,10 @@
     "path": "/best-time-to-play-tennis.html",
     "width": 1024,
     "theme": "dark",
-    "ms": 816,
+    "ms": 721,
     "errors": [],
+    "pageHeight": 2186,
+    "panels": [],
     "scrollWidth": 1024,
     "viewport": 1024,
     "title": "Best Time to Play Tennis | Seven-Day Weather Planner | OpenCourts",
@@ -1056,36 +1516,6 @@
         "label": "Support",
         "w": 51,
         "h": 17
-      },
-      {
-        "selector": "a",
-        "label": "Support",
-        "w": 41,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "About",
-        "w": 31,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Privacy",
-        "w": 37,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Data & attribution",
-        "w": 92,
-        "h": 14
-      },
-      {
-        "selector": "a",
-        "label": "Contact",
-        "w": 41,
-        "h": 14
       }
     ],
     "themeBackground": "rgb(16, 26, 22)",

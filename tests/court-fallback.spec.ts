@@ -1,3 +1,4 @@
+import {chooseOption} from './picker-helpers';
 import {test,expect} from '@playwright/test';
 for(const width of [320,440,768,1440])for(const colorScheme of ['light','dark'] as const){test(`court fallback and compact selects ${width} ${colorScheme}`,async({page})=>{
  await page.setViewportSize({width,height:956});await page.emulateMedia({colorScheme});
@@ -13,8 +14,8 @@ for(const width of [320,440,768,1440])for(const colorScheme of ['light','dark'] 
  });
  await page.goto('/play-together/create');await page.getByRole('combobox',{name:'Address, city or ZIP code'}).fill('22033');await page.getByRole('button',{name:'Find courts',exact:true}).click();await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
  await page.getByRole('button',{name:'Enter a court manually'}).click();await page.getByLabel('Court or facility name').fill('Franklin Glen Park');await page.getByLabel('Court address or location').fill('Fairfax, VA 22033');await page.getByRole('button',{name:'Locate court address'}).click();await expect(page.getByRole('status')).toContainText('Map location:');
- await expect(page.getByRole('combobox',{name:'Who can find this game?'})).toHaveText('PublicUnlisted');
- await page.getByRole('combobox',{name:'Who can find this game?'}).selectOption('unlisted');await expect(page.getByRole('button',{name:'Create unlisted game',exact:true})).toBeDisabled();
+ await expect(page.getByRole('combobox',{name:'Who can find this game?'})).toHaveText('Public');
+ await chooseOption(page,page.getByRole('combobox',{name:'Who can find this game?'}),'Unlisted');await expect(page.getByRole('button',{name:'Create unlisted game',exact:true})).toBeDisabled();
  if(width===320&&colorScheme==='light'){
  await page.getByLabel('Game title').fill('Morning tennis');await page.getByLabel('Start date and time').fill('2026-12-15T10:00');
  await page.getByRole('checkbox',{name:'I will check that this court'}).check();await page.getByRole('checkbox',{name:'I understand that creating'}).check();

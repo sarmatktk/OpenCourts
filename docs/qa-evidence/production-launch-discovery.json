@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "url": "https://opencourts.us/api/courts?lat=38.8462&lon=-77.3064",
+      "status": 200,
+      "transportOk": true,
+      "courtElements": 987,
+      "forecastPeriods": null,
+      "upstreamForecastUrlPresent": null
+    },
+    {
+      "url": "https://opencourts.us/api/weather?lat=38.8462&lon=-77.3064",
+      "status": 200,
+      "transportOk": true,
+      "courtElements": null,
+      "forecastPeriods": 156,
+      "upstreamForecastUrlPresent": null
+    },
+    {
+      "url": "https://opencourts.us/api/geocode?q=Fairfax%2C%20VA",
+      "status": 200,
+      "transportOk": true,
+      "courtElements": null,
+      "forecastPeriods": null,
+      "upstreamForecastUrlPresent": null
+    },
+    {
+      "url": "https://api.weather.gov/points/38.8462,-77.3064",
+      "status": 200,
+      "transportOk": true,
+      "courtElements": null,
+      "forecastPeriods": null,
+      "upstreamForecastUrlPresent": true
+    }
+  ],
+  "initialWeather503": true
+}

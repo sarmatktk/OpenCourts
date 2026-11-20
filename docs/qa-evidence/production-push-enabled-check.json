@@ -1,0 +1,9 @@
+{
+  "productionDeployment": "33ba5db1",
+  "pushAvailableForOrdinaryAccount": true,
+  "publicKeyMatchesNewProductionPair": true,
+  "ordinaryAccountNotModerator": true,
+  "temporaryAccountsRemaining": 0,
+  "realDeviceNotificationSent": false,
+  "realDeviceDeliveryVerified": false
+}

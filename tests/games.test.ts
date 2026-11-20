@@ -5,10 +5,11 @@ import {SignJWT} from 'jose';
 import {hashToken,type AuthDatabase,type AuthStatement} from '../functions/lib/auth';
 import {handleGames,courtSelectionToken,type GamesEnv} from '../functions/lib/games';
 import {gameStart} from '../functions/lib/game-time';
+import {notificationBatch} from '../functions/lib/notification-action';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class LocalDatabase implements AuthDatabase{
   sqlite=new DatabaseSync(':memory:');
-  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
+  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql','0024_notification_delivery.sql','0025_notification_action_actor.sql','0026_account_moderation.sql','0027_game_chat.sql','0028_series_chat.sql','0029_series_chat_staff.sql','0030_chat_lifecycle_notices.sql','0031_game_capacity_edit.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
   prepare(sql:string):AuthStatement{let values:any[]=[];const statement:AuthStatement={bind(...args){values=args;return statement;},first:async<T>()=>(this.sqlite.prepare(sql).get(...values)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...values) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...values).changes)}})};return statement;}
   async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -146,7 +147,7 @@ describe('Phase 3 public participation',()=>{
  it('requires approval for public games and deduplicates requests',async()=>{const id=await insertGame();const h=await otherPlayer('guest');for(let i=0;i<2;i++)expect((await handleGames(req('/'+id+'/join','POST',{},h),env)).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_join_requests').get().n).toBe(1);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_participants').get().n).toBe(1);expect((await create({joinPolicy:'instant'})).response.status).toBe(400);});
  it('allows only the organizer to approve and keeps participant lists private',async()=>{const id=await insertGame();const h=await otherPlayer('guest');await handleGames(req('/'+id+'/join','POST',{},h),env);for(const suffix of ['participants','requests'])expect((await handleGames(req('/'+id+'/'+suffix,'GET',undefined,h),env)).status).toBe(403);expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'guest'},h),env)).status).toBe(403);expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'guest'}),env)).status).toBe(200);const state=await(await handleGames(req('/'+id+'/participation','GET',undefined,h),env)).json();expect(state.joined).toBe(true);expect(state.requestStatus).toBe('approved');expect(JSON.stringify(await(await handleGames(req('/'+id+'/participants'),env)).json())).not.toMatch(/email|token_hash|csrf/);});
  it('approves only pending requests and rejects overbooking atomically',async()=>{const id=await insertGame({format:'singles',capacity:2});for(const name of ['a','b']){const h=await otherPlayer(name);await handleGames(req('/'+id+'/join','POST',{},h),env);}expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'a'}),env)).status).toBe(200);expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'b'}),env)).status).toBe(409);expect(db.sqlite.prepare('SELECT status FROM game_join_requests WHERE player_id=?').get('b').status).toBe('pending');expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_participants').get().n).toBe(2);});
- it('withdraws pending requests and permits confirmed players to leave',async()=>{const id=await insertGame();const h=await otherPlayer('guest');await handleGames(req('/'+id+'/join','POST',{},h),env);await handleGames(req('/'+id+'/leave','POST',{},h),env);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_join_requests').get().n).toBe(0);await handleGames(req('/'+id+'/join','POST',{},h),env);await handleGames(req('/'+id+'/approve','POST',{playerId:'guest'}),env);await handleGames(req('/'+id+'/leave','POST',{},h),env);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_participants').get().n).toBe(1);expect((await handleGames(req('/'+id+'/leave','POST',{}),env)).status).toBe(409);});
+ it('withdraws pending requests and permits confirmed players to leave',async()=>{const id=await insertGame();const h=await otherPlayer('guest');await handleGames(req('/'+id+'/join','POST',{},h),env);await handleGames(req('/'+id+'/leave','POST',{},h),env);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_join_requests').get().n).toBe(0);await handleGames(req('/'+id+'/join','POST',{},h),env);await handleGames(req('/'+id+'/approve','POST',{playerId:'guest'}),env);await handleGames(req('/'+id+'/leave','POST',{},h),env);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_participants').get().n).toBe(1);expect((await handleGames(req('/'+id+'/leave','POST',{}),env)).status).toBe(200);});
  it('removal and rejection prevent joining again',async()=>{const id=await insertGame();const h=await otherPlayer('guest');await handleGames(req('/'+id+'/join','POST',{},h),env);await handleGames(req('/'+id+'/approve','POST',{playerId:'guest'}),env);await handleGames(req('/'+id+'/remove','POST',{playerId:'guest'}),env);expect((await handleGames(req('/'+id+'/join','POST',{},h),env)).status).toBe(403);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM game_participants').get().n).toBe(1);});
  it('cancellation closes requests and removes games from discovery',async()=>{const id=await insertGame();const h=await otherPlayer('guest');expect((await handleGames(req('/'+id+'/cancel','POST',{},h),env)).status).toBe(403);await handleGames(req('/'+id+'/cancel','POST',{}),env);expect((await handleGames(req('/'+id+'/join','POST',{},h),env)).status).toBe(409);expect((await(await handleGames(req(),env)).json()).games).toHaveLength(0);});
  it('My Games is own-account scoped and excludes private games',async()=>{const id=await insertGame();await insertGame({visibility:'group',group_id:'private'});const h=await otherPlayer('guest');expect((await(await handleGames(req('/mine','GET',undefined,h),env)).json()).games).toHaveLength(0);await handleGames(req('/'+id+'/join','POST',{},h),env);const data=await(await handleGames(req('/mine','GET',undefined,h),env)).json();expect(data.games).toHaveLength(1);expect(data.games[0]).toMatchObject({id,isOrganizer:false,request_status:'pending'});expect(JSON.stringify(data)).not.toContain('organizer_id');});
@@ -172,6 +173,42 @@ it('notifies only the host on withdrawal/cancellation and deduplicates leave ret
 });
 
 it('rejects organizer self-requests and notifies only once for a new player request',async()=>{const id=await insertGame();expect((await handleGames(req('/'+id+'/join','POST',{}),env)).status).toBe(409);const h=await otherPlayer('guest');for(let i=0;i<2;i++)await handleGames(req('/'+id+'/join','POST',{},h),env);const inbox=await(await handleGames(req('/notifications'),env)).json();expect(inbox.notifications).toHaveLength(1);expect(inbox.notifications[0].kind).toBe('requested');});
+for(const visibility of ['public','unlisted'])it(`organizer can release and reclaim attendance without cancelling a ${visibility} game`,async()=>{
+ const id=await insertGame({visibility});const guest=await otherPlayer('remaining');
+ db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(id,'remaining',now);
+ for(let i=0;i<2;i++)expect((await handleGames(req('/'+id+'/leave','POST',{}),env)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT status,organizer_id FROM games WHERE id=?').get(id)).toMatchObject({status:'scheduled',organizer_id:'player-1'});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(1);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_notifications WHERE game_id=?').get(id).n).toBe(0);
+ expect((await(await handleGames(req('/'+id),env)).json()).game).toMatchObject({organizerPlaying:false,playerCount:1});
+ expect((await(await handleGames(req('/'+id+'/participation'),env)).json())).toMatchObject({isOrganizer:true,isGameOrganizer:true,joined:false,joinPolicy:'instant'});
+ expect((await(await handleGames(req('/mine?view=upcoming'),env)).json()).games.some((g:any)=>g.id===id&&g.isOrganizer&&!g.joined)).toBe(true);
+ expect((await handleGames(req('/'+id+'/edit','POST',{title:'Still managed',notes:'',version:1}),env)).status).toBe(200);
+ expect((await handleGames(req('/'+id+'/join','POST',{}),env)).status).toBe(200);
+ expect((await(await handleGames(req('/'+id),env)).json()).game).toMatchObject({organizerPlaying:true,playerCount:2});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_join_requests WHERE game_id=? AND player_id=?').get(id,'player-1').n).toBe(0);
+ expect((await handleGames(req('/'+id+'/cancel','POST',{}),env)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT status FROM games WHERE id=?').get(id).status).toBe('cancelled');
+});
+it('does not reserve an absent organizer place or allow rejoining a full/closed game',async()=>{
+ const id=await insertGame({format:'singles',capacity:2});await handleGames(req('/'+id+'/leave','POST',{}),env);
+ for(const who of ['one','two']){await otherPlayer(who);db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(id,who,now);}
+ expect((await handleGames(req('/'+id+'/join','POST',{}),env)).status).toBe(409);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
+ db.sqlite.prepare("UPDATE games SET status='cancelled' WHERE id=?").run(id);
+ expect((await handleGames(req('/'+id+'/join','POST',{}),env)).status).toBe(409);
+ expect((await handleGames(req('/'+id+'/leave','POST',{}),env)).status).toBe(409);
+});
+it('releasing an organizer place affects only this occurrence and an empty game still runs',async()=>{
+ const {data}=await create({repeatWeeks:3});const id=data.game.id;
+ expect((await handleGames(req('/'+id+'/leave','POST',{}),env)).status).toBe(200);
+ expect((await(await handleGames(req('/'+id),env)).json()).game).toMatchObject({status:'scheduled',playerCount:0,organizerPlaying:false});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE player_id=?').get('player-1').n).toBe(2);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM games WHERE status='scheduled'").get().n).toBe(3);
+ const guest=await otherPlayer('new-player');await handleGames(req('/'+id+'/join','POST',{},guest),env);
+ expect((await handleGames(req('/'+id+'/approve','POST',{playerId:'new-player'}),env)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT player_id FROM game_participants WHERE game_id=?').get(id).player_id).toBe('new-player');
+});
 
 it('privately notifies requesters of approvals, removals and cancellations without retry duplicates',async()=>{
  const id=await insertGame();const h=await otherPlayer('guest');await handleGames(req('/'+id+'/join','POST',{},h),env);
@@ -207,7 +244,7 @@ it('preserves existing notification data/read state across notification migratio
  try{
  for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql'])legacy.exec(readFileSync('functions/db/migrations/'+file,'utf8'));
  legacy.prepare('INSERT INTO players(id,created_at,updated_at) VALUES (?,?,?)').run('player-1',now,now);
- const columns=Object.keys(row).filter(k=>!['court_count','event_capacity','series_id','series_week','series_weeks','series_exception'].includes(k));legacy.prepare('INSERT INTO games ('+columns.join(',')+') VALUES ('+columns.map(()=>'?').join(',')+')').run(...columns.map(k=>row[k]));
+ const columns=Object.keys(row).filter(k=>!['court_count','event_capacity','series_id','series_week','series_weeks','series_exception','chat_cancelled_at'].includes(k));legacy.prepare('INSERT INTO games ('+columns.join(',')+') VALUES ('+columns.map(()=>'?').join(',')+')').run(...columns.map(k=>row[k]));
  legacy.prepare('INSERT INTO game_host_notifications(id,game_id,host_id,actor_id,kind,reason,places_released,created_at,read_at) VALUES (?,?,?,?,?,?,?,?,?)').run('existing-event',id,'player-1','player-1','cancelled','Preserve reason',1,now,now);
  for(const file of ['0007_request_notifications.sql','0008_player_notifications.sql'])legacy.exec(readFileSync('functions/db/migrations/'+file,'utf8'));
  expect(legacy.prepare('SELECT * FROM game_notifications').get()).toMatchObject({id:'existing-event',recipient_id:'player-1',reason:'Preserve reason',read_at:now});
@@ -326,11 +363,20 @@ it('weekly retries return the existing series without duplicate occurrences',asy
 
 async function seriesPlan(id:string,extra:Record<string,unknown>={}){const input={scope:'single',operation:'reschedule',preserveExceptions:true,startLocal:'2026-02-14T09:30',...extra};const r=await handleGames(req('/'+id+'/series/preview','POST',input),env);expect(r.status,await r.clone().text()).toBe(200);return {input,plan:await r.json()};}
 async function seriesApply(id:string,input:Record<string,unknown>,plan:any,requestId=crypto.randomUUID()){return handleGames(req('/'+id+'/series/apply','POST',{...input,planHash:plan.planHash,requestId}),env);}
+it('does not notify the creator when rescheduling their otherwise empty game',async()=>{
+ const {data}=await create();const id=data.game.id;const {input,plan}=await seriesPlan(id);
+ expect((await seriesApply(id,input,plan)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications').get().n).toBe(0);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_events').get().n).toBe(0);
+ const inbox=await(await handleGames(req('/notifications'),env)).json();expect(inbox.notifications).toEqual([]);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_action_context').get().n).toBe(0);
+});
 it('reschedules one occurrence without changing attendance or the other weeks and notifies players',async()=>{
  const {data}=await create({repeatWeeks:3});const id=data.game.id,guest=await otherPlayer('series-guest');await handleGames(req('/'+id+'/join','POST',{},guest),env);await handleGames(req('/'+id+'/approve','POST',{playerId:'series-guest'}),env);
  const {input,plan}=await seriesPlan(id);expect(plan.affected).toHaveLength(1);const key=crypto.randomUUID();expect((await seriesApply(id,input,plan,key)).status).toBe(200);expect((await seriesApply(id,input,plan,key)).status).toBe(200);
  expect(db.sqlite.prepare('SELECT starts_at,series_exception FROM games WHERE id=?').get(id)).toMatchObject({starts_at:Date.parse('2026-02-14T08:30:00Z'),series_exception:1});expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
  expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications WHERE recipient_id=?').get('series-guest').n).toBe(1);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications WHERE recipient_id=?').get('player-1').n).toBe(0);
  const notes=await(await handleGames(req('/notifications','GET',undefined,guest),env)).json();expect(notes.notifications.some((n:any)=>n.kind==='schedule_changed'&&n.oldStart&&n.newStart)).toBe(true);
 });
 it('future edits preserve individual exceptions unless explicitly included',async()=>{
@@ -347,12 +393,14 @@ it('cancels one day or remaining series without deleting other games',async()=>{
 it('rejects stale previews, outsiders and DST-invalid bulk changes without partial writes',async()=>{
  const {data}=await create({repeatWeeks:3});const id=data.game.id;const p=await seriesPlan(id,{scope:'future'});db.sqlite.prepare('UPDATE games SET version=version+1 WHERE series_id=? AND series_week=2').run(id);
  expect((await seriesApply(id,p.input,p.plan)).status).toBe(409);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications').get().n).toBe(0);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_action_context').get().n).toBe(0);
  const other=await otherPlayer('not-host');expect((await handleGames(req('/'+id+'/series','GET',undefined,other),env)).status).toBe(404);
  const {data:dst}=await create({repeatWeeks:3,startLocal:'2026-03-01T10:00',timeZone:'America/New_York'});const r=await handleGames(req('/'+dst.game.id+'/series/preview','POST',{scope:'future',operation:'reschedule',preserveExceptions:true,startLocal:'2026-03-01T02:30'}),env);expect(r.status).toBe(400);
 });
 
 it('database series guards roll back all occurrences if any target is stale',async()=>{
  const {data}=await create({repeatWeeks:2});const rows=db.sqlite.prepare('SELECT id,version,starts_at,ends_at FROM games WHERE series_id=? ORDER BY series_week').all(data.game.id);const change=crypto.randomUUID();
- await expect(db.batch([db.prepare('INSERT INTO game_series_changes VALUES (?,?,?,?,?)').bind(change,'player-1',await hashToken(token),'hash',now),...rows.map((g:any,i:number)=>db.prepare('INSERT INTO game_series_change_targets VALUES (?,?,?,?,?,?,?)').bind(change,g.id,g.version+(i===1?1:0),g.starts_at+1800000,g.ends_at+1800000,'scheduled',0))])).rejects.toThrow(/series changed/);
+ await expect(notificationBatch(db,'player-1',[db.prepare('INSERT INTO game_series_changes VALUES (?,?,?,?,?)').bind(change,'player-1',await hashToken(token),'hash',now),...rows.map((g:any,i:number)=>db.prepare('INSERT INTO game_series_change_targets VALUES (?,?,?,?,?,?,?)').bind(change,g.id,g.version+(i===1?1:0),g.starts_at+1800000,g.ends_at+1800000,'scheduled',0))])).rejects.toThrow(/series changed/);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_action_context').get().n).toBe(0);
  expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_series_changes').get().n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_schedule_notifications').get().n).toBe(0);for(const g of rows)expect(db.sqlite.prepare('SELECT starts_at FROM games WHERE id=?').get(g.id).starts_at).toBe(g.starts_at);
 });

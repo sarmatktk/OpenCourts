@@ -46,7 +46,7 @@ test('primary Owner explicitly assigns a Co-owner with confirmation',async({page
  await page.route('**/api/auth/me',r=>r.fulfill({json:{player:{id:'owner',displayName:'Group Owner'},csrfToken:'csrf'}}));
  await page.route('**/api/groups/'+id,r=>r.fulfill({json:{group,membership:{status:'active',role:'owner'},archived:false,content}}));
  await page.route('**/api/groups/'+id+'/role',r=>{expect(r.request().postDataJSON()).toEqual({playerId:'member',role:'coowner'});return r.fulfill({json:{ok:true}});});
- await page.goto('/play-together/group?id='+id);await page.getByLabel('Manage Tennis Friend',{exact:true}).click();await page.getByLabel('Role for Tennis Friend').selectOption('coowner');await expect(page.getByText('Change Tennis Friend to Co-owner?',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByText('Group updated.',{exact:true})).toBeVisible();
+ await page.goto('/play-together/group?id='+id);await page.getByLabel('Manage Tennis Friend',{exact:true}).click();await page.getByRole('button',{name:/^Co-owner/}).click();await expect(page.getByText('Assign Co-owner to Tennis Friend?',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Confirm',exact:true}).click();await expect(page.getByText('Group updated.',{exact:true})).toBeVisible();
 });
 
 
@@ -60,7 +60,7 @@ test('group Owner creates and revokes an invitation link',async({page})=>{
  await page.route('**/api/groups/'+id,r=>r.fulfill({json:{group,membership:{status:'active',role:'owner'},archived:false,content}}));
  await page.route('**/api/groups/'+id+'/invitations',r=>{if(r.request().method()==='POST'){created=true;return r.fulfill({json:{id:'invite',url:'https://example.test/play-together/invitation#'+token}});}return r.fulfill({json:{invitations:created?[{id:'invite',createdAt:Date.now(),expiresAt:null,revokedAt:revoked?Date.now():null}]:[]}});});
  await page.route('**/api/groups/'+id+'/revoke-invitation',r=>{expect(r.request().postDataJSON()).toEqual({invitationId:'invite'});revoked=true;return r.fulfill({json:{ok:true}});});
- await page.goto('/play-together/group?id='+id);await page.getByRole('button',{name:'Create invitation link'}).click();await expect(page.getByRole('textbox',{name:'Invitation link'})).toHaveValue('https://example.test/play-together/invitation#'+token);await page.getByRole('button',{name:'Revoke invitation'}).click();await expect(page.getByRole('button',{name:'Revoke invitation'})).toHaveCount(0);
+ await page.goto('/play-together/group?id='+id);await page.getByRole('button',{name:'Create invitation link'}).click();await expect(page.getByRole('textbox',{name:'Invitation link'})).toHaveValue('https://example.test/play-together/invitation#'+token);await page.getByLabel('Actions for Membership link', {exact:false}).click();await page.getByRole('button',{name:'Revoke invitation',exact:true}).click();await page.getByRole('dialog',{name:'Confirm action'}).getByRole('button',{name:'Revoke invitation',exact:true}).click();await expect(page.getByRole('button',{name:'Revoke invitation'})).toHaveCount(0);
 });
 
 test('personal feed displays group and participation state with filters',async({page})=>{
@@ -72,3 +72,12 @@ for(const theme of ['light','dark'] as const){test('member directory uses compac
  await page.route('**/api/groups/'+id,r=>r.fulfill({json:{group,membership:{status:'active',role:'member'},archived:false,content}}));
  for(const width of [393,1280]){await page.setViewportSize({width,height:1000});await page.goto('/play-together/group?id='+id);const list=page.locator('.pt-member-list');await expect(list.locator('li')).toHaveCount(2);for(const row of await list.locator('li').all()){expect((await row.boundingBox())!.height).toBeLessThanOrEqual(56);await expect(row).toHaveCSS('border-radius','0px');}await list.evaluate(el=>el.scrollIntoView({block:'center'}));await expect(list).toHaveScreenshot('member-directory-'+width+'-'+theme+'.png');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);}
 });}
+
+for(const width of [320,1440])for(const colorScheme of ['light','dark'] as const){
+ test(`archive explanation uses plain language ${width} ${colorScheme}`,async({page})=>{
+  await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme,reducedMotion:'reduce'});let archived=false;
+  await page.route('**/api/groups/'+id,r=>r.fulfill({json:{group,membership:{status:'active',role:archived?null:'owner'},archived,...(!archived?{content}:{})}}));
+  await page.route('**/api/groups/'+id+'/archive',r=>{expect(r.request().method()).toBe('POST');expect(r.request().headers()['x-csrf-token']).toBe('csrf');archived=true;return r.fulfill({json:{ok:true}});});
+  await page.goto('/play-together/group?id='+id);await page.getByRole('button',{name:'Archive group',exact:true}).click();const dialog=page.getByRole('dialog');await expect(dialog.getByRole('heading',{name:'Archive this group?'})).toBeVisible();await expect(dialog).toContainText('Archiving closes the group. It will no longer appear in search or accept new members.');await expect(dialog).toContainText('Members will lose access to the member list and private group details. This does not delete the group.');await expect(dialog.getByText('You cannot undo this action.',{exact:true})).toBeVisible();await dialog.getByRole('button',{name:'Keep group active'}).click();expect(archived).toBe(false);await expect(dialog).not.toBeVisible();await page.getByRole('button',{name:'Archive group',exact:true}).click();await dialog.getByRole('button',{name:'Archive group',exact:true}).click();await expect(page.getByText('This group is archived.',{exact:true})).toBeVisible();expect(archived).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+ });
+}

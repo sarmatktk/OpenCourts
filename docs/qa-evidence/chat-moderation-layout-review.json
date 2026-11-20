@@ -1,0 +1,55 @@
+{
+  "deployment": "ef83db3e",
+  "hostedStatus": "HTTP/1.1 200 OK",
+  "previewNoindex": true,
+  "assets": [
+    "/assets/index-D6c67mUj.js"
+  ],
+  "fullBrowserBeforeFix": {
+    "total": 311,
+    "passed": 290,
+    "failed": 21,
+    "minutes": 10.4,
+    "screenshotFailures": 20,
+    "initialScrollFailures": 1
+  },
+  "functionalFollowup": {
+    "total": 89,
+    "passed": 87,
+    "failed": 2,
+    "minutes": 1.6,
+    "ignoreSnapshots": true,
+    "failures": "Artificial layout-growth scroll checks, fixed by border-box observation"
+  },
+  "finalScrollStress": {
+    "passed": 24,
+    "seconds": 37.5,
+    "widths": [
+      320,
+      390,
+      1440
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "repeats": 4
+  },
+  "finalChatModeration": {
+    "passed": 11,
+    "seconds": 20.1,
+    "ignoreSnapshots": false
+  },
+  "unit": {
+    "passed": 394,
+    "files": 25,
+    "seconds": 9.24
+  },
+  "productionDependencyVulnerabilities": 0,
+  "builds": {
+    "dev": "passed, Vite 6.69s",
+    "release": "passed, Vite 7.08s"
+  },
+  "snapshotUpdates": false,
+  "productionDeployed": false
+}

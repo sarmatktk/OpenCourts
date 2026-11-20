@@ -1,0 +1,21 @@
+{
+  "environment": "feature/play-together Preview / opencourts-dev",
+  "passed": 7,
+  "checks": [
+    "Owner, co-owner and group organizer access a long-quiet series without attendance or membership records",
+    "Named audience includes all three current staff roles",
+    "All three roles can post across dates after the ordinary room deadline",
+    "Demotion removes role-only access immediately",
+    "Promotion restores role-based access immediately",
+    "Staff re-confirmation emits no false inactivity departure",
+    "Group departure overrides staff exemption"
+  ],
+  "temporaryFixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "games": 0,
+    "rooms": 0
+  },
+  "realUserNotificationsSent": false,
+  "oauthProviderSignInTested": false
+}

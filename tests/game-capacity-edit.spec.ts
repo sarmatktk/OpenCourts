@@ -1,0 +1,43 @@
+import {test,expect} from '@playwright/test';
+import {chooseOption} from './picker-helpers';
+const id='10000000-0000-4000-8000-000000000001';
+for(const width of [320,390,1440])for(const theme of ['light','dark'] as const)test(`capacity editor preserves separate guest approval ${width} ${theme}`,async({page})=>{
+ await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ let capacity=2,format='singles',version=1,saved:any=null;const pending=[{id:'waiting',displayName:'Waiting player'}];
+ await page.route('**/api/**',async r=>{const path=new URL(r.request().url()).pathname;let json:any={players:[],notifications:[],invitations:[]};
+  if(path==='/api/auth/me')json={player:{id:'host',displayName:'Host'},csrfToken:'csrf'};
+  if(path===`/api/games/${id}`)json={game:{id,title:'Evening tennis',court:{id:'court',name:'Park courts',lat:38,lon:-77,access:'public'},startsAt:'2030-06-15T18:00:00Z',endsAt:'2030-06-15T19:00:00Z',timeZone:'America/New_York',format,capacity,courtCount:1,playerCount:2,visibility:'public',organizer:{id:'host',displayName:'Host'},status:'scheduled',notes:''}};
+  if(path.endsWith('/participation'))json={isOrganizer:true,isGameOrganizer:true,joined:true,version,availablePlaces:capacity-2};
+  if(path.endsWith('/participants'))json={players:[{id:'host',displayName:'Host'},{id:'other',displayName:'Other player'}]};
+  if(path.endsWith('/requests'))json={players:pending};
+  if(path.endsWith('/guests'))json={own:null,requests:[],isHost:true};
+  if(path.endsWith('/chat'))json={available:false};
+  if(path.endsWith('/edit-preview')){expect(r.request().headers()['x-csrf-token']).toBe('csrf');json={confirmedPlaces:2,reservedPlaces:0,candidates:pending.map(p=>({playerId:p.id,displayName:p.displayName,willConfirm:true}))};}
+  if(path.endsWith('/edit')){saved=r.request().postDataJSON();capacity=saved.capacity;format=saved.format;version++;if(saved.fillWaiting)pending.splice(0);json={ok:true};}
+  await r.fulfill({json});
+ });
+ await page.goto('/play-together/game?id='+id);
+ await chooseOption(page,page.getByRole('combobox',{name:'Game format',exact:true}),'Doubles');
+ await expect(page.getByLabel('Total player capacity',{exact:false})).toHaveValue('4');
+ await expect(page.getByRole('status').filter({hasText:'Up to 1 waiting player'})).toBeVisible();
+ await expect(page.getByText('Guest requests still need your approval.',{exact:false})).toBeVisible();
+ await page.getByRole('button',{name:'Save game changes',exact:true}).click();
+ await expect.poll(()=>saved).toMatchObject({capacity:4,format:'doubles',courtCount:1,fillWaiting:true,version:1});
+ await expect(page.getByText('No pending requests.',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Save game changes',exact:true})).toBeEnabled();
+ await expect(page.getByLabel('Total player capacity',{exact:false})).toHaveValue('4');
+ await page.getByLabel('Total player capacity',{exact:false}).fill('8');
+ await page.getByRole('checkbox',{name:'Confirm waiting players automatically',exact:false}).uncheck();
+ await page.getByRole('button',{name:'Save game changes',exact:true}).click();
+ await expect.poll(()=>saved.capacity).toBe(8);expect(saved.fillWaiting).toBe(false);
+ await expect(page.getByRole('button',{name:'Save game changes',exact:true})).toBeEnabled();
+ await expect(page.getByLabel('Total player capacity',{exact:false})).toHaveValue('8');
+ const editor=page.locator('.pt-game-settings');
+ await page.addScriptTag({path:'.wrangler/qa-audit/axe.min.js'});
+ expect(await editor.evaluate(async node=>(await (window as any).axe.run(node,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id))).toEqual([]);
+ if((width===320&&theme==='dark')||(width===1440&&theme==='light'))await editor.screenshot({path:`docs/qa-evidence/capacity-editor-${width}-${theme}.png`});
+ await page.getByLabel('Total player capacity',{exact:false}).fill('1');
+ await expect(page.getByRole('button',{name:'Save game changes',exact:true})).toBeDisabled();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);expect(errors).toEqual([]);
+});

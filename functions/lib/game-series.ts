@@ -1,3 +1,4 @@
+import {notificationBatch} from './notification-action';
 import {AuthError,checkOrigin,checkCsrf,requireSession,session,json,readJson,hashToken,type AuthDatabase} from './auth';
 import {unlistedAccessSql} from './game-sharing';
 import {groupGameAccess,groupEventViewSql} from './group-game-access';
@@ -27,7 +28,7 @@ export async function gameSeries(request:Request,db:AuthDatabase,origin:string,p
  if(action==='preview')return json({affected,skipped,planHash});
  if(b.planHash!==planHash||typeof b.requestId!=='string'||!/^[0-9a-f-]{36}$/i.test(b.requestId))throw new AuthError(409,'The schedule changed. Preview the dates again before confirming.');
 
- try{await db.batch([db.prepare('INSERT INTO game_series_changes VALUES (?,?,?,?,?)').bind(b.requestId,actor.id,actor.token_hash,planHash,now),...affected.map(g=>db.prepare('INSERT INTO game_series_change_targets VALUES (?,?,?,?,?,?,?)').bind(b.requestId,g.id,g.version,g.newStart,g.newEnd,g.status,g.exception))]);}catch{throw new AuthError(409,'The series or permissions changed. Preview again; no partial changes were saved.');}
+ try{await notificationBatch(db,actor.id,[db.prepare('INSERT INTO game_series_changes VALUES (?,?,?,?,?)').bind(b.requestId,actor.id,actor.token_hash,planHash,now),...affected.map(g=>db.prepare('INSERT INTO game_series_change_targets VALUES (?,?,?,?,?,?,?)').bind(b.requestId,g.id,g.version,g.newStart,g.newEnd,g.status,g.exception))]);}catch{throw new AuthError(409,'The series or permissions changed. Preview again; no partial changes were saved.');}
  return json({ok:true,changed:affected.length});
 }
 

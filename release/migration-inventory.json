@@ -1,0 +1,129 @@
+{
+  "note": "Local inventory only. Not a record of applied production migrations. Confirm remote ledger and take verified backup before applying.",
+  "migrations": [
+    {
+      "file": "0001_create_tennis_courts.sql",
+      "sha256": "d9d2091463c0a9363a0b2f62973f15770a201d72012fc576d14882876c71338a"
+    },
+    {
+      "file": "0002_player_auth.sql",
+      "sha256": "9e3202fe4205ca0137f0c4fcd7b6fe8d8d40f5d36017958fe936c8b0c0b095aa"
+    },
+    {
+      "file": "0003_public_games.sql",
+      "sha256": "abbb88f22622dc372f889d9db31a5a63959f01563cc6f4a33f3eb12a7d6e8c3f"
+    },
+    {
+      "file": "0004_game_participation.sql",
+      "sha256": "09b32abb7953855ca35c06f950cc0b9b78900c3e06c0efccfe610c3d2dff090e"
+    },
+    {
+      "file": "0005_game_cancellations.sql",
+      "sha256": "0458050bbeb63f3512629f72a7b76e1101ad45bc71e05bc3797f474bcc90684b"
+    },
+    {
+      "file": "0006_host_notifications.sql",
+      "sha256": "4c625539877dbfd7c2d807a4b47b21e7c31da90103717dc738d1d3ce46c2bbf4"
+    },
+    {
+      "file": "0007_request_notifications.sql",
+      "sha256": "e97e6072e0bfabf4a35152b44e2abdb552cb1a89c485702256dca3e9b590f8b0"
+    },
+    {
+      "file": "0008_player_notifications.sql",
+      "sha256": "e12186a794b717b8f432ab33dd473859fc29e89b28071b7b767f0260c3bb6288"
+    },
+    {
+      "file": "0009_tennis_groups.sql",
+      "sha256": "6d71bcf295f66d834f862c6d16de97251e36aebb90507a68050effd377fbcefd"
+    },
+    {
+      "file": "0010_group_notifications.sql",
+      "sha256": "efa7d9b584c76947cb8f96f7d8e356adb184a691c16ef09cb1b1794715255149"
+    },
+    {
+      "file": "0011_group_roles.sql",
+      "sha256": "909d9afbc64b91c3630de84978cc824b812e2d9c3a10d6f3e5c1e8d96ffd7839"
+    },
+    {
+      "file": "0012_media_assets.sql",
+      "sha256": "eac5a870764487c180c04ce3dc8bd961ba3af17da98e0dcabf46cdec10189643"
+    },
+    {
+      "file": "0013_group_invitations.sql",
+      "sha256": "6859b32db6fabe62d7fe1b0c5568bbce52715d3829854ac8808e90d0a09fe8cf"
+    },
+    {
+      "file": "0014_group_games.sql",
+      "sha256": "098702b474c17e534d8d5e9a2a6fafd7a2a5f6c7f4772dd58a9358de076073d6"
+    },
+    {
+      "file": "0015_group_game_lifecycle.sql",
+      "sha256": "0c766622c37d7b9147c1bcb2680da1b0c4295874499d9cb93ffd8c7a9a353bf9"
+    },
+    {
+      "file": "0016_game_guests.sql",
+      "sha256": "4e4b342d3a11ff3053dcc0b2a09bf95359ba7db16e4b641e8653ef4536bce10e"
+    },
+    {
+      "file": "0017_sharing_safety.sql",
+      "sha256": "c68dece3cbd109a0e8e3f8c9d28a697ab600d5a94e270ab0b531d43f961d5db2"
+    },
+    {
+      "file": "0018_player_game_invitations.sql",
+      "sha256": "2f1a711e54604b06f81ebdf9789ac3aaebd1e6e03bd51898d7e922f48195793b"
+    },
+    {
+      "file": "0019_multi_court_events.sql",
+      "sha256": "5e141ad217ea6c0fc4cc16a33deed6f529782054482f355eb48ce3313b885c7d"
+    },
+    {
+      "file": "0020_weekly_game_series.sql",
+      "sha256": "6d827ed9e52188e7e0cc1de771fb2f09cbdfae859e5efa63456823ee397f3728"
+    },
+    {
+      "file": "0021_group_game_waitlist.sql",
+      "sha256": "bc8858c4a4a41124ade02ac640a9ead2745a9af78f0fa2b8620aaf47c55d6b25"
+    },
+    {
+      "file": "0022_public_group_events.sql",
+      "sha256": "54ff11932eafe034717a85b06bf9622ccf9cc035444af7ca4d0dd25536cd6c9b"
+    },
+    {
+      "file": "0023_series_management.sql",
+      "sha256": "8e22a04784b34d5692bcb69f81567539fd24977d0c1a27d8c25f5907dbdca96e"
+    },
+    {
+      "file": "0024_notification_delivery.sql",
+      "sha256": "777537291e1029139b49fad96b71fe5222fffb3552f94792aa5f5434da634830"
+    },
+    {
+      "file": "0025_notification_action_actor.sql",
+      "sha256": "3e1f35dd06a3673aecc1c84c0cfdad0e793c955f3d8733e89250e984c97ec7b6"
+    },
+    {
+      "file": "0026_account_moderation.sql",
+      "sha256": "fc5dcdca3edff4c85dbfaeb057cb1e640678f90f7d98341b86963418700ef6e9"
+    },
+    {
+      "file": "0027_game_chat.sql",
+      "sha256": "35f33151e03ab1382f05a9d25c8cf586b5b0ae67d975e6c39e50a94f455fadf5"
+    },
+    {
+      "file": "0028_series_chat.sql",
+      "sha256": "34a566bec3bce37d8e19ad9d067949f62e7d1a854f3c9d4b9eb8cfe396a809aa"
+    },
+    {
+      "file": "0029_series_chat_staff.sql",
+      "sha256": "8803b61fadf90261dcc9c5735c64654007e98549bf7a88b1f686e579a64680cd"
+    },
+    {
+      "file": "0030_chat_lifecycle_notices.sql",
+      "sha256": "db2dfd99f5b4227ff7a1d2430559c8eaef7b3e8306bed94aad691aacf5717312"
+    },
+    {
+      "file": "0031_game_capacity_edit.sql",
+      "sha256": "e891b200c174b7ad4919e8218040daafec525fc692dac64e1ed468acabf518d1"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-release/
 playwright-report/
 test-results/
 .wrangler/
@@ -51,3 +52,33 @@ docs/qa-evidence/*.png
 !docs/qa-evidence/players-moderator-1440-light.png
 !docs/qa-evidence/game-cancellation-confirm-390.png
 !docs/qa-evidence/group-member-removal-confirm-390.png
+
+# Reviewed synthetic chat indicator evidence (no personal information).
+!docs/qa-evidence/chat-unread-320-light.png
+!docs/qa-evidence/chat-unread-320-dark.png
+
+# Reviewed synthetic desktop chat and moderation workspace evidence.
+!docs/qa-evidence/chat-full-width-1440-light.png
+!docs/qa-evidence/moderation-workspaces-320-dark.png
+!docs/qa-evidence/moderation-workspaces-1440-light.png
+
+# Reviewed synthetic conversation-dialog evidence.
+!docs/qa-evidence/chat-dialog-desktop-light.png
+!docs/qa-evidence/series-chat-dialog-phone-dark.png
+
+# Reviewed synthetic group-staff audience evidence.
+!docs/qa-evidence/series-chat-staff-320-dark.png
+
+!docs/qa-evidence/capacity-editor-320-dark.png
+
+!docs/qa-evidence/capacity-editor-1440-light.png
+
+!docs/qa-evidence/chat-composer-desktop-light.png
+
+!docs/qa-evidence/chat-composer-desktop-dark.png
+
+!docs/qa-evidence/production-launch-account-390-light.png
+
+!docs/qa-evidence/sign-in-recovery-390-light.png
+
+!docs/qa-evidence/sign-in-recovery-320-dark.png

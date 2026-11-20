@@ -1,0 +1,13 @@
+{
+  "phase": "bindings",
+  "protectedVarsUnchanged": true,
+  "previewUnchanged": true,
+  "deploymentUnchanged": true,
+  "previousProductionDeployment": "7ef38ff2-91e0-4505-a215-fa16edcfa0bc",
+  "productionDatabaseVerified": true,
+  "privateMediaBound": true,
+  "imageProcessorBound": true,
+  "pushEnabled": false,
+  "activation": false,
+  "secretValuesInspected": false
+}

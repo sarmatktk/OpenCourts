@@ -1,3 +1,5 @@
+> Historical snapshot. Use [the current app testing checklist](APP_TESTING_CHECKLIST.md) for current readiness; checks below are dated evidence, not current acceptance.
+
 # Play Together release review - November 18, 2026
 
 ## Current assessment

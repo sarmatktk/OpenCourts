@@ -1,0 +1,20 @@
+{
+  "environment": "feature/play-together Preview / opencourts-dev",
+  "passed": 6,
+  "checks": [
+    "Hosted D1 preview chooses the FIFO prefix without changing attendance",
+    "Singles to doubles keeps confirmed players, fills two pending requests, leaves guests pending and clears atomic receipts",
+    "Opting out leaves waiting requests pending; guest approval succeeds separately after expansion",
+    "Group co-owner expands a single date and confirms both waitlist and pending requests, creating quiet shared-series added notices",
+    "Role-only staff group departure generates one quiet notice and revokes access",
+    "Standalone removal creates a notice and immediately blocks viewing and sending"
+  ],
+  "temporaryFixturesRemaining": {
+    "players": 0,
+    "games": 0,
+    "groups": 0,
+    "rooms": 0
+  },
+  "realUserNotificationsSent": false,
+  "providerSignInTested": false
+}

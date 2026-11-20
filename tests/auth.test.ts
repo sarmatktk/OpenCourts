@@ -113,6 +113,7 @@ describe('Apple form_post flow', () => {
 beforeEach(() => { db = new LocalDatabase(); env = { COURTS_DB: db, AUTH_ORIGIN: origin, PLAY_TOGETHER_ENABLED: 'true', GOOGLE_CLIENT_ID: 'google-client', GOOGLE_CLIENT_SECRET: 'google-secret' }; });
 afterEach(() => { db.sqlite.close(); vi.unstubAllGlobals(); });
 function req(path: string, method = 'GET', body?: unknown, headers: Record<string,string> = {}) {
+  if(/^(google|apple)\/start$/.test(path)&&body&&typeof body==='object')body={adultConfirmed:true,...body};
   return new Request(`${env.AUTH_ORIGIN}/api/auth/${path}`, { method, headers: { Origin: env.AUTH_ORIGIN!, 'Content-Type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 const signedHeaders = { Cookie: `oc_session=${token}`, 'X-CSRF-Token': csrf };
@@ -146,10 +147,33 @@ async function fakeProvider(nonce: string, claims: Record<string,unknown> = {}, 
 function finish(flow: { state: string; cookie: string }) { return req(`google/callback?code=one-time-code&state=${flow.state}`, 'GET', undefined, { Cookie: flow.cookie }); }
 
 describe('Phase 1 authentication boundaries', () => {
-  it('is disabled without the explicit flag or binding, and always on production hosts/branch', async () => {
+  it('is disabled without the explicit flag or binding and rejects production without rollout markers', async () => {
     for (const patch of [{ PLAY_TOGETHER_ENABLED: undefined }, { COURTS_DB: undefined }, { CF_PAGES_BRANCH: 'main' }]) expect((await handleAuth(req('me'), { ...env, ...patch })).status).toBe(404);
     for (const host of ['https://opencourts.us','https://opencourts.pages.dev','https://unrelated.example']) expect((await handleAuth(new Request(`${host}/api/auth/me`), { ...env, AUTH_ORIGIN: host })).status).toBe(404);
     expect((await handleAuth(req('me'), { ...env, AUTH_ORIGIN: 'https://feature-play-together.opencourts.pages.dev' })).status).toBe(404);
+  });
+  it('allows only the exact production origin with all explicit production rollout settings', async () => {
+    const production = {...env,AUTH_ORIGIN:'https://opencourts.us',CF_PAGES_BRANCH:'main',PLAY_TOGETHER_ENVIRONMENT:'production',PLAY_TOGETHER_PRODUCTION_ENABLED:'true'};
+    const request = new Request('https://opencourts.us/api/auth/me');
+    expect((await handleAuth(request,production)).status).toBe(200);
+    for(const patch of [{PLAY_TOGETHER_ENABLED:'false'},{COURTS_DB:undefined},{AUTH_ORIGIN:'https://feature-play-together.opencourts.pages.dev'},{CF_PAGES_BRANCH:undefined},{CF_PAGES_BRANCH:'feature/play-together'},{PLAY_TOGETHER_ENVIRONMENT:undefined},{PLAY_TOGETHER_PRODUCTION_ENABLED:undefined}])expect((await handleAuth(request,{...production,...patch})).status).toBe(404);
+    for(const origin of ['http://opencourts.us','https://www.opencourts.us','https://opencourts.pages.dev','https://feature-play-together.opencourts.pages.dev','https://unrelated.example'])expect((await handleAuth(new Request(origin+'/api/auth/me'),{...production,AUTH_ORIGIN:origin})).status).toBe(404);
+  });
+  it('rejects sign-in without explicit adult confirmation before creating an OAuth attempt',async()=>{
+    for(const body of [{},{adultConfirmed:false},{adultConfirmed:'true'}]){
+      const response=await handleAuth(new Request(env.AUTH_ORIGIN+'/api/auth/google/start',{method:'POST',headers:{Origin:env.AUTH_ORIGIN!,'Content-Type':'application/json'},body:JSON.stringify(body)}),env);
+      expect(response.status).toBe(400);expect(await response.text()).toContain('18 and older');
+    }
+    expect(db.sqlite.prepare('SELECT COUNT(*) n FROM auth_login_attempts').get().n).toBe(0);
+  });
+  it('cleans deleted account photos immediately when storage is bound',async()=>{
+    await signedPlayer();db.sqlite.exec(readFileSync('functions/db/migrations/0012_media_assets.sql','utf8'));db.sqlite.exec("INSERT INTO media_assets VALUES ('player','player-1','old-account-photo','v',1)");
+    const bucket={delete:vi.fn().mockResolvedValue(undefined)};env.PLAY_TOGETHER_MEDIA=bucket;
+    expect((await handleAuth(req('me','DELETE',{confirm:'DELETE'},signedHeaders),env)).status).toBe(200);expect(bucket.delete).toHaveBeenCalledWith('old-account-photo');expect(db.sqlite.prepare('SELECT COUNT(*) n FROM media_cleanup').get().n).toBe(0);
+  });
+  it('refuses OAuth login for an existing suspended identity without creating another player or session',async()=>{
+    await signedPlayer();db.sqlite.exec("UPDATE players SET status='disabled'");const flow=await begin();await fakeProvider(flow.nonce,{sub:'subject-1'});const before=db.sqlite.prepare('SELECT COUNT(*) n FROM auth_sessions').get().n;
+    const response=await handleAuth(finish(flow),env);expect(response.headers.get('location')).toContain('account-suspended');expect(response.headers.get('set-cookie')??'').not.toContain('oc_session=');expect(db.sqlite.prepare('SELECT COUNT(*) n FROM players').get().n).toBe(1);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM auth_sessions').get().n).toBe(before);
   });
   it('returns signed-out state and only configured providers, without public caching or CORS', async () => {
     const r = await handleAuth(req('me'), env); const data = await r.json();

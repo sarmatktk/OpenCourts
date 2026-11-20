@@ -1,0 +1,23 @@
+{
+  "preview": "4f971d64",
+  "browserTests": 9,
+  "seconds": 29.1,
+  "widths": [
+    320,
+    1440
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "conversations": [
+    "game",
+    "series"
+  ],
+  "titleOutline": "none",
+  "keyboardControlFocusVisible": true,
+  "developmentBuild": "passed",
+  "snapshotsUpdated": false,
+  "physicalAndroidRetest": false,
+  "productionChanged": false
+}

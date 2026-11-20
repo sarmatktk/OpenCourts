@@ -1,0 +1,29 @@
+{
+  "url": "https://feature-play-together.opencourts.pages.dev/play-together/game",
+  "status": "HTTP/1.1 200 OK",
+  "assets": [
+    "/assets/index-BNT2CsST.js"
+  ],
+  "noindex": true,
+  "deployment": "89a9dfa5",
+  "browser": {
+    "passed": 12,
+    "seconds": 26.9,
+    "widths": [
+      320,
+      390,
+      1440
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ]
+  },
+  "unit": {
+    "passed": 394,
+    "files": 25,
+    "seconds": 6.85
+  },
+  "build": "build:dev passed; Vite 6.81 seconds",
+  "snapshotsUpdated": false
+}

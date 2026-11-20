@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-20",
+  "preview": "4dd76fd5",
+  "workerVersion": "f56801ee-573e-4196-a43e-d148debca31a",
+  "developmentMigration": "0028_series_chat.sql",
+  "productionChanged": false,
+  "environmentSecretsReadOrChanged": false,
+  "units": {
+    "passed": 409,
+    "files": 25,
+    "seconds": 8.2
+  },
+  "browser": {
+    "passed": 43,
+    "duration": "1.0m",
+    "noSnapshotUpdates": true,
+    "widths": [
+      320,
+      390,
+      1440
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "covers": [
+      "dialog focus/return/keyboard wrapping",
+      "draft retention",
+      "nested report picker and Escape",
+      "visual viewport keyboard clearance",
+      "long history pagination and refresh anchors",
+      "quiet join and inactivity notices",
+      "mute/report/evidence/access revocation",
+      "moderation",
+      "public policy accessibility",
+      "shared dropdown values"
+    ]
+  },
+  "builds": {
+    "development": "passed; Vite 14.04s",
+    "productionCandidate": "passed; Vite 9.87s",
+    "policyDateSync": "Three static policy files copied byte-for-byte into both artifacts with November 20 dates; production artifact preparation revalidated afterward"
+  },
+  "developmentBackupDryRun": {
+    "backupRestore": "passed",
+    "migrationDryRun": "passed",
+    "messagesPreserved": 15,
+    "originalMessageTextAndAuthorsPreserved": true,
+    "reportContextsAndHoldsPreserved": true,
+    "foreignKeyViolations": 0,
+    "seriesThreads": 0,
+    "privateBackupIgnored": true
+  },
+  "hostedSyntheticChecks": 9,
+  "temporaryFixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "games": 0,
+    "rooms": 0
+  },
+  "phoneAcceptance": "New dialog/series feature not physically verified; earlier owner acceptance predates this feature",
+  "fullSiteBrowserSuite": "Not rerun for this feature; earlier 20 visual baseline mismatches remain pending",
+  "hostedPolicies": [
+    {
+      "route": "/privacy",
+      "status": "HTTP/1.1 200 OK",
+      "newPolicyDate": true,
+      "seriesPolicy": true,
+      "noindex": true
+    },
+    {
+      "route": "/terms",
+      "status": "HTTP/1.1 200 OK",
+      "newPolicyDate": true,
+      "seriesPolicy": true,
+      "noindex": true
+    },
+    {
+      "route": "/play-together-help",
+      "status": "HTTP/1.1 200 OK",
+      "newPolicyDate": true,
+      "seriesPolicy": true,
+      "noindex": true
+    }
+  ]
+}

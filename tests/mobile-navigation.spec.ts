@@ -6,8 +6,8 @@ for(const theme of ['light','dark'] as const){
   for(const width of [320,375,390,768,1024]){
    await page.setViewportSize({width,height:900});await page.goto('/play-together/feed');
    const dock=page.getByRole('navigation',{name:'Play Together quick navigation'});
-   await expect(dock).toBeVisible();if(width===320)await expect(page.getByRole('button',{name:'Toggle menu'})).toBeHidden();await expect(dock.getByRole('link')).toHaveCount(6);
-   await expect(dock.getByRole('link',{name:'My Feed',exact:true})).toHaveAttribute('aria-current','page');
+   await expect(dock).toBeVisible();if(width===320)await expect(page.getByRole('button',{name:'Toggle menu'})).toBeHidden();await expect(dock.getByRole('link')).toHaveCount(5);
+   await expect(dock.getByRole('link',{name:'Feed',exact:true})).toHaveAttribute('aria-current','page');
    const bounds=await dock.boundingBox();expect(bounds!.x).toBeGreaterThanOrEqual(0);expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width);
    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
    for(const link of await dock.getByRole('link').all())expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -23,10 +23,10 @@ test('map dock links to Play Together without a phone hamburger',async({page})=>
  await page.setViewportSize({width:320,height:852});
  await page.route('**/api/**',r=>r.fulfill({json:{courts:[],notifications:[],player:null}}));
  await page.goto('/');
- const dock=page.getByRole('navigation',{name:'Quick navigation'});
- await expect(dock.getByRole('link',{name:'Play Together',exact:true})).toHaveAttribute('href','/play-together');
+ const dock=page.locator('header .site-area-switch');
+ await expect(dock).toHaveAttribute('href','/play-together');
  await expect(page.getByRole('button',{name:'Toggle menu'})).toBeHidden();
- const link=dock.getByRole('link',{name:'Play Together',exact:true});await expect(link).toBeInViewport();
+ const link=dock;await expect(link).toBeInViewport();
  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
  await link.click();await expect(page).toHaveURL(/\/play-together$/);

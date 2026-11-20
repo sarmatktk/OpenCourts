@@ -1,5 +1,36 @@
 # Feature branch Git review
 
+November 19 launch-copy/SEO follow-up: include scripts/community-metadata.mjs,
+scripts/prepare-production-pages.mjs, changed prepare-dev-pages.mjs, index metadata,
+public sitemap/copy, customer-facing auth wording, tests and readiness docs. The new
+npm build:release command generates ignored dist-release/ only; no deployment follows.
+dist-release is excluded alongside dist. Preview builds add noindex headers/debug
+association; production candidates reject those additions. Preserve historical QA
+records; do not replace captured old wording/email with invented current evidence.
+
+## November 19 internal-testing preparation review
+
+Verified checkout/remote `sarmatktk/OpenCourts`, branch `feature/play-together` and
+preserved the intentional working tree. Reviewed push APIs/sender/migration 0024,
+service-worker destinations, opt-in UI, cache/media behavior, Android notification
+delegation/debug isolation, information-page updates and browser fixture changes.
+Keep package.json/package-lock.json together and include the new push source/tests,
+notification icons, safe disabled development sender config and current handover docs.
+Keep the six allowed synthetic QA screenshots, JSON audit evidence and test baselines.
+The current browser run does not update screenshot baselines.
+
+A bounded credential-pattern scan of 80 changed/untracked text files found no matching
+embedded private keys or common provider-token patterns. This does not certify all
+history. No environment-secret files or Cloudflare environment secrets were read.
+Ignore checks confirm .wrangler secrets, local SQLite, generated build/APK output and
+test logs/results stay excluded. No new uploaded photos or runtime records appear in
+the candidate inventory. Preserve ignored local data and credentials.
+
+An existing tracked `android-app/app/release/app-release.aab` predates this work;
+it is unchanged and must not be included as a new test release or uploaded. The current
+Gradle version remains 2 / 1.0.1; the next approved signed bundle needs code 3 or higher.
+No package/destination selection, staging, commit or Git push is part of this review.
+
 Reviewed November 17, 2026, on `feature/play-together` in OpenCourts.
 Remote: `https://github.com/sarmatktk/OpenCourts.git`.
 
@@ -122,3 +153,7 @@ for that synchronization. Development build passed before staging.
 The staged review found 192 files, six audit-linked PNGs and 32 test-baseline PNGs,
 with no excluded paths or secret-pattern matches. Production branch remains main;
 production deployment 7ef38ff2 and Preview development D1 were verified unchanged.
+
+November 19 production candidate adds public Terms/Delete Account pages, policy and footer links, scripts/build-pages.mjs, guarded production source/cleanup, release/ public resource examples and migration hashes, and corresponding tests/baselines. These are intended reviewable source/docs. Keep .wrangler artifacts/backups/logs, dist/dist-release, local DBs/media and signing/Cloudflare secrets excluded. No Git push/merge is included in preparation.
+
+Account moderation follow-up: include migration 0026, moderation backend/UI, visible staff entry, required explanation dialog, updated policies/tests and the refreshed 26-file release migration inventory. Dev schema 0026 only; no real-account suspensions or production changes. Keep private runtime data/logs/build outputs excluded.

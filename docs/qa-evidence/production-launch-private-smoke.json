@@ -1,0 +1,23 @@
+{
+  "environment": "production / opencourts.us",
+  "passed": 8,
+  "checks": [
+    "Private group creation, membership request and approval",
+    "Real API creates a two-date group series and confirms an approved member",
+    "Capacity denial, format expansion, owner direct guests and separate ordinary approval",
+    "Shared series chat, participant access and unread update across dates",
+    "Private game and conversation stay inaccessible to outsiders",
+    "Production private image processor, R2 write/read and private avatar access",
+    "Group removal immediately revokes shared chat access",
+    "Irreversible group archive and account deletion with owned group cleanup"
+  ],
+  "temporaryFixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "games": 0,
+    "rooms": 0
+  },
+  "realUserNotificationsSent": false,
+  "realOAuthSignInTested": false,
+  "realDevicePushTested": false
+}

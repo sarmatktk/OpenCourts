@@ -1,0 +1,72 @@
+{
+  "productionDeployment": "0edd7fe3",
+  "origin": "https://opencourts.us",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/account",
+      "status": 200
+    },
+    {
+      "path": "/play-together",
+      "status": 200
+    },
+    {
+      "path": "/play-together/groups",
+      "status": 200
+    },
+    {
+      "path": "/privacy",
+      "status": 200,
+      "matchesReviewedContent": true,
+      "cloudflareEmailProtectionNormalized": true
+    },
+    {
+      "path": "/terms",
+      "status": 200,
+      "matchesReviewedContent": true,
+      "cloudflareEmailProtectionNormalized": true
+    },
+    {
+      "path": "/delete-account",
+      "status": 200,
+      "matchesReviewedContent": true,
+      "cloudflareEmailProtectionNormalized": true
+    },
+    {
+      "path": "/play-together-help",
+      "status": 200,
+      "matchesReviewedContent": true,
+      "cloudflareEmailProtectionNormalized": true
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200
+    },
+    {
+      "path": "/api/auth/me",
+      "status": 200,
+      "googleReady": true,
+      "appleReady": true,
+      "signedOut": true
+    },
+    {
+      "path": "/api/games?lat=38.8462&lon=-77.3064",
+      "status": 200
+    },
+    {
+      "path": "/api/groups",
+      "status": 200
+    },
+    {
+      "path": "/api/players",
+      "status": 401
+    }
+  ],
+  "privateRecordsExposed": false,
+  "oauthProviderLoginCompleted": false,
+  "pushEnabled": false
+}

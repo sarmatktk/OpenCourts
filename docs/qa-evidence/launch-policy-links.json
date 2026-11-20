@@ -1,0 +1,43 @@
+{
+  "checkedPages": [
+    {
+      "page": "/privacy",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    },
+    {
+      "page": "/terms",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    },
+    {
+      "page": "/play-together-help",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    },
+    {
+      "page": "/delete-account",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    },
+    {
+      "page": "/about",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    },
+    {
+      "page": "/contact",
+      "duplicateIds": 0,
+      "brokenKnownFragmentLinks": 0,
+      "stagingCopy": false
+    }
+  ],
+  "sitemapUrls": 17,
+  "sitemapCanonicalOnly": true,
+  "privateRoutesExcluded": true
+}

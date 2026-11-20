@@ -1,0 +1,36 @@
+{
+  "production": "0c966dd9",
+  "preview": "7ef90df7",
+  "checks": [
+    {
+      "width": 390,
+      "theme": "light",
+      "clearSignInButton": true,
+      "accountNavigation": true,
+      "jsErrors": 0
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "clearSignInButton": true,
+      "accountNavigation": true,
+      "jsErrors": 0
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "clearSignInButton": true,
+      "accountNavigation": true,
+      "jsErrors": 0
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "clearSignInButton": true,
+      "accountNavigation": true,
+      "jsErrors": 0
+    }
+  ],
+  "passed": 4,
+  "settingsOrDataChanged": false
+}
