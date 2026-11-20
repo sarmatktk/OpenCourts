@@ -35,8 +35,8 @@ describe('social share metadata', () => {
       expect(html).toContain('rel="icon" type="image/x-icon" href="/favicon.ico"');
       expect(html).toContain('rel="manifest" href="/site.webmanifest"');
       expect(html).toContain('src="/theme.js"');
-      expect(html).toContain('https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410');
-      expect(html).toContain("gtag('config', 'G-7T3S2D1410')");
+      expect(html).toContain('/site-analytics.js');
+      expect(readFileSync('public/site-analytics.js', 'utf8')).toContain('G-7T3S2D1410');
       expect(html).toContain('src="/landing-analytics.js"');
       expect((html.match(/data-analytics-event="landing_cta_click"/g) || []).length).toBe(2);
       const image = readFileSync(resolve(process.cwd(), 'public', imageName));
@@ -92,8 +92,8 @@ describe('social share metadata', () => {
     expect(html).toContain('rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"');
     expect(html).toContain('name="twitter:image:alt"');
     expect(html).toContain('rel="preload" as="image" type="image/webp" href="/landing-los-angeles.webp"');
-    expect(html).toContain('https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410');
-    expect(html).toContain("gtag('config', 'G-7T3S2D1410')");
+    expect(html).toContain('/site-analytics.js');
+    expect(readFileSync('public/site-analytics.js', 'utf8')).toContain('G-7T3S2D1410');
     expect(html).toContain('src="/landing-analytics.js"');
   });
   it('deep-links Atlanta facilities and explains park courts versus racquet centers', () => {
@@ -193,9 +193,9 @@ describe('social share metadata', () => {
     it(`${file} has a page URL and the shared preview image`, () => {
       const html = readFileSync(resolve(process.cwd(), file), 'utf8');
       expect(html).toContain(`property="og:url" content="${canonicalUrl}"`);
-      expect(html).toContain('property="og:image" content="https://opencourts.us/social-preview.png"');
+      expect(html).toContain('property="og:image" content="https://opencourts.us/social-preview-v2.png"');
       expect(html).toContain('name="twitter:card" content="summary_large_image"');
-      expect(html).toContain('name="twitter:image" content="https://opencourts.us/social-preview.png"');
+      expect(html).toContain('name="twitter:image" content="https://opencourts.us/social-preview-v2.png"');
     });
   }
   it('lists only direct canonical page URLs in the sitemap and internal links', () => {

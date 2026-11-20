@@ -4,7 +4,7 @@ document.addEventListener('click', event => {
   window.gtag('event', target.dataset.analyticsEvent, {
     landing_page: window.location.pathname,
     action_label: target.dataset.analyticsLabel || '',
-    destination: target.getAttribute('href') || undefined,
+    destination: target.getAttribute('href') ? new URL(target.getAttribute('href'), location.origin).origin + new URL(target.getAttribute('href'), location.origin).pathname : undefined,
     transport_type: 'beacon',
   });
 });

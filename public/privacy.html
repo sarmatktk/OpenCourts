@@ -10,17 +10,17 @@
     <meta property="og:title" content="OpenCourts Privacy" />
     <meta property="og:description" content="How OpenCourts handles accounts, games, groups, chat, photos, notifications and your privacy choices." />
     <meta property="og:url" content="https://opencourts.us/privacy" />
-    <meta property="og:image" content="https://opencourts.us/social-preview.png" />
-    <meta property="og:image:secure_url" content="https://opencourts.us/social-preview.png" />
+    <meta property="og:image" content="https://opencourts.us/social-preview-v2.png" />
+    <meta property="og:image:secure_url" content="https://opencourts.us/social-preview-v2.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
+    <meta property="og:image:alt" content="OpenCourts: find tennis courts, check weather, join games and groups, and coordinate through game chat." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="OpenCourts Privacy" />
     <meta name="twitter:description" content="How OpenCourts handles accounts, games, groups, chat, photos, notifications and your privacy choices." />
-    <meta name="twitter:image" content="https://opencourts.us/social-preview.png" />
-    <meta name="twitter:image:alt" content="An outdoor tennis court at golden hour, with OpenCourts branding." />
+    <meta name="twitter:image" content="https://opencourts.us/social-preview-v2.png" />
+    <meta name="twitter:image:alt" content="OpenCourts: find tennis courts, check weather, join games and groups, and coordinate through game chat." />
     <link rel="canonical" href="https://opencourts.us/privacy" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -28,7 +28,9 @@
     <script src="/theme.js"></script>
     <link rel="stylesheet" href="/pages.css" />
     <title>Privacy | OpenCourts</title>
-  </head>
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script defer src="/site-analytics.js"></script>
+</head>
   <body>
     <header class="page-header">
       <div class="page-header-inner">
@@ -83,7 +85,7 @@
         <p>Google and Apple process authentication under their own privacy notices. OpenStreetMap supplies map tiles and court data; Photon and Nominatim support place suggestions and searches; Overpass providers supply map details. Weather sources include the U.S. National Weather Service, NOAA radar, MET Norway, Open-Meteo and WeatherAPI, depending on coverage and availability. These services receive the text, coordinates or network requests needed to respond. Map tiles and online fonts can be requested directly by your browser.</p>
         <p>Directions open Google Maps with the court destination. Optional support contributions open Buy Me a Coffee. Those services handle their own interactions and any payments; OpenCourts does not process Play Together subscriptions or store payment-card details.</p>
         <h2>Analytics and cookies</h2>
-        <p>Court pages load Google Analytics to measure usage and installation events. Account and Play Together pages do not load this Google tag. Court-page initialization sends the page origin/path without query strings or fragments and suppresses the referrer. Analytics may receive device/browser information and approximate location, and may set first-party cookies such as <code>_ga</code>. Invitation links may still appear in your browser history or other services' records. See <a class="page-inline-link" href="https://policies.google.com/privacy" rel="noreferrer">Google's privacy notice</a>.</p>
+        <p>OpenCourts pages, including Account and Play Together, load Google Analytics to measure page usage. We send a generic page label and an approved page path without query strings or fragments, suppress the referrer, and do not send names, email addresses, game or group identifiers, invitation tokens, search text, chat text or report contents in our analytics events. Unknown page paths are recorded as a generic not-found page. Automatic enhanced measurement is disabled; opening chat or changing a page fragment does not create an additional page-view event. Google signals and advertising personalization signals are disabled in our tag configuration. Analytics may receive device/browser information and approximate location, and may set first-party cookies such as <code>_ga</code>. Invitation links may still appear in your browser history or other services' records. See <a class="page-inline-link" href="https://policies.google.com/privacy" rel="noreferrer">Google's privacy notice</a>.</p>
         <p>Essential session and temporary sign-in cookies support authentication and request protection. Sessions normally expire after seven days; you can sign out sooner or sign out on all devices from Account. Browser cookie restrictions may prevent sign-in. Browser privacy settings and content blockers can restrict analytics; this site does not currently provide a separate analytics-consent toggle.</p>
         <h2>Security</h2>
         <p>We use HTTPS, server-side access checks, protected session cookies and request validation. Session tokens are stored as hashes, and retained Apple refresh tokens are encrypted for token-revocation actions. These measures reduce risk but do not guarantee absolute security. Keep invitation links and your sign-in accounts secure.</p>

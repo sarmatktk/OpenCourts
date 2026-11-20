@@ -1,0 +1,55 @@
+{
+  "checks": [
+    {
+      "host": "opencourts.us",
+      "route": "/",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "opencourts.us",
+      "route": "/privacy",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "opencourts.us",
+      "route": "/play-together",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "opencourts.us",
+      "route": "/play-together/game",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "opencourts.us",
+      "route": "/play-together/invitation",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "opencourts.us",
+      "route": "/account",
+      "googleRequests": 1,
+      "errors": 0,
+      "icons": 4
+    },
+    {
+      "host": "feature-play-together.opencourts.pages.dev",
+      "route": "/play-together/game",
+      "googleRequests": 0,
+      "errors": 0,
+      "icons": 4
+    }
+  ],
+  "analyticsNetworkStubbed": true,
+  "noRealAnalyticsEventsSent": true
+}

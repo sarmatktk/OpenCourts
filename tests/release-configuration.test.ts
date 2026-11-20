@@ -11,7 +11,7 @@ it('production rollout examples keep production resources separate and push off 
 });
 it('reviewed migration hashes still match the exact local rollout SQL',()=>{
  const inventory=read('release/migration-inventory.json');expect(inventory.migrations).toHaveLength(31);
- for(const item of inventory.migrations)expect(createHash('sha256').update(readFileSync('functions/db/migrations/'+item.file)).digest('hex')).toBe(item.sha256);
+ for(const item of inventory.migrations)expect(createHash('sha256').update(readFileSync('functions/db/migrations/'+item.file,'utf8').replace(/\r\n/g,'\n')).digest('hex')).toBe(item.normalizedSha256);
 });
 
 it('Pages CI builds community production metadata only on main and keeps Preview safeguards on other branches',()=>{

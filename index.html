@@ -16,17 +16,17 @@
     <meta property="og:title" content="Find Tennis Courts, Games &amp; Groups | OpenCourts" />
     <meta property="og:description" content="Find courts, check playing weather and connect with tennis players through local games and groups." />
     <meta property="og:url" content="https://opencourts.us/" />
-    <meta property="og:image" content="https://opencourts.us/social-preview.png" />
-    <meta property="og:image:secure_url" content="https://opencourts.us/social-preview.png" />
+    <meta property="og:image" content="https://opencourts.us/social-preview-v2.png" />
+    <meta property="og:image:secure_url" content="https://opencourts.us/social-preview-v2.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="OpenCourts helps you find public tennis courts and check recent rain and local weather." />
+    <meta property="og:image:alt" content="OpenCourts: find tennis courts, check weather, join games and groups, and coordinate through game chat." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Find Tennis Courts, Games &amp; Groups | OpenCourts" />
     <meta name="twitter:description" content="Find courts, check playing weather and connect with tennis players through local games and groups." />
-    <meta name="twitter:image" content="https://opencourts.us/social-preview.png" />
-    <meta name="twitter:image:alt" content="OpenCourts helps you find public tennis courts and check recent rain and local weather." />
+    <meta name="twitter:image" content="https://opencourts.us/social-preview-v2.png" />
+    <meta name="twitter:image:alt" content="OpenCourts: find tennis courts, check weather, join games and groups, and coordinate through game chat." />
     <meta name="google-adsense-account" content="ca-pub-2862364216919326">
     <link rel="canonical" href="https://opencourts.us/" />
     <script type="application/ld+json">
@@ -55,22 +55,11 @@
         ]
       }
     </script>
-    <!-- Analytics is restricted to court pages; never load on accounts or community invitations. -->
-    <script>
-      if (!location.pathname.startsWith('/play-together') && !location.pathname.startsWith('/account')) {
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = function(){window.dataLayer.push(arguments);};
-        window.gtag('js', new Date());
-        window.gtag('config', 'G-7T3S2D1410', {page_location: location.origin + location.pathname, page_referrer: ''});
-        var analyticsScript = document.createElement('script');
-        analyticsScript.async = true;
-        analyticsScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-7T3S2D1410';
-        document.head.appendChild(analyticsScript);
-      }
-    </script>
     <title>Find Tennis Courts, Games &amp; Groups | OpenCourts</title>
     <link rel="stylesheet" href="/interactions.css">
     <link rel="stylesheet" href="/brand.css">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script defer src="/site-analytics.js"></script>
 </head>
   <body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body>
 </html>
