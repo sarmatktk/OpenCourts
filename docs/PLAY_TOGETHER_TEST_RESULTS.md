@@ -1,3 +1,9 @@
+## Group tabs and moderation toggle fix - November 20, 2026
+
+Removed the discussion overview preview from Group details; discussions now appear only in their own tab. Hash navigation also restores the correct section. The Site moderation entry on Players now expands/collapses its panel with accessible expanded state, preserving the selected moderation view.
+
+Focused browser verification: 14/14 passed on a fresh local server without snapshot updates, covering phone/desktop, light/dark, repeated tab changes, mouse and keyboard moderation toggles, and existing reporting flows. Production publication pending. No database, Worker or secret changes required.
+
 ## Group discussions, menus and avatars live - November 20, 2026
 
 Owner approved production rollout. **Production 76ed1d9a**, Git release commit

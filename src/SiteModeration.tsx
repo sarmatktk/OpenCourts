@@ -9,6 +9,8 @@ type Report={id:string;subjectType:string;subjectId:string;reportedPlayerId?:str
 type Action={id:string;displayName:string;moderatorName:string;action:string;reason:string;createdAt:number};
 export default function SiteModeration(){
  const panel=useRef<HTMLElement>(null);
+ const [expanded,setExpanded]=useState(true);
+ useEffect(()=>{const toggle=(event:Event)=>setExpanded((event as CustomEvent<boolean>).detail);window.addEventListener('opencourts:moderation-toggle',toggle);return()=>window.removeEventListener('opencourts:moderation-toggle',toggle);},[]);
  const [view,setView]=useState<'reports'|'accounts'|'messages'|'history'>('reports');
  const views=[{id:'reports',label:'Reports',icon:ClipboardList},{id:'accounts',label:'Accounts',icon:UsersRound},{id:'messages',label:'Message evidence',icon:MessageCircle},{id:'history',label:'History',icon:History}] as const;
  const [reports,setReports]=useState<Report[]>([]),[accounts,setAccounts]=useState<Account[]>([]),[history,setHistory]=useState<Action[]>([]),[filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[decision,setDecision]=useState<{account:Account;action:'suspend'|'restore'}|null>(null),[reason,setReason]=useState('');
@@ -17,7 +19,7 @@ export default function SiteModeration(){
  async function act(path:string,body:Record<string,unknown>){setBusy(true);setError('');setNotice('');try{const a=await gameApi<GameAccount>('auth/me');await gameApi('players/'+path,{method:'POST',headers:{'X-CSRF-Token':a.csrfToken??''},body:JSON.stringify(body)});setDecision(null);setReason('');await reload();setNotice(path==='moderation/suspend'?'Account suspended. Sessions and device subscriptions have been revoked.':path==='moderation/restore'?'Account restored. The player must sign in again.':'Report marked resolved.');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  function choose(account:Account,action:'suspend'|'restore'){setReason('');setError('');setDecision({account,action});}
  const shown=reports.filter(r=>filter==='all'||r.subjectType===filter);
- return <section ref={panel} id="moderation" tabIndex={-1} className="pt-panel pt-moderation" aria-labelledby="moderation-title"><header className="pt-moderation-header">
+ return <section ref={panel} id="moderation" hidden={!expanded} tabIndex={-1} className="pt-panel pt-moderation" aria-labelledby="moderation-title"><header className="pt-moderation-header">
  <div><span className="pt-moderation-private"><ShieldCheck size={15} aria-hidden="true"/>Moderator tools</span><h2 id="moderation-title">Site moderation</h2><p>Review reports, manage account access and handle message evidence.</p></div>
  <button type="button" className="pt-secondary" disabled={busy} onClick={()=>void reload()}><RefreshCw size={16} aria-hidden="true"/>Refresh moderation</button>
  </header>
