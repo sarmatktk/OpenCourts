@@ -1,7 +1,9 @@
+import {discussionModeration} from './group-discussions';
 import {chatModeration} from './chat-moderation';
 import {AuthError,checkOrigin,checkCsrf,json,readJson,type AuthDatabase,type Session} from './auth';
 export async function moderation(request:Request,db:AuthDatabase,origin:string,actor:Session,path:string,staff:string[]){
  if(!staff.includes(actor.id))throw new AuthError(403,'Site moderator access required.');
+ const discussion=await discussionModeration(request,db,origin,actor,path);if(discussion)return discussion;
  const chat=await chatModeration(request,db,origin,actor,path);if(chat)return chat;
  if(request.method==='GET'){
   if(path==='accounts'){

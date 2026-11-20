@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-20",
+  "stage": "local candidate; production migration not applied",
+  "fullUnitTestsPassed": 449,
+  "unitTestFilesPassed": 27,
+  "unitDurationSeconds": 5.35,
+  "combinedBrowserChecksPassed": 38,
+  "combinedBrowserDurationSeconds": 52.4,
+  "finalFeedLayoutChecksPassed": 8,
+  "finalFeedLayoutDurationSeconds": 20.3,
+  "viewports": [320, 390, 1440],
+  "themes": ["light", "dark"],
+  "schemaUpgradeFrom31Verified": true,
+  "existingPrivatePhotoDataPreservedInUpgradeTest": true,
+  "migrationRequired": "0032_group_discussions.sql",
+  "photoSharingDefault": "off; initials shown unless owner opts in",
+  "snapshotUpdates": false,
+  "productionDatabaseChanged": false,
+  "cloudflareSecretsReadOrChanged": false,
+  "googlePlayUploaded": false,
+  "qaScreenshotsContainSyntheticDataOnly": true,
+  "screenshots": ["discussion-feed-390-dark.png", "discussion-feed-1440-light.png"]
+}

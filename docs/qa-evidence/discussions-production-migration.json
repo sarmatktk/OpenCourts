@@ -1,0 +1,22 @@
+{
+  "before": {
+    "migrations": 31,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 4,
+    "groups": 0,
+    "media": 1,
+    "foreign_key_errors": 0
+  },
+  "after": {
+    "migrations": 32,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 4,
+    "groups": 0,
+    "media": 1,
+    "foreign_key_errors": 0
+  },
+  "migrationApplied": "0032_group_discussions.sql",
+  "allExistingPhotosRemainPrivate": true
+}

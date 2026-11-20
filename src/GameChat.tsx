@@ -1,3 +1,4 @@
+import PlayerAvatar from './PlayerAvatar';
 import ChatDialog from './ChatDialog';
 import {MessageCircle,ArrowUpRight,Bell,BellOff,X} from 'lucide-react';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
@@ -65,7 +66,7 @@ export default function GameChat({gameId,privateGroup=false,groupSeries=false}:{
       <div ref={content} className="pt-chat-messages">
        {!state.messages.length&&<p className="pt-chat-empty">No messages yet. Use this space to coordinate {series?'your series':'your game'}.</p>}
        {state.messages.map(m=>m.kind&&m.kind!=='message'?<p key={m.id} data-chat-message={m.id} className="pt-chat-system" title={new Date(m.createdAt).toLocaleString()}>{m.displayName} {m.kind==='joined'?'was added to the chat':m.kind==='inactive'?'was removed from the chat':'left the chat'}{m.kind==='inactive'&&<> &middot; inactive for 30 days</>}</p>:<article key={m.id} data-chat-message={m.id} className={'pt-chat-message'+(m.authorId===state.viewerId?' pt-chat-message-own':'')}>
-        <header className="pt-chat-message-header"><strong title={m.displayName}>{m.displayName}{m.authorId===state.viewerId&&<span className="pt-chat-you"> &middot; you</span>}</strong><time dateTime={new Date(m.createdAt).toISOString()} title={new Date(m.createdAt).toLocaleString()} aria-label={new Date(m.createdAt).toLocaleString()}>{new Date(m.createdAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>{!m.hiddenAt&&m.authorId!==state.viewerId&&<ReportContent compact type="message" id={m.id} gameId={gameId}/>}</header>
+        <header className="pt-chat-message-header"><strong title={m.displayName}><PlayerAvatar id={m.authorId} name={m.displayName} gameId={gameId}/><span className="pt-chat-author-name">{m.displayName}{m.authorId===state.viewerId&&<span className="pt-chat-you"> &middot; you</span>}</span></strong><time dateTime={new Date(m.createdAt).toISOString()} title={new Date(m.createdAt).toLocaleString()} aria-label={new Date(m.createdAt).toLocaleString()}>{new Date(m.createdAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time>{!m.hiddenAt&&m.authorId!==state.viewerId&&<ReportContent compact type="message" id={m.id} gameId={gameId}/>}</header>
         <p className="pt-game-notes pt-chat-message-text">{m.hiddenAt?'Message removed by a site moderator.':m.body}</p>
        </article>)}
       </div>

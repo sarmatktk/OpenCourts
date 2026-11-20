@@ -82,3 +82,7 @@ docs/qa-evidence/*.png
 !docs/qa-evidence/sign-in-recovery-390-light.png
 
 !docs/qa-evidence/sign-in-recovery-320-dark.png
+
+# Reviewed synthetic discussion feed evidence.
+!docs/qa-evidence/discussion-feed-390-dark.png
+!docs/qa-evidence/discussion-feed-1440-light.png

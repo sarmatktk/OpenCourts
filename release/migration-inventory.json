@@ -155,6 +155,11 @@
       "file": "0031_game_capacity_edit.sql",
       "sha256": "e891b200c174b7ad4919e8218040daafec525fc692dac64e1ed468acabf518d1",
       "normalizedSha256": "e891b200c174b7ad4919e8218040daafec525fc692dac64e1ed468acabf518d1"
+    },
+    {
+      "file": "0032_group_discussions.sql",
+      "sha256": "8fa5d7a1e81d512cddcc58136c654f816b21c7d6eac619e569c9c34289a8e7bd",
+      "normalizedSha256": "8fa5d7a1e81d512cddcc58136c654f816b21c7d6eac619e569c9c34289a8e7bd"
     }
   ],
   "normalizedHashNote": "Original sha256 fields preserve reviewed release bytes. normalizedSha256 hashes the same frozen SQL with CRLF converted to LF, for cross-platform working-tree verification."

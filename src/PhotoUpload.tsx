@@ -1,3 +1,4 @@
+import PhotoVisibility from './PhotoVisibility';
 import AvatarCrop,{type CropExport} from './AvatarCrop';
 import {useEffect,useRef,useState} from 'react';
 import {Pencil,Upload,Trash2,UserRound,Image as ImageIcon,X} from 'lucide-react';
@@ -10,7 +11,8 @@ export default function PhotoUpload({kind,id,csrf,editable=true}:{kind:'player'|
  return <section className={'pt-photo pt-photo-'+kind+(editable?' pt-photo-editor':'')+(kind==='player'&&file?' pt-photo-cropping':'')} aria-label={kind==='player'?'Player photo':'Group cover'}>
  {kind==='player'&&preview?<AvatarCrop key={preview} src={preview} exportRef={cropExport} disabled={busy}/>:<div className="pt-photo-preview"><div className="pt-photo-image">{preview||!missing?<img src={preview||url} alt={kind==='player'?'Player photo':'Group cover'} onError={()=>{if(!preview)setMissing(true);}}/>:<div className="pt-photo-placeholder">{kind==='player'?<UserRound size={28} aria-hidden="true"/>:<ImageIcon size={28} aria-hidden="true"/>}<span>{kind==='player'?'Add your photo':'Add a group cover'}</span></div>}</div>{editable&&<button type="button" className="pt-photo-edit" disabled={busy} onClick={()=>input.current?.click()} aria-label={kind==='player'?'Add or change player photo':'Add or change group cover'} title="Add or change photo"><Pencil size={16} aria-hidden="true"/></button>}</div>}
  {editable&&<div className="pt-photo-controls"><div className="pt-photo-heading"><h3>{kind==='player'?'Your photo':'Group cover'}</h3>{file&&<span className="pt-coming">Unsaved preview</span>}</div>
- <p className="pt-help">{kind==='group'?'Publicly visible, including for private groups. Owners and Co-owners can update it.':'Optional. Currently visible only in your account.'}</p>
+ <p className="pt-help">{kind==='group'?'Publicly visible, including for private groups. Owners and Co-owners can update it.':'Optional. Your photo stays private unless you enable sharing below.'}</p>
+ {kind==='player'&&<PhotoVisibility id={id} csrf={csrf}/>}
  <p className="pt-photo-spec">JPEG, PNG or WebP - Up to 5 MB</p>
  <input className="pt-photo-input" aria-label={kind==='player'?'Choose player photo':'Choose group cover'} ref={input} type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e=>{const f=e.target.files?.[0]??null;setError('');setNotice('');if(f&&(f.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(f.type))){clear();setError('Choose a JPEG, PNG or WebP smaller than 5 MB.');return;}setFile(f);}}/>
  {file&&kind==='player'&&<button type="button" className="pt-text-button" disabled={busy} onClick={()=>input.current?.click()} aria-label="Add or change player photo">Choose another photo</button>}

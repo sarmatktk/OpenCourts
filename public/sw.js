@@ -17,7 +17,8 @@ const notificationMessages = {
  guest_approved: 'Your guest request was approved.',
  guest_rejected: 'Your guest request was declined.',
  guest_cancelled: 'A player cancelled their guest places.',
- group_requested: 'You have a new group membership request to review.',
+ discussion_reply: 'Someone replied to a group discussion you follow.',
+  group_requested: 'You have a new group membership request to review.',
  group_active: 'Your group membership request was approved.',
  group_rejected: 'Your group membership request was declined.',
  group_removed: 'Your membership in a group has ended.',
@@ -27,7 +28,7 @@ const notificationMessages = {
 };
 function notificationTarget(target) {
   if (target && ['game','group'].includes(target.type) && typeof target.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target.id)) {
-    return '/play-together/' + target.type + '?id=' + encodeURIComponent(target.id)+(target.type==='game'&&target.chat===true?'#chat':'');
+    return '/play-together/' + target.type + '?id=' + encodeURIComponent(target.id)+(target.type==='game'&&target.chat===true?'#chat':target.type==='group'&&typeof target.postId==='string'&&/^[0-9a-f-]{36}$/i.test(target.postId)?'#discussion-'+target.postId:'');
   }
   return '/play-together/notifications';
 }
@@ -39,7 +40,7 @@ self.addEventListener('push', event => {
       body: Object.prototype.hasOwnProperty.call(notificationMessages, payload.kind) ? notificationMessages[payload.kind] : 'You have a tennis activity update. Open OpenCourts to view it.',
       icon: '/android-chrome-192x192.png', badge: '/notification-badge.svg',
       tag: typeof payload.tag === 'string' ? payload.tag.slice(0, 100) : 'opencourts-update',
-      data: {target: payload.target && {type:payload.target.type,id:payload.target.id,chat:payload.kind==='chat_message'}},
+      data: {target: payload.target && {type:payload.target.type,id:payload.target.id,chat:payload.kind==='chat_message',postId:payload.target.postId}},
     });
   })());
 });

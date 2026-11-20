@@ -1,3 +1,4 @@
+import {discussionPushTarget} from './group-discussions';
 import {chatSchemaReady} from './series-chat';
 import {chatPushTarget} from './game-chat';
 import {sendPushNotification,rawPayload,WebPushError} from '@mmmike/web-push/send';
@@ -7,10 +8,11 @@ import {canViewUnlisted} from './game-sharing';
 import {refreshWaitlist} from './game-waitlist';
 import {pushEnvironmentEnabled,pushTester,validPushEndpoint,type PushEnv} from './push';
 
-type Delivery={id:string;event_id:string;device_id:string;attempts:number;recipient_id:string;category:string;kind:string;entity_type:string;entity_id:string;source:string;source_id:string;expires_at:number;endpoint:string;p256dh:string;auth:string;key_id:string;session_id:string;transport:string};
+type Delivery={discussionPostId?:string;id:string;event_id:string;device_id:string;attempts:number;recipient_id:string;category:string;kind:string;entity_type:string;entity_id:string;source:string;source_id:string;expires_at:number;endpoint:string;p256dh:string;auth:string;key_id:string;session_id:string;transport:string};
 const sources=new Set(['game_notifications','group_notifications','game_guest_notifications','player_game_invitations','game_schedule_notifications']);
 export async function eventStillVisible(db:AuthDatabase,d:Delivery,now:number){
  if(d.expires_at<=now)return false;
+ if(d.source==='discussion_notifications'){const target=await discussionPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target.groupId;d.discussionPostId=target.postId;return true;}
  if(d.source==='game_chat_messages'){const target=await chatPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target;return true;}
  if(d.source==='game_waitlist'){
   const w=await db.prepare("SELECT 1 FROM game_waitlist WHERE game_id=? AND player_id=? AND status='offered' AND offer_expires_at>? AND game_id||':'||player_id||':'||offered_at=?").bind(d.entity_id,d.recipient_id,now,d.source_id).first();if(!w)return false;
@@ -60,7 +62,7 @@ export async function drainPush(db:AuthDatabase,env:PushEnv,send:PushSender=send
   if(!pushTester(env,d.recipient_id)||d.transport!=='webpush'||d.key_id!==env.PUSH_VAPID_PUBLIC_KEY||!validPushEndpoint(d.endpoint)||!await deviceEligible(db,d,time)||!await eventStillVisible(db,d,time)){await finish('skipped');continue;}
   try{
    const ok=await send({endpoint:d.endpoint,keys:{p256dh:d.p256dh,auth:d.auth}},
-    rawPayload(JSON.stringify({version:1,kind:d.kind,tag:'oc-'+d.event_id,target:{type:d.entity_type,id:d.entity_id}})),
+    rawPayload(JSON.stringify({version:1,kind:d.kind,tag:'oc-'+d.event_id,target:{type:d.entity_type,id:d.entity_id,...(d.discussionPostId?{postId:d.discussionPostId}:{})}})),
     {publicKey:env.PUSH_VAPID_PUBLIC_KEY,privateKey:env.PUSH_VAPID_PRIVATE_KEY,subject:env.PUSH_VAPID_SUBJECT},
     {ttl:Math.max(0,Math.min(3600,Math.floor((d.expires_at-time)/1000))),timeoutMs:5000});
    if(!ok){await db.prepare('DELETE FROM notification_devices WHERE id=?').bind(d.device_id).run();continue;}

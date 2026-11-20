@@ -1,0 +1,17 @@
+{
+  "before": {
+    "migrations": 31,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 4,
+    "groups": 0,
+    "media": 1,
+    "foreign_key_errors": 0
+  },
+  "backup": "production-pre-discussions-20261120-233855.sql",
+  "backupSha256": "261912bbeb8b47b4803690d4071f9fe7895dae9cafd1a27d35dbd0bb4783ba59",
+  "restoredBackupVerified": true,
+  "migration32DryRunPassed": true,
+  "originalPhotoSharingUnchanged": true,
+  "productionChanged": false
+}
