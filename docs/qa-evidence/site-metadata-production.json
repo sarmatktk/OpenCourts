@@ -1,0 +1,16 @@
+{
+  "origin": "https://opencourts.us",
+  "routesChecked": 30,
+  "assetsChecked": 6,
+  "passed": true,
+  "analyticsDashboardReceiptVerified": false,
+  "productionDeployment": "c8272ecf-b7f8-4557-94f8-42d3b4875636",
+  "commit": "023e07821baee95eec5e6e7b743dbd6eee030a05",
+  "unitTestsPassed": 435,
+  "browserChecksPassed": 7,
+  "enhancedMeasurementOffOwnerConfirmed": true,
+  "previewAcceptanceSkippedAtOwnerRequest": true,
+  "secretChanges": false,
+  "databaseChanges": false,
+  "googlePlayUploaded": false
+}

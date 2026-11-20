@@ -1,4 +1,21 @@
-# Social previews, icons and analytics — November 20, 2026
+## Metadata and analytics published - November 20, 2026
+
+Production **c8272ecf** is live from Git commit **023e078**. New premium versioned
+social artwork, consistent browser/Apple/install icons and a single shared Google
+Analytics loader are published across public and generated community pages.
+Owner confirmed Enhanced measurement is off. Explicit page views use approved
+paths/generic titles and suppress query strings, fragments and referrers; Preview
+hosts do not load the Google tag. Privacy disclosure is updated. Keep Enhanced
+measurement off. Actual GA dashboard receipt has not been verified.
+
+435 unit tests, production build and seven stubbed-network browser checks passed.
+Published production verification passed 30 routes and six assets. Per owner
+instruction, did not wait for or run additional Preview acceptance. No snapshots
+updated, SQL changed/applied, secrets changed, Android bundle published or Google
+Play upload performed. Android/store-asset work remains preserved separately.
+See WEB_METADATA_AUDIT.md and qa-evidence/site-metadata-production.json.
+
+# Social previews, icons and analytics â€” November 20, 2026
 
 Shared website/social image: `public/social-preview-v2.png` (1200 x 630, opaque
 PNG, 358986 bytes). The original remains available. Main, information, policy

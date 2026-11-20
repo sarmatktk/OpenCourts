@@ -1,7 +1,7 @@
 {
   "websiteLive": true,
-  "productionDeployment": "c1e970ce",
-  "previewDeployment": "115472aa",
+  "productionDeployment": "c8272ecf",
+  "previewDeployment": "a7a59a55",
   "migrationsApplied": 31,
   "courtRowsPreserved": 201799,
   "stagingRowsPreserved": 100750,
@@ -27,5 +27,6 @@
   "closedAppConditionSeparatelyConfirmed": false,
   "signInRecoveryHotfixPublished": true,
   "gitAutomaticDeploymentVerified": true,
-  "gitReleaseCommit": "8d6bea3"
+  "gitReleaseCommit": "023e078",
+  "socialMetadataAnalyticsPublished": true
 }
