@@ -1,0 +1,133 @@
+{
+  "releaseCommit": "8d6bea3ee6efe728819ff0172230947b7a2b7923",
+  "productionDeployment": "c1e970ce-2ab4-4041-893e-3eaef94e7e5a",
+  "previewDeployment": "115472aa-af0a-4628-8434-ffb6463ee6a4",
+  "trigger": "github:push",
+  "buildCommand": "npm run build:pages",
+  "outputDirectory": "dist",
+  "environmentSettingsPreserved": true,
+  "unitTestsPassed": 432,
+  "focusedBrowserTestsPassed": 6,
+  "snapshotsUpdated": false,
+  "databaseMutations": false,
+  "workerRedeployed": false,
+  "googlePlayUploaded": false,
+  "checks": [
+    {
+      "origin": "https://feature-play-together.opencourts.pages.dev",
+      "checkedAt": "2026-11-20T20:03:53.311Z",
+      "checks": [
+        {
+          "route": "/",
+          "status": 200
+        },
+        {
+          "route": "/privacy",
+          "status": 200
+        },
+        {
+          "route": "/terms",
+          "status": 200
+        },
+        {
+          "route": "/delete-account",
+          "status": 200
+        },
+        {
+          "route": "/play-together",
+          "status": 200
+        },
+        {
+          "route": "/play-together/groups",
+          "status": 200
+        },
+        {
+          "route": "/api/auth/me",
+          "status": 200
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "errors": 0
+        }
+      ]
+    },
+    {
+      "origin": "https://opencourts.us",
+      "checkedAt": "2026-11-20T20:05:40.674Z",
+      "checks": [
+        {
+          "route": "/",
+          "status": 200
+        },
+        {
+          "route": "/privacy",
+          "status": 200
+        },
+        {
+          "route": "/terms",
+          "status": 200
+        },
+        {
+          "route": "/delete-account",
+          "status": 200
+        },
+        {
+          "route": "/play-together",
+          "status": 200
+        },
+        {
+          "route": "/play-together/groups",
+          "status": 200
+        },
+        {
+          "route": "/api/auth/me",
+          "status": 200
+        },
+        {
+          "width": 390,
+          "theme": "light",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 390,
+          "theme": "dark",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "errors": 0
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "errors": 0
+        }
+      ]
+    }
+  ]
+}

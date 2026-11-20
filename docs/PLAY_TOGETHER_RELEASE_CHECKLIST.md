@@ -1,3 +1,29 @@
+## Git deployment synchronized - November 20, 2026
+
+Current production **c1e970ce** and feature Preview **115472aa** were built by
+Cloudflare from GitHub push of release commit **8d6bea3**, with commitDirty false.
+The intentional local release work is now committed and pushed; main was
+fast-forwarded to the verified feature release. This supersedes earlier statements
+that Git main was not changed. Existing snapshot changes were preserved; no
+snapshots were generated or updated during this synchronization.
+
+Cloudflare build command is now npm run build:pages, output dist. Production on
+main and Preview on feature branches build separately. Environment configuration
+preservation was verified. No secret values were printed or changed; no database
+migrations, user-data writes, Worker releases or Google Play uploads occurred.
+
+Fresh verification: 432 unit tests passed, six fresh-server sign-in recovery
+browser checks passed (18.1s), both branch-aware builds passed. Each Git-built
+environment passed seven public route/API checks and four browser checks
+(390/1440px, light/dark), with no overflow or JavaScript errors. An initial smoke
+probe used nonexistent /play-together/games and returned 404; corrected to the
+actual /play-together/groups route, which passed. This was a probe correction,
+not an application fix. Historical broad-suite visual exceptions remain recorded.
+
+Future workflow: feature commit/push, check Preview, merge/push main, check
+production. Database/Worker changes require their own reviewed operations.
+See DEPLOYMENT_WORKFLOW.md and qa-evidence/git-deployment-sync.json.
+
 ## Sign-in recovery buttons fixed - November 20, 2026
 
 Current live production **0c966dd9** / feature Preview **7ef90df7**. This supersedes
