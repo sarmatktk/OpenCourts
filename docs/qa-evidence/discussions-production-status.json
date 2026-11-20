@@ -1,0 +1,19 @@
+{
+  "productionDeployment": "76ed1d9a-0a85-4ae8-aec1-844042a3be4b",
+  "commit": "4aa4d761c172b64744b852c656c17578d32f023b",
+  "migrationApplied": "0032_group_discussions.sql",
+  "senderVersion": "b7fb671b-9289-4d1b-859c-a20f39875670",
+  "secretNamesAndTypesPreserved": true,
+  "secretValuesReadOrChanged": false,
+  "localUnitsPassed": 449,
+  "combinedBrowserChecksPassed": 38,
+  "finalFeedLayoutChecksPassed": 8,
+  "liveApiScenariosPassed": 10,
+  "hostedBrowserChecksPassed": 4,
+  "publicRoutesChecked": 30,
+  "assetsChecked": 6,
+  "syntheticFixturesCleaned": true,
+  "realUserNotificationsSent": false,
+  "newDiscussionRealDevicePushVerified": false,
+  "googlePlayUploaded": false
+}

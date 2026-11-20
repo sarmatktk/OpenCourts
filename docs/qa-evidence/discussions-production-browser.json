@@ -1,0 +1,34 @@
+{
+  "checks": [
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true,
+      "consoleErrors": 0,
+      "sharedAvatarFallback": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true,
+      "consoleErrors": 0,
+      "sharedAvatarFallback": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true,
+      "consoleErrors": 0,
+      "sharedAvatarFallback": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true,
+      "consoleErrors": 0,
+      "sharedAvatarFallback": true
+    }
+  ],
+  "source": "Live production HTML/JS with synthetic browser-local API data; backend verified separately through real APIs",
+  "realAnalyticsEventsSent": false
+}

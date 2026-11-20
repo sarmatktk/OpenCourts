@@ -1,8 +1,8 @@
 {
   "websiteLive": true,
-  "productionDeployment": "c8272ecf",
+  "productionDeployment": "76ed1d9a",
   "previewDeployment": "a7a59a55",
-  "migrationsApplied": 31,
+  "migrationsApplied": 32,
   "courtRowsPreserved": 201799,
   "stagingRowsPreserved": 100750,
   "privateApiScenariosPassed": 8,
@@ -19,7 +19,7 @@
   "gitMainChanged": true,
   "googlePlayUploaded": false,
   "moderatorSettingsPublished": true,
-  "senderVersion": "ef0ed442-4765-4f69-b59c-53fe09435d32",
+  "senderVersion": "b7fb671b-9289-4d1b-859c-a20f39875670",
   "ownerRequestedTestProviderAccepted": true,
   "testDestinationCleanupPending": false,
   "pushReceiptAndTapEvidence": "owner reported done after receipt/tap request",
@@ -27,6 +27,11 @@
   "closedAppConditionSeparatelyConfirmed": false,
   "signInRecoveryHotfixPublished": true,
   "gitAutomaticDeploymentVerified": true,
-  "gitReleaseCommit": "023e078",
-  "socialMetadataAnalyticsPublished": true
+  "gitReleaseCommit": "4aa4d76",
+  "socialMetadataAnalyticsPublished": true,
+  "groupDiscussionsLive": true,
+  "groupDiscussionProductionScenariosPassed": 10,
+  "discussionAvatarHostedBrowserChecksPassed": 4,
+  "existingAvatarSharingDefaultOff": true,
+  "newDiscussionDeviceReceiptRetested": false
 }

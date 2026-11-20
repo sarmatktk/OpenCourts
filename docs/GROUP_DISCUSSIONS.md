@@ -1,6 +1,8 @@
 # Member discussions and compact content actions
 
-Local candidate, November 20, 2026. Production is not updated by this document.
+Published November 20, 2026: production deployment 76ed1d9a from commit 4aa4d76.
+Owner approved migration 0032; verified backup/restore and scoped production
+acceptance passed. Sender Worker version b7fb671b-9289-4d1b-859c-a20f39875670.
 
 ## Experience
 
@@ -59,7 +61,7 @@ records expire after 90 days, except those associated with held evidence.
 Notification history expires after 30 days. The scheduled Worker performs cleanup
 even when push sending is disabled. Privacy, Terms and Help describe these rules.
 
-## Rollout gate
+## Rollout and rollback
 
 New additive migration: `functions/db/migrations/0032_group_discussions.sql`.
 Creates discussion, comment, like, subscription, notification, report, audit and
@@ -67,7 +69,8 @@ photo-preference tables plus notification triggers. Does not update existing
 players or publish existing avatars. Original migration hashes remain preserved;
 the release inventory includes this new migration with portable normalized hash.
 
-Before production: obtain owner approval for this new production D1 migration,
+Completed production rollout: obtained owner approval for this new D1 migration.
+For future schema rollouts,
 take and verify a fresh private backup, confirm target database is
 `opencourts-courts` (`56c414b7-aca5-429b-acfa-b9e8e87b052b`) and ledger is through
 0031. Use the existing production migrations configuration, apply only pending

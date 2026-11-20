@@ -1,3 +1,80 @@
+## Group discussions, menus and avatars live - November 20, 2026
+
+Owner approved production rollout. **Production 76ed1d9a**, Git release commit
+**4aa4d76**, is live. Migration 0032 was applied after a fresh private backup,
+restore/integrity verification and migration dry run against that restored data.
+Ledger is through 32; 201799 court rows / 100750 staging rows remain intact with
+zero foreign-key errors. Existing accounts/photos were preserved; sharing stayed
+off until each account opts in. Private backup hash and aggregate verification are
+recorded in qa-evidence/discussions-production-backup.json.
+
+Production sender/cleanup Worker version b7fb671b-9289-4d1b-859c-a20f39875670 was
+deployed with --keep-vars. Existing secret names/types were preserved, with the
+private push secret still present. No secret values were read, replaced or rotated.
+
+The group overview now has reference-style Discussions/See all; full posts and
+comments use avatars, relative times, inline Like/Reply and three-dot actions.
+Only active members can read/post/reply in either public or private groups. Author
+edit/delete, owner/co-owner remove/lock, site report review, evidence holds and
+cleanup are implemented. Chat reports, games, groups and players use the same
+three-dot menu pattern. Profile photos are optional: Account -> Show my photo
+beside my name in games and groups. Existing private photos are not exposed by
+default; initials appear otherwise. Photos remain private/no-store and require
+current sharing/access and no bilateral block.
+
+Local verification: 449 units, 38 combined browser checks, final 8 feed/photo
+checks and production build passed. No snapshot updates. Live production API
+verification passed ten scenarios: membership isolation, post/reply submission,
+no self-notification, likes without notification spam, mute, lock/unlock and edit,
+report access, real image processor/R2 sharing, block/removal revocation and
+cascading deletion with report evidence. Four hosted phone/desktop-theme browser
+checks passed against production HTML/JS with browser-local synthetic API data;
+live backend checks were separate. Thirty public routes and six shared assets
+still pass. No Preview acceptance was requested or required by the owner.
+
+All scoped synthetic accounts/groups/posts/comments/reports/actions/photos were
+removed. No real-user notifications were sent. Provider/device receipt for the
+new discussion notification kind and real OAuth were not retested; earlier owner
+acceptance is preserved without expanding its scope. This website update does
+not upload an Android bundle or Google Play release. Unrelated Android work and
+store assets remain preserved locally. Source and handover records are in Git.
+See GROUP_DISCUSSIONS.md and qa-evidence/discussions-production-smoke.json.
+
+## Group discussions, content menus and avatars ready locally - November 20, 2026
+
+Reference-style discussion feed implemented: avatar rail, name/relative time,
+three-dot menus, open text rows, Like/Reply, plus count/See all on the group
+overview. Only active members can read/post/reply, even in public groups.
+Authors can edit/delete; owners/co-owners can remove/lock; site moderators can
+review reported snapshots, remove content and preserve/release evidence. Reply
+notifications exclude the sender and respect mute, blocks and membership; likes
+send no notifications. Ordinary posts remain until deleted. Privacy/Terms/Help
+describe access, moderation, retention and photo sharing.
+
+Chat, posts and comments use small avatars with initials fallback. Existing
+uploaded photos stay private unless the player explicitly enables sharing in
+Account. Sharing is independent of discoverability. Photo reads recheck current
+game/shared-group access and bilateral blocks and remain private/no-store.
+
+Final local checks: 449 units (27 files, 5.35s); combined 38 browser checks
+(52.4s); after the final narrow-screen heading adjustment, all 8 discussion/
+layout/photo-preference browser checks passed again (20.3s). Production build
+passed (Vite 7.10s). Browser checks cover 320/390/1440px, both themes, axe,
+menus in modal chat, focus restoration, author edit/delete, likes, replies and
+photo preference controls. Upgrade from existing schema 0031 was verified with
+existing private photo data retained, zero foreign-key errors and integrity ok.
+No snapshots updated. Earlier intermediate failures remain in ignored test logs;
+they were corrected, not hidden by snapshot updates.
+
+**Not yet deployed.** New additive migration 0032_group_discussions.sql and
+production sender Worker update are required. Prior production deployment
+c8272ecf remains the live website. No production DB write, secret access/change,
+Git main update or Google Play upload occurred during this feature work.
+Owner approval for the new production migration/rollout is pending; do not
+publish the discussion UI against an unmigrated database. See GROUP_DISCUSSIONS.md
+for backup/target/rollback steps and qa-evidence/group-discussions-local.json for
+sanitized evidence. Unrelated Android bundle/version/store-asset work is preserved.
+
 ## Git deployment synchronized - November 20, 2026
 
 Current production **c1e970ce** and feature Preview **115472aa** were built by

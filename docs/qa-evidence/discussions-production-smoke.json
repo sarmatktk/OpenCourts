@@ -1,0 +1,25 @@
+{
+  "environment": "production",
+  "checksPassed": 10,
+  "checks": [
+    "Member-only post creation/list/detail and idempotent submission; outsider/signed-out denial",
+    "Reply creation and author notification without self-notification",
+    "Idempotent post/comment likes without notification spam",
+    "Discussion mute suppresses future reply notifications",
+    "Owner lock/unlock and author versioned comment edit",
+    "Private report snapshot and moderator action authorization",
+    "Real image processor/R2 and explicit photo sharing with initial private default",
+    "Bilateral blocking hides photo and discussion content",
+    "Membership removal immediately revokes discussion and avatar access",
+    "Post deletion cascades replies/likes and preserves limited reported evidence"
+  ],
+  "fixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "reports": 0,
+    "audits": 0
+  },
+  "realUserNotificationsSent": false,
+  "realDevicePushTested": false,
+  "realOAuthTested": false
+}
