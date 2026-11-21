@@ -1,3 +1,7 @@
+## One photo-sharing choice - November 21, 2026
+
+The existing photo sharing preference now covers Players search, games and groups. Search viewers must be signed in, the subject must be discoverable and active, sharing must be enabled, and neither player may have blocked the other. Shared game/group permissions continue to apply for non-discoverable profiles. No additional checkbox or schema is introduced. Earlier games/groups-only descriptions below are historical.
+
 # Member discussions and compact content actions
 
 Prepared November 21, 2026 (pending production backup/migration approval): tab count, staff role labels and staff-post announcements using existing Groups push settings. Migration 0033 adds announcement records and atomic staff-post notification triggers; no existing posts are backfilled.

@@ -14,6 +14,7 @@ async function permission(db:AuthDatabase,kind:string,id:string,playerId:string|
   if(playerId===id)return true;if(write||!playerId)return false;
   if(!await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='player_photo_preferences'").first())return false;
   if(!await db.prepare("SELECT 1 FROM player_photo_preferences v JOIN players p ON p.id=v.player_id WHERE v.player_id=? AND v.shared=1 AND p.status='active' AND NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=? AND b.blocked_id=p.id) OR (b.blocker_id=p.id AND b.blocked_id=?))").bind(id,playerId,playerId).first())return false;
+  if(await db.prepare("SELECT 1 FROM players WHERE id=? AND status='active' AND discoverable=1").bind(id).first())return true;
   if(await db.prepare("SELECT 1 FROM group_memberships a JOIN group_memberships b ON b.group_id=a.group_id JOIN tennis_groups g ON g.id=a.group_id WHERE a.player_id=? AND b.player_id=? AND a.status='active' AND b.status='active' AND g.status='active'").bind(id,playerId).first())return true;
   if(!gameId||!/^[0-9a-f-]{36}$/i.test(gameId))return false;
   return !!await db.prepare(`WITH c AS(SELECT ? AS viewer,? AS subject,? AS now) SELECT 1 FROM game_chat_context g CROSS JOIN c JOIN game_chat_rooms r ON r.game_id=g.id WHERE g.id=? AND r.expires_at>c.now AND ${chatAccessSql('g','c.viewer','c.now')} AND ${chatAccessSql('g','c.subject','c.now')}`).bind(playerId,id,Date.now(),gameId).first();
