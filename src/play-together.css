@@ -515,3 +515,10 @@ button.pt-chat-toggle{width:100%;border:0;background:transparent;text-align:left
 .pt-discussion-reply{margin-left:50px}
 .pt-discussion-empty{padding:24px 0;color:var(--muted)}
 @media(max-width:480px){.pt-discussion-feed-item{gap:11px}.pt-discussion-content>.pt-discussion-meta{gap:5px}.pt-discussion-content>.pt-discussion-meta>strong{font-size:13px}.pt-discussion-content>.pt-discussion-meta>time{font-size:11px}.pt-discussion-comments{margin-left:12px}.pt-discussion-reply{margin-left:0}}
+
+/* iOS must not carry the upload tap highlight onto the newly shown Remove action. */
+.pt-photo button{-webkit-tap-highlight-color:transparent}
+@media(hover:none){
+ .pt-photo-edit:hover{background:var(--surface);border-color:var(--line)}
+ .pt-page .pt-photo-player .pt-photo-actions>.pt-secondary:hover{text-decoration:none}
+}

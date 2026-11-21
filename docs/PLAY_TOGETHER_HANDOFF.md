@@ -1,3 +1,9 @@
+## iPhone photo save confirmed; touch action-state fix - November 21, 2026
+
+Owner confirmed the metadata fix saved their photo on iPhone. This closes the reported save failure. They then reported Remove photo looking pressed/highlighted while using upload controls. Photo action containers/buttons now have distinct identities across editing/saved modes, and photo controls suppress native touch tap highlighting/sticky touch-only hover without removing keyboard focus-visible outlines.
+
+Fresh browser verification: six existing upload/crop/retry checks passed, plus two touch-transition checks passed in light/dark. Touch checks cover opening the picker, uploading, old action-node removal, neutral/unfocused Remove photo after upload, no DELETE requests, and visible focus after switching to keyboard input. The first touch run failed only because its focus assertion used programmatic focus in touch modality; corrected to keyboard modality and both passed. No snapshots updated. Production build passed. Publication pending. No database, Worker or secret changes.
+
 ## Confirmed iPhone photo rejection and metadata fix - November 21, 2026
 
 The owner-triggered failing upload was captured on production 110d9988: outcome ok, HTTP 502, stage validate-output, code output-metadata. This identifies the output validator rejection, rather than a file-size warning, session failure or unhandled runtime crash. The original metadata:none image transformation did not guarantee metadata-free output for this phone upload. Earlier client upload hardening did not fix this server rejection.
