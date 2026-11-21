@@ -1,3 +1,9 @@
+## Discussion count badge spacing and growth - November 21, 2026
+
+Added an explicit 8 px label-to-count gap in the Discussions tab. The pill has automatic width, horizontal padding, no shrinking and no wrapping; counts use readable separators (1,000) rather than a fixed-width bubble or truncation.
+
+Production build passed. A fresh local server/browser check verified counts 1, 1,000 and 1,000,000 at 320/390/1440 px in light/dark: all 18 combinations passed, with measured label gap, increasing badge width, no clipped digits and no horizontal page overflow. Synthetic browser-local group data only; no snapshots updated or database changes. Publication pending. Evidence: qa-evidence/discussion-count-badge-local.json.
+
 ## Photo sharing requires a saved photo - November 21, 2026
 
 The sharing checkbox no longer reports success when no photo exists. It stays off and provides Upload photo guidance; a selected but unsaved image prompts Save first. After a successful upload the user may enable the same single sharing option. The API reports saved-photo presence and rejects enabling without a saved asset, including a concurrent-removal check in the write. Removing a photo clears sharing atomically. First upload resets a legacy empty-photo opt-in to private; replacement preserves an existing valid sharing choice. No new setting or schema.
