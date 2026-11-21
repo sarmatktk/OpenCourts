@@ -522,3 +522,9 @@ button.pt-chat-toggle{width:100%;border:0;background:transparent;text-align:left
  .pt-photo-edit:hover{background:var(--surface);border-color:var(--line)}
  .pt-page .pt-photo-player .pt-photo-actions>.pt-secondary:hover{text-decoration:none}
 }
+
+.pt-player-info{display:flex;align-items:flex-start;gap:12px;min-width:0;width:100%}
+.pt-player-info>div{min-width:0;flex:1}
+.pt-player-info strong{overflow-wrap:anywhere}
+.pt-player-info>.pt-player-avatar{width:40px;height:40px;flex:0 0 40px;font-size:13px}
+.pt-player-info>.pt-player-avatar img{width:100%;height:100%}

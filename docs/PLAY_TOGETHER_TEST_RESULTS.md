@@ -1,3 +1,9 @@
+## Players result avatars - November 21, 2026
+
+Players search used a generic person icon and never rendered uploaded avatars. It now uses the existing PlayerAvatar component beside the name, with a compact 40 px circle and initials fallback. The existing private media endpoint continues deciding who may view each photo. No photo permissions, opt-in values or database schema are changed. A discoverable profile does not by itself make an existing games/groups-only shared photo visible to strangers; a separate player-search opt-in is proposed and awaiting owner preference.
+
+Six fresh browser checks passed at 320/390/1440 px in light/dark: authorized image loads, denied photo falls back to initials, name alignment and long-name wrapping, player actions, no horizontal overflow, and accessibility checks. No snapshot updates. Production publication pending.
+
 ## iPhone photo save confirmed; touch action-state fix - November 21, 2026
 
 Owner confirmed the metadata fix saved their photo on iPhone. This closes the reported save failure. They then reported Remove photo looking pressed/highlighted while using upload controls. Photo action containers/buttons now have distinct identities across editing/saved modes, and photo controls suppress native touch tap highlighting/sticky touch-only hover without removing keyboard focus-visible outlines.

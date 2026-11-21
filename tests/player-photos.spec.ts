@@ -1,0 +1,12 @@
+import {test,expect} from '@playwright/test';
+for(const width of [320,390,1440])for(const theme of ['light','dark'] as const)test(`Players uses authorized photos and private-photo initials ${width} ${theme}`,async({page})=>{
+ await page.setViewportSize({width,height:1000});await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});
+ const photo=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aGZkAAAAASUVORK5CYII=','base64');
+ await page.route('**/api/**',r=>{const path=new URL(r.request().url()).pathname;let json:unknown={players:[],notifications:[],games:[]};if(path==='/api/auth/me')json={player:{id:'viewer',displayName:'Viewer'},csrfToken:'csrf',providers:{google:true}};
+ else if(path==='/api/players')json={players:[{id:'shared',displayName:'Alex Jordan',generalLocation:'Fairfax',skillLevel:'intermediate',bio:'Weekend tennis.'},{id:'private',displayName:'Morgan Kensington with a very long display name',generalLocation:'Fairfax',skillLevel:'beginner'}]};
+ else if(path==='/api/players/blocks')json={players:[],moderator:false};
+ else if(path==='/api/media/player/shared')return r.fulfill({contentType:'image/png',body:photo});
+ else if(path==='/api/media/player/private')return r.fulfill({status:404});
+ return r.fulfill({json});});
+ await page.goto('/play-together/players');const rows=page.locator('.pt-player-list>.pt-member-row'),shared=rows.filter({hasText:'Alex Jordan'}),privateRow=rows.filter({hasText:'Morgan Kensington'});await expect(shared.locator('.pt-player-avatar img.loaded')).toBeVisible();await expect(privateRow.locator('.pt-player-avatar img')).toHaveCount(0);await expect(privateRow.locator('.pt-player-avatar')).toHaveText('MK');const picture=(await shared.locator('.pt-player-avatar').boundingBox())!,name=(await shared.locator('strong').boundingBox())!;expect(picture.x+picture.width).toBeLessThan(name.x);expect(picture.width).toBeGreaterThanOrEqual(40);expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);await expect(shared.getByRole('button',{name:'Block player',exact:true})).toBeVisible();await page.addScriptTag({path:'.wrangler/qa-audit/axe.min.js'});expect(await page.locator('.pt-player-list').evaluate(async node=>(await (window as any).axe.run(node,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id))).toEqual([]);
+});
