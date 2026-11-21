@@ -1,0 +1,11 @@
+{
+  "status": "local-verified",
+  "date": "2026-11-21",
+  "backendTestsPassed": 68,
+  "browserUploadShareRemoveFlowsPassed": 4,
+  "existingSingleChoiceBrowserPassed": true,
+  "concurrentRemovalBrowserPassed": true,
+  "productionBuildPassed": true,
+  "newSettingsAdded": false,
+  "schemaChanges": false
+}

@@ -123,3 +123,11 @@ it('uses the same sharing choice for discoverable player photos and rechecks sea
  db.sqlite.prepare("UPDATE players SET discoverable=1 WHERE id='owner'").run();await handleMedia(req('media/player/owner/visibility','owner','POST',{shared:false}),mediaEnv);expect((await photo('outsider')).status).toBe(404);expect((await photo('member')).status).toBe(404);expect((await photo('owner')).status).toBe(200);
 
 });
+
+it('requires a saved photo before enabling sharing, while allowing sharing to be turned off',async()=>{
+ const visibility=(method='GET',body?:unknown)=>handleMedia(req('media/player/owner/visibility','owner',method,body),env);expect(await(await visibility()).json()).toEqual({shared:false,hasPhoto:false});const denied=await visibility('POST',{shared:true});expect(denied.status).toBe(409);expect(await denied.json()).toMatchObject({code:'photo_required'});expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM player_photo_preferences WHERE player_id='owner'").get().n).toBe(0);expect((await visibility('POST',{shared:false})).status).toBe(200);
+ db.sqlite.prepare("INSERT INTO media_assets VALUES('player','owner','saved-object','v',?)").run(Date.now());expect((await visibility('POST',{shared:true})).status).toBe(200);expect(await(await visibility()).json()).toEqual({shared:true,hasPhoto:true});
+});
+it('removing a profile photo clears its sharing preference atomically',async()=>{
+ const now=Date.now();db.sqlite.prepare("INSERT INTO media_assets VALUES('player','owner','saved-object','v',?)").run(now);db.sqlite.prepare("INSERT INTO player_photo_preferences VALUES('owner',1,?)").run(now);const mediaEnv:MediaEnv={...env,MEDIA_UPLOADS_ENABLED:'true',PLAY_TOGETHER_MEDIA:{get:async()=>null,put:async()=>{},delete:async()=>{}},PLAY_TOGETHER_IMAGE_PROCESSOR:{fetch:async()=>new Response('unused')}};const response=await handleMedia(req('media/player/owner','owner','DELETE'),mediaEnv);expect(response.status).toBe(200);expect(db.sqlite.prepare("SELECT shared FROM player_photo_preferences WHERE player_id='owner'").get().shared).toBe(0);expect(await(await handleMedia(req('media/player/owner/visibility','owner'),mediaEnv)).json()).toEqual({shared:false,hasPhoto:false});
+});
