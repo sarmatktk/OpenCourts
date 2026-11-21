@@ -1,0 +1,18 @@
+{
+  "checksPassed": 5,
+  "checks": [
+    "Missing photo keeps sharing off and rejects enable with photo_required",
+    "First saved photo clears legacy empty-photo sharing choice",
+    "Explicit sharing succeeds after saving the photo",
+    "Replacing the saved photo preserves its sharing choice",
+    "Removing photo clears sharing and prevents re-enabling without another saved photo"
+  ],
+  "syntheticFixturesRemaining": {
+    "players": 0,
+    "photos": 0,
+    "preferences": 0
+  },
+  "realUserPhotosOrPreferencesChanged": false,
+  "deployment": "0402d9b0-9091-458d-b248-582e969d7998",
+  "commit": "496fb3134015dc27d89c28ff7056b4438c48e4f9"
+}

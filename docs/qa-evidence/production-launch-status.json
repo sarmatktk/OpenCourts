@@ -1,7 +1,7 @@
 {
   "websiteLive": true,
-  "productionDeployment": "1825fb76-4fc4-4e3c-910b-75098187c8e7",
-  "previewDeployment": "56a4b4d3-a447-4445-94cd-2c52a05ac104",
+  "productionDeployment": "0402d9b0-9091-458d-b248-582e969d7998",
+  "previewDeployment": "62b5bdbe-2b2c-4e24-8efc-83c129684669",
   "migrationsApplied": 33,
   "courtRowsPreserved": 201799,
   "stagingRowsPreserved": 100750,
@@ -27,7 +27,7 @@
   "closedAppConditionSeparatelyConfirmed": false,
   "signInRecoveryHotfixPublished": true,
   "gitAutomaticDeploymentVerified": true,
-  "gitReleaseCommit": "c713ec897bb97d5c769e87698743628b3e9ff98b",
+  "gitReleaseCommit": "496fb3134015dc27d89c28ff7056b4438c48e4f9",
   "socialMetadataAnalyticsPublished": true,
   "groupDiscussionsLive": true,
   "groupDiscussionProductionScenariosPassed": 10,
@@ -40,5 +40,6 @@
     "hostedBrowserChecksPassed": 6,
     "physicalPushReceiptRetested": false,
     "newNotificationSettingsAdded": false
-  }
+  },
+  "photoSharingRequiresSavedPhoto": true
 }
