@@ -1,3 +1,9 @@
+## Discussion production rollout authorized and in progress - November 21, 2026
+
+Owner instructed production rollout after the explicit backup/migration request. Fresh production backup was exported into the disclosed Git-ignored workspace folder, restored with integrity/foreign-key checks, and migration 0033 dry-run preserved all existing table counts with no historical announcements. Initial export failed on network transport without creating a backup; retry succeeded. Evidence: qa-evidence/discussion-staff-production-backup.json.
+
+Production push Worker f7e408f6-e40e-4ae7-9758-fd1ea0fbbf0e deployed before migration with --keep-vars; secret names/types are unchanged and no secret values were read. Migration 0033 is now applied: ledger 33, courts 201799, staging 100750, players 6, groups 1, photos 2, posts 1, comments 0, shared-photo choices 2, foreign-key errors 0. Existing records/choices were preserved. Pages publication and live acceptance next. Final merged production build passed. Android/store assets remain outside this release.
+
 ## Discussion presentation and staff announcements prepared - November 21, 2026
 
 Prepared locally; not published. The Discussions tab shows the viewer-visible post count (including while on Group details), updates after post changes and replaces the duplicate feed heading. The compact toolbar retains the member-only reminder and New discussion. Posts and replies label current Owner, Co-owner and Organizer roles; ordinary members have no role badge. Three-dot reporting remains available on other people's posts/comments. Own content intentionally offers Edit/Delete rather than self-reporting.

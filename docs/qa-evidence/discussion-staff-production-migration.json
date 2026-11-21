@@ -1,0 +1,28 @@
+{
+  "before": {
+    "migrations": 32,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 6,
+    "groups": 1,
+    "photos": 2,
+    "posts": 1,
+    "comments": 0,
+    "shared_photos": 2,
+    "foreign_key_errors": 0
+  },
+  "after": {
+    "migrations": 33,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 6,
+    "groups": 1,
+    "photos": 2,
+    "posts": 1,
+    "comments": 0,
+    "shared_photos": 2,
+    "foreign_key_errors": 0
+  },
+  "migrationApplied": "0033_discussion_announcements.sql",
+  "historicalBackfillPreventedInVerifiedDryRun": true
+}

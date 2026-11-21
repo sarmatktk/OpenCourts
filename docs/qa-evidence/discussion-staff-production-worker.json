@@ -1,0 +1,8 @@
+{
+  "worker": "opencourts-push-production",
+  "version": "f7e408f6-e40e-4ae7-9758-fd1ea0fbbf0e",
+  "deployed": true,
+  "keepVarsUsed": true,
+  "secretNamesAndTypesUnchanged": true,
+  "secretValuesRead": false
+}

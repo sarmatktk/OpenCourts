@@ -1,0 +1,21 @@
+{
+  "before": {
+    "migrations": 32,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 6,
+    "groups": 1,
+    "photos": 2,
+    "posts": 1,
+    "comments": 0,
+    "shared_photos": 2,
+    "foreign_key_errors": 0
+  },
+  "backup": "production-pre-discussion-staff-20261121-175807.sql",
+  "backupSha256": "4eef377821e78ae506917e3aa8fa707702121ac834f6f49032b611acf1548b14",
+  "restoredBackupVerified": true,
+  "migration33DryRunPassed": true,
+  "existingTablesRowCountsUnchanged": true,
+  "historicalAnnouncementsCreated": 0,
+  "productionChanged": false
+}
