@@ -1,7 +1,7 @@
 {
   "websiteLive": true,
-  "productionDeployment": "c14a50d0-5687-431f-bfcb-6ec1612d6849",
-  "previewDeployment": "8767f73a-c15b-4e80-9764-67f5713deb4b",
+  "productionDeployment": "fdd41444-af67-49c5-aa4c-9337debb6c44",
+  "previewDeployment": "d966cf0d-be42-4d25-b6a7-4f89eb5818e1",
   "migrationsApplied": 33,
   "courtRowsPreserved": 201799,
   "stagingRowsPreserved": 100750,
@@ -27,7 +27,7 @@
   "closedAppConditionSeparatelyConfirmed": false,
   "signInRecoveryHotfixPublished": true,
   "gitAutomaticDeploymentVerified": true,
-  "gitReleaseCommit": "c7b42265893c01bc903e0605e2c651a3989a0d2e",
+  "gitReleaseCommit": "fb5d9e0f6917edd377a7efc266c8c1de77880522",
   "socialMetadataAnalyticsPublished": true,
   "groupDiscussionsLive": true,
   "groupDiscussionProductionScenariosPassed": 10,
@@ -41,5 +41,6 @@
     "physicalPushReceiptRetested": false,
     "newNotificationSettingsAdded": false
   },
-  "photoSharingRequiresSavedPhoto": true
+  "photoSharingRequiresSavedPhoto": true,
+  "compactPlayerListingLive": true
 }

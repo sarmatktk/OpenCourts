@@ -1,0 +1,49 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "theme": "light",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true,
+      "blockAndReportInMenu": true,
+      "invitePickerFullWidth": true
+    }
+  ],
+  "source": "Live production assets with browser-local synthetic API fixtures; no real invitations, blocks or reports sent",
+  "deployment": "fdd41444-af67-49c5-aa4c-9337debb6c44",
+  "commit": "fb5d9e0f6917edd377a7efc266c8c1de77880522"
+}
