@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-21",
+  "deployment": "52583e8b-c84e-4248-a746-07f9fde5d9b5",
+  "commit": "17931b14ee445559dba8c2208e9a1b36ab8ad9b8",
+  "confirmedFailure": {
+    "stage": "validate-output",
+    "status": 502,
+    "code": "output-metadata"
+  },
+  "focusedTestsPassed": 56,
+  "productionBuildPassed": true,
+  "productionSyntheticUploads": [
+    {
+      "status": 200,
+      "error": null,
+      "responseIsJson": true,
+      "fixture": "photo-fixture-display-p3-false.png",
+      "storedMetadataFree": true
+    },
+    {
+      "status": 200,
+      "error": null,
+      "responseIsJson": true,
+      "fixture": "photo-fixture-display-p3-true.png",
+      "storedMetadataFree": true
+    },
+    {
+      "status": 200,
+      "error": null,
+      "responseIsJson": true,
+      "fixture": "photo-fixture-icc.png",
+      "storedMetadataFree": true
+    },
+    {
+      "status": 200,
+      "error": null,
+      "responseIsJson": true,
+      "fixture": "photo-fixture-srgb-false.png",
+      "storedMetadataFree": true
+    },
+    {
+      "status": 200,
+      "error": null,
+      "responseIsJson": true,
+      "fixture": "photo-fixture-srgb-true.png",
+      "storedMetadataFree": true
+    }
+  ],
+  "syntheticAccountAndPhotosRemoved": true,
+  "realUsersChanged": false,
+  "physicalIPhoneConfirmation": "pending"
+}
