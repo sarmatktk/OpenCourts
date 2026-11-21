@@ -1,3 +1,9 @@
+## Compact Players listing and safety menu - November 21, 2026
+
+Player rows now put Invite to game beside the photo/name where space permits. Block player joins Report player in the existing three-dot menu. Location and bio align beneath the name; long names and very narrow screens move Invite below rather than squeezing the name. The invitation picker opens across the full row below the details. Its disclosure uses an accessible button with expanded state and keyboard support; invitation authorization/limits and block/report APIs are unchanged.
+
+Verification: 12 initial functional browser checks passed (photos, invitations, empty picker/server errors, block/report, refresh), eight refined layout/keyboard checks passed, and six final name/meta alignment checks passed at 320/390/1440 px in both themes. Final production build passed. Visual review found an older margin rule overriding metadata alignment; corrected and reran the affected checks. No snapshot updates. Production publication pending; no database, Worker or secret changes. Android/store assets preserved.
+
 ## Discussion count badge spacing and growth - November 21, 2026
 
 Added an explicit 8 px label-to-count gap in the Discussions tab. The pill has automatic width, horizontal padding, no shrinking and no wrapping; counts use readable separators (1,000) rather than a fixed-width bubble or truncation.

@@ -13,7 +13,7 @@ for(const theme of ['light','dark'] as const){
    return route.fulfill({json});
   });
   await page.goto('/play-together/players');await expect(page.getByText('Tom Tennis',{exact:true})).toBeVisible();expect(pickerReads).toBe(0);
-  await page.getByLabel('Invite Tom Tennis to a game',{exact:true}).click();await expect(page.getByRole('combobox',{name:'Your upcoming public games'})).toContainText('Public doubles');expect(sent).toBe(0);
+  const toggle=page.getByRole('button',{name:'Invite Tom Tennis to a game',exact:true});await toggle.focus();await page.keyboard.press('Enter');await expect(toggle).toHaveAttribute('aria-expanded','true');await expect(page.getByRole('combobox',{name:'Your upcoming public games'})).toContainText('Public doubles');expect(sent).toBe(0);const picker=page.getByRole('region',{name:'Invite Tom Tennis',exact:true});expect((await picker.boundingBox())!.width).toBeGreaterThan((await page.locator('.pt-player-list>li').boundingBox())!.width-5);await toggle.click();await expect(picker).toHaveCount(0);await expect(toggle).toHaveAttribute('aria-expanded','false');await toggle.click();await expect(picker).toBeVisible();
   await page.getByRole('button',{name:'Send invitation',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Invitation sent.'})).toBeVisible();expect(sent).toBe(1);await expect(page.getByRole('button',{name:'Invitation sent',exact:true})).toBeDisabled();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
  });
