@@ -1,3 +1,11 @@
+## Profile photo mobile upload investigation - November 21, 2026
+
+Owner reported a raw expected-pattern error on phone Save photo; desktop upload worked. The original failure is not reproduced on the physical phone and its exact response/status remains unknown. Do not claim a confirmed root cause or device fix. Unauthenticated production media probes returned normal JSON (GET 404, PUT 401), without modifying accounts or photos.
+
+Upload compatibility changes materialize bounded image bytes before fetch instead of passing a Blob, request JSON explicitly, handle non-JSON/error responses without leaking browser parse errors, explain expired sessions/network errors, and preserve the selected crop for retry. Existing authentication, CSRF, privacy and 5 MB limits remain enforced.
+
+Verification: 6 unit tests passed; 6 focused browser upload/crop/retry checks passed; one additional mobile-size boundary test passed (5 MB accepted and cropped to under 1 MB; 5 MB + 1 byte rejected before upload). Production build passed. Earlier broader photo selection ran 7 tests: 5 passed, 2 failed only on existing crop-action snapshots that predate the photo-sharing checkbox/privacy copy. No snapshots updated. Separate pixel-level crop test passed at 512x512 with the selected blue region preserved. Physical-phone retry remains pending. Publication pending; no database or Worker changes.
+
 ## Group tabs and moderation toggle fix - November 20, 2026
 
 Removed the discussion overview preview from Group details; discussions now appear only in their own tab. Hash navigation also restores the correct section. The Site moderation entry on Players now expands/collapses its panel with accessible expanded state, preserving the selected moderation view.
