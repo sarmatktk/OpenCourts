@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {
+      "width": 390,
+      "passed": true,
+      "sourceBytes": 5242880,
+      "uploadedBytes": 7109,
+      "retryPreserved": true,
+      "oversizeBlocked": true
+    },
+    {
+      "width": 1440,
+      "passed": true,
+      "sourceBytes": 5242880,
+      "uploadedBytes": 7109,
+      "retryPreserved": true,
+      "oversizeBlocked": true
+    }
+  ],
+  "source": "Live production assets with synthetic browser-local API fixtures; no real photos or accounts changed",
+  "physicalPhoneVerified": false
+}
