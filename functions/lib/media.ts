@@ -1,4 +1,5 @@
 import {chatAccessSql} from './game-chat';
+import {stripWebpMetadata} from './webp-metadata';
 import {cleanupMedia} from './media-cleanup';
 import {AuthError,assertEnvironment,session,requireSession,checkOrigin,checkCsrf,json,readJson,type AuthEnv,type AuthDatabase} from './auth';
 interface Bucket {put(key:string,value:ArrayBuffer,options?:unknown):Promise<unknown>;get(key:string):Promise<{body:ReadableStream}|null>;delete(key:string):Promise<void>}
@@ -36,7 +37,7 @@ export async function handleMedia(request:Request,env:MediaEnv){let stage='autho
  const allowed=kind==='player'?`EXISTS(SELECT 1 FROM players WHERE id=? AND id=? AND status='active')`:`EXISTS(SELECT 1 FROM tennis_groups g JOIN group_memberships m ON m.group_id=g.id WHERE g.id=? AND m.player_id=? AND m.status='active' AND g.status='active' AND (g.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role)='coowner'))`;
  let key:string|null=null;
  if(request.method==='PUT'){
- stage='read-input';const type=request.headers.get('Content-Type')??'';if(!['image/jpeg','image/png','image/webp'].includes(type))return fail(415,'Choose JPEG, PNG or WebP.');const input=await bounded(request,5*1024*1024);stage='image-processor';const response=await env.PLAY_TOGETHER_IMAGE_PROCESSOR.fetch(new Request('https://image-processor/'+(kind==='player'?'avatar':'cover'),{method:'POST',headers:{'Content-Type':type},body:input}));if(!response.ok)return fail(400,'Image could not be resized. Try a different image.');stage='validate-output';const output=await bounded(response,1024*1024);safeWebp(output,kind);stage='store-image';key=kind+'/'+crypto.randomUUID()+'.webp';await bucket.put(key,output.buffer,{httpMetadata:{contentType:'image/webp'}});
+ stage='read-input';const type=request.headers.get('Content-Type')??'';if(!['image/jpeg','image/png','image/webp'].includes(type))return fail(415,'Choose JPEG, PNG or WebP.');const input=await bounded(request,5*1024*1024);stage='image-processor';const response=await env.PLAY_TOGETHER_IMAGE_PROCESSOR.fetch(new Request('https://image-processor/'+(kind==='player'?'avatar':'cover'),{method:'POST',headers:{'Content-Type':type},body:input}));if(!response.ok)return fail(400,'Image could not be resized. Try a different image.');stage='validate-output';const output=stripWebpMetadata(await bounded(response,1024*1024));safeWebp(output,kind);stage='store-image';key=kind+'/'+crypto.randomUUID()+'.webp';await bucket.put(key,output.buffer,{httpMetadata:{contentType:'image/webp'}});
  }
  let committed=false;let savedVersion:string|null=null;
  try{
