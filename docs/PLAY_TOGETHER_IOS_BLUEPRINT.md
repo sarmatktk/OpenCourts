@@ -1,6 +1,22 @@
 # Play Together: native iOS implementation blueprint
 
-Verified November 18, 2026; Preview release 31bafac6, database migrations through 0023 on live Preview. Host queue and Waitlisted schedule APIs are published to Preview. This is a handoff for building Swift UI against the shared backend, not a claim that native authentication is implemented. Latest release entries supersede older decisions in the chronological documents.
+Historical baseline verified November 18, 2026; Preview release 31bafac6, database migrations through 0023 on live Preview. Host queue and Waitlisted schedule APIs are published to Preview. This is a handoff for building Swift UI against the shared backend, not a claim that native authentication is implemented. Latest release entries supersede older decisions in the chronological documents.
+
+## Current upgrade handover - November 21, 2026
+
+The November 18 baseline below is historical, not a complete description of the current production product. Production now includes migrations through 0033. Use the newest entries in PLAY_TOGETHER_HANDOFF.md, PLAY_TOGETHER_TEST_RESULTS.md and qa-evidence/production-launch-status.json for release state; older pending/Preview entries describe their date only. Database migrations are server deployment work, never client work.
+
+Include these newer areas in iOS upgrade planning:
+
+- Member-only group discussions: posts, replies, likes, author role labels, discussion counts and three-dot content menus. Staff posts notify eligible other members through existing notification preferences. See GROUP_DISCUSSIONS.md and the current backend for authorization and payload contracts.
+- Game and group-series chat: dialog presentation, compact messages, avatars, unread indicators, latest-message scrolling and membership system messages. Preserve the implemented access, retention, inactivity and administrator exceptions; confirm exact contracts against the current chat implementation rather than the historical rules below.
+- Shared profile avatars across Players, games and groups use one explicit photo-sharing choice. A saved photo is required before enabling it; removal disables sharing. Server authorization and blocking still apply. The earlier account-private-only media description below is superseded.
+- Updated attendance/guest and capacity controls, including organizer attendance independent of game continuation, privileged guest handling and separate guest approval. Use current server rules and tests rather than implementing eligibility in the client alone.
+- Compact Players listing: avatar/name with Invite to game, location pin, responsive wrapping, and Block/Report under the three-dot menu. Preserve accessible labels and equivalent native menus.
+- Current adult-only account eligibility, privacy/terms, account deletion with recent authentication, safety reporting and site moderation. Use the live policy copy and current account APIs.
+- Push delivery and notification preferences: consult NOTIFICATION_ARCHITECTURE.md and current sender/access checks. Existing web-push success does not establish native APNs support. Native authentication and native push integration must be verified independently for the iOS implementation.
+
+This is an upgrade scope/index, not a claim that native iOS is implemented or tested. Keep the native authentication warning below until a native flow is explicitly implemented and verified. Production web UI improvements do not automatically update an existing native iOS app.
 
 ## Read these first
 

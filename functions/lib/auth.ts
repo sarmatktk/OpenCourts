@@ -1,4 +1,5 @@
 import {cleanupMedia,type MediaCleanupBucket} from './media-cleanup';
+import {handleNativeAuth,nativeReturnPath} from './native-auth';
 import * as oauth from 'oauth4webapi';
 import { EncryptJWT, importPKCS8, jwtDecrypt, SignJWT } from 'jose';
 
@@ -28,6 +29,7 @@ export interface AuthEnv {
   APPLE_PRIVATE_KEY?: string;
   APPLE_TOKEN_ENCRYPTION_KEY?: string;
   AUTH_RATE_LIMIT_SECRET?: string;
+  NATIVE_AUTH_DEVELOPMENT_ENABLED?: string;
 }
 type Provider = 'google' | 'apple';
 type Player = { id: string; display_name: string; bio: string; general_location: string; skill_level: string; discoverable: number; status: string };
@@ -121,12 +123,19 @@ async function providerAuth(provider: Provider, env: AuthEnv) {
   return oauth.ClientSecretPost(secret);
 }
 export async function session(request: Request, db: AuthDatabase, origin: string): Promise<Session | null> {
-  const token = readCookie(request, cookieName(origin));
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;
-  return db.prepare(`SELECT p.*, s.id AS session_id, s.token_hash, s.csrf_token, s.created_at AS session_created_at
+  const authorization=request.headers.get('authorization');
+  const native=authorization!==null;
+  // Native bearer sessions are accepted only on development origins. Web session
+  // tokens are never accepted as bearer credentials or native tokens as cookies.
+  if(native&&!(['localhost','127.0.0.1'].includes(new URL(origin).hostname)||origin==='https://feature-play-together.opencourts.pages.dev'))return null;
+  const token = native ? (/^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(authorization!)?.[1]??'') : readCookie(request, cookieName(origin));
+  if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) { if(native)fail(401,'Please sign in again.');return null; }
+  const found=await db.prepare(`SELECT p.*, s.id AS session_id, s.token_hash, s.csrf_token, s.created_at AS session_created_at
     FROM auth_sessions s JOIN players p ON p.id=s.player_id
-    WHERE s.token_hash=? AND s.expires_at>? AND s.revoked_at IS NULL AND p.status='active'`)
-    .bind(await hashToken(token), Date.now()).first<Session>();
+    WHERE s.token_hash=? AND s.expires_at>? AND s.revoked_at IS NULL AND p.status='active' AND s.client_type=?`)
+    .bind(await hashToken(token), Date.now(),native?'ios':'web').first<Session>();
+  if(native&&!found)fail(401,'Please sign in again.');
+  return found;
 }
 export function requireSession(value: Session | null): Session { return value ?? fail(401, 'Please sign in again.'); }
 export function checkOrigin(request: Request, origin: string) {
@@ -213,7 +222,7 @@ async function start(request: Request, env: AuthEnv, db: AuthDatabase, origin: s
     SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE
     (SELECT COUNT(*) FROM auth_login_attempts WHERE browser_hash=? AND created_at>?) < 5 AND
     (SELECT COUNT(*) FROM auth_login_attempts WHERE requester_hash=? AND created_at>?) < 30`)
-    .bind(await hashToken(state), provider, browserHash, requesterHash, nonce, verifier, '/account', linking ? current!.id : null, linking ? current!.token_hash : null, Date.now(), Date.now() + 10 * 60_000,
+    .bind(await hashToken(state), provider, browserHash, requesterHash, nonce, verifier, await nativeReturnPath(request,env,db,origin), linking ? current!.id : null, linking ? current!.token_hash : null, Date.now(), Date.now() + 10 * 60_000,
       browserHash, Date.now() - 60_000, requesterHash, Date.now() - 5 * 60_000).run();
   if (!inserted.meta.changes) fail(429, 'Please wait a few minutes before trying again.');
   const url = new URL(providers[provider].authorization_endpoint!);
@@ -305,6 +314,7 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
   try {
     const { db, origin } = assertEnvironment(request, env);
     const path = new URL(request.url).pathname.replace(/^\/api\/auth\/?/, '').replace(/\/$/, '');
+    if(path.startsWith('native/'))return await handleNativeAuth(request,env,db,origin,path);
     const match = /^(google|apple)\/(start|callback)$/.exec(path);
     if (match?.[2] === 'callback') return await callback(request, env, db, origin, match[1] as Provider);
     const current = await session(request, db, origin);

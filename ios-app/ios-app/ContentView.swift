@@ -950,12 +950,21 @@ private struct BottomDestinationButton: View {
 
 private struct AppHeader: View {
     let store: OpenCourtsStore
+    @State private var playTogetherPresented = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack {
             OpenCourtsLogo()
             Spacer()
+            Button("Play Together", systemImage: "person.2.fill") {
+                playTogetherPresented = true
+            }
+            .labelStyle(.iconOnly)
+            .font(.title3)
+            .frame(width: 44, height: 44)
+            .background(headerSurface, in: Circle())
+            .overlay { Circle().stroke(headerBorderColor) }
             Button("Use my location", systemImage: "location.fill") {
                 store.requestLocation()
             }
@@ -972,6 +981,10 @@ private struct AppHeader: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 4)
         .background(headerSurface)
+        .sheet(isPresented: $playTogetherPresented) {
+            PlayTogetherView(place: store.place)
+                .tint(Brand.accent)
+        }
     }
 
     private var headerSurface: Color {

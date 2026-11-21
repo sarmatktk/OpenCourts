@@ -1,5 +1,14 @@
 # iOS handoff: international courts, weather, and dry-court estimates
 
+Current native upgrade status (November 21, 2026): see
+[IOS_UPGRADE_HANDOVER.md](../docs/IOS_UPGRADE_HANDOVER.md) for the repository assessment,
+local native discovery/account/Players/My Groups/My Games implementation, development
+authentication integration/APNs gaps,
+validation limits and remaining release steps. Website parity is not complete.
+The historical international notes below must be checked against current Swift source.
+Feature-by-feature progress is tracked in
+[IOS_FEATURE_PARITY_CHECKLIST.md](../docs/IOS_FEATURE_PARITY_CHECKLIST.md).
+
 Prepared November 8, 2026. Read this before implementing international support on Mac.
 
 Expanded verification is recorded in
