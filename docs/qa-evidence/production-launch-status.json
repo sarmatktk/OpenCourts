@@ -1,8 +1,8 @@
 {
   "websiteLive": true,
-  "productionDeployment": "76ed1d9a",
-  "previewDeployment": "a7a59a55",
-  "migrationsApplied": 32,
+  "productionDeployment": "1825fb76-4fc4-4e3c-910b-75098187c8e7",
+  "previewDeployment": "56a4b4d3-a447-4445-94cd-2c52a05ac104",
+  "migrationsApplied": 33,
   "courtRowsPreserved": 201799,
   "stagingRowsPreserved": 100750,
   "privateApiScenariosPassed": 8,
@@ -19,7 +19,7 @@
   "gitMainChanged": true,
   "googlePlayUploaded": false,
   "moderatorSettingsPublished": true,
-  "senderVersion": "b7fb671b-9289-4d1b-859c-a20f39875670",
+  "senderVersion": "f7e408f6-e40e-4ae7-9758-fd1ea0fbbf0e",
   "ownerRequestedTestProviderAccepted": true,
   "testDestinationCleanupPending": false,
   "pushReceiptAndTapEvidence": "owner reported done after receipt/tap request",
@@ -27,11 +27,18 @@
   "closedAppConditionSeparatelyConfirmed": false,
   "signInRecoveryHotfixPublished": true,
   "gitAutomaticDeploymentVerified": true,
-  "gitReleaseCommit": "4aa4d76",
+  "gitReleaseCommit": "c713ec897bb97d5c769e87698743628b3e9ff98b",
   "socialMetadataAnalyticsPublished": true,
   "groupDiscussionsLive": true,
   "groupDiscussionProductionScenariosPassed": 10,
   "discussionAvatarHostedBrowserChecksPassed": 4,
   "existingAvatarSharingDefaultOff": true,
-  "newDiscussionDeviceReceiptRetested": false
+  "newDiscussionDeviceReceiptRetested": false,
+  "discussionStaffUpdatesLive": true,
+  "discussionStaffRelease": {
+    "apiScenariosPassed": 7,
+    "hostedBrowserChecksPassed": 6,
+    "physicalPushReceiptRetested": false,
+    "newNotificationSettingsAdded": false
+  }
 }

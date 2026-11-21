@@ -1,0 +1,38 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true
+    }
+  ],
+  "source": "Live production HTML/JS with browser-local synthetic API fixtures; real API verified separately",
+  "realAnalyticsEventsSent": false,
+  "deployment": "1825fb76-4fc4-4e3c-910b-75098187c8e7",
+  "commit": "c713ec897bb97d5c769e87698743628b3e9ff98b"
+}

@@ -1,0 +1,31 @@
+{
+  "productionDeployment": "1825fb76-4fc4-4e3c-910b-75098187c8e7",
+  "commit": "c713ec897bb97d5c769e87698743628b3e9ff98b",
+  "migrationApplied": "0033_discussion_announcements.sql",
+  "senderVersion": "f7e408f6-e40e-4ae7-9758-fd1ea0fbbf0e",
+  "backupRestoredAndMigrationDryRunVerified": true,
+  "secretNamesAndTypesUnchanged": true,
+  "secretValuesReadOrChanged": false,
+  "productionBuildPassed": true,
+  "fullUnitChecksDuringPreparation": 465,
+  "finalMergedFocusedUnitChecksPassed": 23,
+  "liveApiScenariosPassed": 7,
+  "hostedBrowserChecksPassed": 6,
+  "publicRoutesChecked": 30,
+  "assetsChecked": 6,
+  "countsAfterCleanup": {
+    "migrations": 33,
+    "courts": 201799,
+    "staging": 100750,
+    "players": 6,
+    "groups": 1,
+    "photos": 2,
+    "posts": 1,
+    "shared_photos": 2,
+    "foreign_key_errors": 0
+  },
+  "syntheticFixturesCleaned": true,
+  "realUserNotificationsSent": false,
+  "staffPostPhysicalPushReceiptVerified": false,
+  "googlePlayUploaded": false
+}

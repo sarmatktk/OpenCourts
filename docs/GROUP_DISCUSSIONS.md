@@ -4,9 +4,9 @@ The existing photo sharing preference now covers Players search, games and group
 
 # Member discussions and compact content actions
 
-Prepared November 21, 2026 (pending production backup/migration approval): tab count, staff role labels and staff-post announcements using existing Groups push settings. Migration 0033 adds announcement records and atomic staff-post notification triggers; no existing posts are backfilled.
+Published November 21, 2026 (production 1825fb76; Git c713ec8; sender f7e408f6): tab count, staff role labels and staff-post announcements using existing Groups push settings. Migration 0033 adds announcement records and atomic staff-post notification triggers; no existing posts are backfilled.
 
-Published November 20, 2026: production deployment 76ed1d9a from commit 4aa4d76.
+Initial release, November 20, 2026: production deployment 76ed1d9a from commit 4aa4d76.
 Owner approved migration 0032; verified backup/restore and scoped production
 acceptance passed. Sender Worker version b7fb671b-9289-4d1b-859c-a20f39875670.
 

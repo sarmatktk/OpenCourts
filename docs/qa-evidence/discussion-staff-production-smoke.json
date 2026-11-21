@@ -1,0 +1,21 @@
+{
+  "checksPassed": 7,
+  "checks": [
+    "Owner post alerts each other active member once; self and outsiders excluded",
+    "Owner/Co-owner/Organizer role labels and staff broadcast eligibility verified",
+    "Ordinary member posts do not broadcast; visible tab count includes all four posts",
+    "In-site announcement deep-link fields and per-recipient read state verified",
+    "Staff posts remain reportable by other members; self-reporting denied",
+    "Blocking excludes future staff alerts; removal revokes announcement inbox access",
+    "Synthetic accounts have no devices; no real-user push sent"
+  ],
+  "fixturesRemaining": {
+    "players": 0,
+    "groups": 0,
+    "announcements": 0,
+    "reports": 0
+  },
+  "realUserDataChanged": false,
+  "realUserPushSent": false,
+  "physicalStaffPostPushReceiptVerified": false
+}
