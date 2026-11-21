@@ -1,0 +1,38 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true
+    }
+  ],
+  "source": "Live production HTML/JS with synthetic browser-local API fixtures; no real accounts or photos accessed",
+  "existingPhotoPermissionsUnchanged": true,
+  "deployment": "0274d4fa-34b5-4879-8488-d13726e606b2",
+  "commit": "75000e071ccf377f5602466b2e6be2bb180c6e5e"
+}

@@ -2,7 +2,7 @@
 
 Players search used a generic person icon and never rendered uploaded avatars. It now uses the existing PlayerAvatar component beside the name, with a compact 40 px circle and initials fallback. The existing private media endpoint continues deciding who may view each photo. No photo permissions, opt-in values or database schema are changed. A discoverable profile does not by itself make an existing games/groups-only shared photo visible to strangers; a separate player-search opt-in is proposed and awaiting owner preference.
 
-Six fresh browser checks passed at 320/390/1440 px in light/dark: authorized image loads, denied photo falls back to initials, name alignment and long-name wrapping, player actions, no horizontal overflow, and accessibility checks. No snapshot updates. Production publication pending.
+Six fresh browser checks passed at 320/390/1440 px in light/dark: authorized image loads, denied photo falls back to initials, name alignment and long-name wrapping, player actions, no horizontal overflow, and accessibility checks. No snapshot updates. Production build passed. Published Git 75000e0 as production 0274d4fa-34b5-4879-8488-d13726e606b2. All six hosted checks passed against live production assets with synthetic browser-local API fixtures. The hosted helper initially retained TypeScript annotations in a CommonJS file; transpiling that helper corrected the runner error, with no application change. Evidence: qa-evidence/player-photos-production-browser.json. Existing media access rules remain unchanged.
 
 ## iPhone photo save confirmed; touch action-state fix - November 21, 2026
 
