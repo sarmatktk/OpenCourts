@@ -1,0 +1,68 @@
+{
+  "checks": [
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true,
+      "singlePhotoChoice": true,
+      "existingSharedValueHonored": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true,
+      "singlePhotoChoice": true,
+      "existingSharedValueHonored": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true,
+      "singlePhotoChoice": true,
+      "existingSharedValueHonored": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true,
+      "singlePhotoChoice": true,
+      "existingSharedValueHonored": true
+    }
+  ],
+  "source": "Live production assets; browser-local synthetic API fixtures, no real accounts changed",
+  "databaseSchemaChanged": false,
+  "playerLayoutChecks": [
+    {
+      "width": 320,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "passed": true
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "passed": true
+    }
+  ],
+  "deployment": "6637e19c-ce63-4617-9ddf-10fb566a0569",
+  "commit": "8d4207c5924a08f54a01426bcf69a88d5360d440"
+}
