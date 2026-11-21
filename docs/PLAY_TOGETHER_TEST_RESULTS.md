@@ -1,3 +1,9 @@
+## One photo-sharing option includes Players search - November 21, 2026
+
+Owner explicitly requested that the existing sharing option cover Players search as well as games/groups, without another opt-in. The existing shared flag now permits an active signed-in viewer to read an active discoverable player's shared photo, subject to bilateral blocking checks. Non-discoverable players keep the existing shared game/group boundaries. Sharing off remains private, signed-out reads remain denied, and private/no-store responses remain enforced. No preference values, database schema or notification settings changed. Account wording, privacy and help now describe this single choice. Player avatars refresh on window focus so sharing changes do not leave a stale fallback or revoked photo visible after returning.
+
+Verification: 15 backend tests passed, seven browser checks passed (avatar layouts in both themes plus the single Account photo-sharing control), one additional sharing-change refresh browser check passed, and the final production build passed. No snapshots updated. Prepared on an isolated hotfix branch from current production: pending discussion/staff notification commit f5d3f81 and migration 0033 are not included and remain unapproved. Production publication pending.
+
 ## Players result avatars - November 21, 2026
 
 Players search used a generic person icon and never rendered uploaded avatars. It now uses the existing PlayerAvatar component beside the name, with a compact 40 px circle and initials fallback. The existing private media endpoint continues deciding who may view each photo. No photo permissions, opt-in values or database schema are changed. A discoverable profile does not by itself make an existing games/groups-only shared photo visible to strangers; a separate player-search opt-in is proposed and awaiting owner preference.
