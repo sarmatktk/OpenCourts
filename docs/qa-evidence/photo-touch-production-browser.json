@@ -1,0 +1,28 @@
+{
+  "checks": [
+    {
+      "width": 390,
+      "passed": true,
+      "sourceBytes": 5242880,
+      "uploadedBytes": 7109,
+      "retryPreserved": true,
+      "oversizeBlocked": true,
+      "removeActionNeutralAndUnfocused": true,
+      "touchEmulated": true
+    },
+    {
+      "width": 1440,
+      "passed": true,
+      "sourceBytes": 5242880,
+      "uploadedBytes": 7109,
+      "retryPreserved": true,
+      "oversizeBlocked": true,
+      "removeActionNeutralAndUnfocused": true,
+      "touchEmulated": false
+    }
+  ],
+  "source": "Live production assets with synthetic browser-local API fixtures; no real photos or accounts changed",
+  "physicalPhoneVerified": false,
+  "deployment": "fd19abe5-d632-4838-830c-f8e39b8c0489",
+  "commit": "42238071068a73d7416e8212f57aa1fdaae96755"
+}
