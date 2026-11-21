@@ -1,4 +1,4 @@
-import {discussionPushTarget} from './group-discussions';
+import {discussionPushTarget,announcementPushTarget} from './group-discussions';
 import {chatSchemaReady} from './series-chat';
 import {chatPushTarget} from './game-chat';
 import {sendPushNotification,rawPayload,WebPushError} from '@mmmike/web-push/send';
@@ -12,6 +12,7 @@ type Delivery={discussionPostId?:string;id:string;event_id:string;device_id:stri
 const sources=new Set(['game_notifications','group_notifications','game_guest_notifications','player_game_invitations','game_schedule_notifications']);
 export async function eventStillVisible(db:AuthDatabase,d:Delivery,now:number){
  if(d.expires_at<=now)return false;
+ if(d.source==='discussion_announcements'){const target=await announcementPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target.groupId;d.discussionPostId=target.postId;return true;}
  if(d.source==='discussion_notifications'){const target=await discussionPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target.groupId;d.discussionPostId=target.postId;return true;}
  if(d.source==='game_chat_messages'){const target=await chatPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target;return true;}
  if(d.source==='game_waitlist'){

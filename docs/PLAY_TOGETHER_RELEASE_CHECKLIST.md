@@ -1,3 +1,13 @@
+## Discussion presentation and staff announcements prepared - November 21, 2026
+
+Prepared locally; not published. The Discussions tab shows the viewer-visible post count (including while on Group details), updates after post changes and replaces the duplicate feed heading. The compact toolbar retains the member-only reminder and New discussion. Posts and replies label current Owner, Co-owner and Organizer roles; ordinary members have no role badge. Three-dot reporting remains available on other people's posts/comments. Own content intentionally offers Edit/Delete rather than self-reporting.
+
+New staff posts create one durable in-site announcement per other active member, with existing Groups/device push preferences and delivery-time checks for membership, blocks, author status, read state and post existence. No new notification setting. Ordinary member posts do not broadcast; existing reply subscriptions remain unchanged. Existing posts are not backfilled. Announcement records retain 30 days, pending push events 24 hours. Privacy/help copy updated.
+
+Verification: full unit suite 465/465 passed; targeted discussion suite then 19/19 passed including the additional existing-preference test. All eight discussion browser tests passed after fixing the missing comment role header, plus six moderation checks passed in the earlier combined run. The earlier combined run was 11/14, with three role-header failures before correction; no snapshot updates. The final owner creation/edit/delete check also passed with explicit owner-badge, tab-count and no-self-report assertions. Production build passed. New regression covers 0032-to-0033 preservation with no historical announcement backfill.
+
+Release requires additive migration 0033_discussion_announcements.sql (new announcement table/index/two triggers), updated Pages and push sender Worker. Automatic approval review rejected a proposed fresh production database export because explicit approval was missing for this new rollout's user-data payload and local backup destination. No export or production mutation ran. Required destination: the Git-ignored .wrangler/release-backups/production-pre-discussion-staff-<UTC>.sql inside this workspace; restore/integrity verification and local migration dry run before applying. Await explicit owner approval for backup export, migration and production Pages/Worker rollout. Existing Android/store asset changes remain untouched.
+
 ## Group discussions, menus and avatars live - November 20, 2026
 
 Owner approved production rollout. **Production 76ed1d9a**, Git release commit

@@ -1,13 +1,15 @@
 # Member discussions and compact content actions
 
+Prepared November 21, 2026 (pending production backup/migration approval): tab count, staff role labels and staff-post announcements using existing Groups push settings. Migration 0033 adds announcement records and atomic staff-post notification triggers; no existing posts are backfilled.
+
 Published November 20, 2026: production deployment 76ed1d9a from commit 4aa4d76.
 Owner approved migration 0032; verified backup/restore and scoped production
 acceptance passed. Sender Worker version b7fb671b-9289-4d1b-859c-a20f39875670.
 
 ## Experience
 
-Group overview includes a Discussions count, two recent posts and See all. The
-full feed uses the owner's reference: avatar rail, name and relative time,
+Group details and discussions stay in separate tabs; no discussion preview appears above Group details. The Discussions tab holds the viewer-visible post count. The
+feed uses the owner's reference: avatar rail, name and relative time,
 three-dot menu, open text rows and inline Like/Reply. No large boxed post cards.
 Threads keep one chronological level of comments; recent comments open first,
 with Earlier replies pagination. Long post previews can open in full.
@@ -41,6 +43,8 @@ group membership or current game-chat access for both people. Images remain
 private/no-store. Sharing does not publish an avatar on an anonymous public URL.
 
 ## Notifications and safety
+
+New posts by the owner, co-owner or group organizer notify other active members in-site and through their existing Groups/device push settings. The actor and blocked/nonmember accounts are excluded, and delivery rechecks current access. There is no new announcement setting. Staff-post notifications expire after 24 hours for push; in-site records are removed after 30 days. Normal member posts do not broadcast.
 
 Post authors and commenters follow future replies by default. A member can
 follow/unfollow through the per-thread bell. New reply notifications exclude the

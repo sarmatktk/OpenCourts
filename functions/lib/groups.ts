@@ -1,3 +1,4 @@
+import {discussionCount} from './group-discussions';
 import {notificationRun} from './notification-action';
 import {groupInvites} from './group-invitations';
 import {AuthError,assertEnvironment,checkOrigin,checkCsrf,requireSession,session,json,readJson,type AuthEnv,type AuthDatabase,type Session} from './auth';
@@ -30,7 +31,7 @@ export async function handleGroups(request:Request,env:AuthEnv):Promise<Response
  const parts=path.split('/'),id=parts[0],action=parts[1]??'';if(!uuid.test(id)||parts.length>2)return fail(404,'Group not found.');const g=await getGroup(db,id);if(!g)return fail(404,'Group not found.');
  const m=actor?await db.prepare('SELECT status,COALESCE(assigned_role,role) AS role FROM group_memberships WHERE group_id=? AND player_id=?').bind(id,actor.id).first<Membership>():null;
  const active=!!actor&&m?.status==='active'&&g.status==='active',owner=active&&g.owner_id===actor!.id,manager=active&&(owner||['admin','coowner'].includes(m?.role??''));
- if(!action&&request.method==='GET')return json({group:preview(g),membership:actor?{status:m?.status??'none',role:active?(owner?'owner':m!.role):null}:null,...(active?{content:{description:g.description,skillPreference:g.skill_preference,version:g.version}}:{}),archived:g.status==='archived'});
+ if(!action&&request.method==='GET')return json({group:preview(g),membership:actor?{status:m?.status??'none',role:active?(owner?'owner':m!.role):null}:null,...(active?{discussionCount:await discussionCount(db,id,actor!.id),content:{description:g.description,skillPreference:g.skill_preference,version:g.version}}:{}),archived:g.status==='archived'});
  if(request.method==='GET'&&['members','requests'].includes(action)){
  if(!active)return fail(403,'Approved group membership is required.');if(action==='requests'&&!manager)return fail(403,'Group administrator access is required.');
  if(action==='members'){

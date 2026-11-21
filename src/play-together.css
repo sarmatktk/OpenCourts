@@ -528,3 +528,13 @@ button.pt-chat-toggle{width:100%;border:0;background:transparent;text-align:left
 .pt-player-info strong{overflow-wrap:anywhere}
 .pt-player-info>.pt-player-avatar{width:40px;height:40px;flex:0 0 40px;font-size:13px}
 .pt-player-info>.pt-player-avatar img{width:100%;height:100%}
+
+.pt-tab-count{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 6px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:12px;font-variant-numeric:tabular-nums}
+.pt-discussions:not(.pt-discussions-preview)>.pt-discussions-heading{align-items:center;gap:12px;margin:0;padding:4px 0 14px;border-bottom:1px solid var(--line)}
+.pt-discussions-heading .pt-help{margin:0;max-width:52ch}
+.pt-discussion-author{display:flex;align-items:center;flex-wrap:wrap;gap:5px 8px;min-width:0}
+.pt-discussion-author>strong{font-size:14px;line-height:1.5;overflow-wrap:anywhere;min-width:0}
+.pt-discussion-role{display:inline-flex;align-items:center;min-height:22px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:10px;line-height:1.4;white-space:nowrap;font-weight:500}
+.pt-discussion-content>.pt-discussion-meta{grid-template-columns:minmax(0,max-content) auto minmax(44px,1fr)}
+.pt-discussion-feed-item{padding-block:16px}
+@media(max-width:480px){.pt-discussion-author{gap:3px 6px}.pt-discussion-author>strong{font-size:13px}.pt-discussion-role{font-size:9px;padding-inline:5px}.pt-discussions-heading .pt-help{font-size:11px}.pt-discussions-heading>.pt-secondary{padding:9px 11px;font-size:12px;min-height:44px}}

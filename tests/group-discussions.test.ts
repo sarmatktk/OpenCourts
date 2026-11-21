@@ -2,7 +2,9 @@ import {beforeEach,afterEach,it,expect} from 'vitest';
 import {createRequire} from 'node:module';
 import {readFileSync,readdirSync} from 'node:fs';
 import {hashToken,type AuthEnv,type AuthDatabase,type AuthStatement} from '../functions/lib/auth';
-import {handleDiscussions,discussionPushTarget,discussionInbox,cleanupDiscussions} from '../functions/lib/group-discussions';
+import {handleDiscussions,discussionPushTarget,discussionInbox,cleanupDiscussions,announcementInbox,announcementPushTarget} from '../functions/lib/group-discussions';
+import {handleGames} from '../functions/lib/games';
+import {eventStillVisible} from '../functions/lib/push-delivery';
 import {handlePlayers} from '../functions/lib/players';
 import {handleMedia,type MediaEnv} from '../functions/lib/media';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
@@ -88,4 +90,27 @@ it('shared photos in standalone game chat require current access for both partic
 });
 it('adds the discussion schema to an existing 31-migration database without changing existing rows',()=>{
  const old=new DB('0031_zz');try{old.sqlite.prepare("INSERT INTO players(id,display_name,created_at,updated_at) VALUES('existing','Existing member',1,1)").run();old.sqlite.prepare("INSERT INTO media_assets VALUES('player','existing','private-avatar','v1',1)").run();old.sqlite.exec(readFileSync('functions/db/migrations/0032_group_discussions.sql','utf8'));expect(old.sqlite.prepare('SELECT display_name FROM players').get().display_name).toBe('Existing member');expect(old.sqlite.prepare('SELECT object_key FROM media_assets').get().object_key).toBe('private-avatar');expect(old.sqlite.prepare('SELECT COUNT(*) AS n FROM player_photo_preferences').get().n).toBe(0);expect(old.sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);expect(old.sqlite.prepare('PRAGMA integrity_check').get().integrity_check).toBe('ok');}finally{old.sqlite.close();}
+});
+
+it('labels current staff authors and comments without assigning staff labels to members',async()=>{
+ for(const who of ['owner','coowner','organizer','member']){const id=await create(who);await comment(id,who);const data=await(await call('/'+id)).json() as any;expect(data.post.authorRole).toBe(who==='member'?'member':who);expect(data.comments[0].authorRole).toBe(who==='member'?'member':who);}
+});
+it('staff posts alert active members once, excluding the author, blocks, pending and removed members',async()=>{
+ db.sqlite.prepare("INSERT INTO player_blocks VALUES('second','owner',?)").run(Date.now());const payload={title:'Club update',body:'New group update.',clientId:crypto.randomUUID()};const first=await(await call('','owner','POST',payload)).json() as any;await call('','owner','POST',payload);const notes=db.sqlite.prepare('SELECT * FROM group_discussion_announcements WHERE post_id=?').all(first.id);expect(notes.map((n:any)=>n.recipient_id).sort()).toEqual(['coowner','member','organizer']);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM notification_events WHERE source='discussion_announcements'").get().n).toBe(3);expect(notes.every((n:any)=>n.recipient_id!==n.actor_id)).toBe(true);
+ const before=db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_announcements').get().n;await create('member');expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_announcements').get().n).toBe(before);
+ for(const who of ['coowner','organizer']){const id=await create(who);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_announcements WHERE post_id=?').get(id).n).toBeGreaterThan(0);}
+});
+it('rechecks staff-post notification access, read state, blocks and post deletion at delivery',async()=>{
+ const id=await create('owner'),note=db.sqlite.prepare("SELECT * FROM group_discussion_announcements WHERE post_id=? AND recipient_id='member'").get(id);expect(await announcementPushTarget(db,note.id,'member',Date.now())).toMatchObject({groupId:group,postId:id});const inbox=await announcementInbox(db,'member');expect(inbox[0]).toMatchObject({id:'announcement:'+note.id,kind:'discussion_post',postId:id});
+ const delivery={source:'discussion_announcements',source_id:note.id,recipient_id:'member',expires_at:Date.now()+100000} as any;expect(await eventStillVisible(db,delivery,Date.now())).toBe(true);expect(delivery.discussionPostId).toBe(id);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='member'").run();expect(await announcementPushTarget(db,note.id,'member',Date.now())).toBeNull();expect(await announcementInbox(db,'member')).toEqual([]);db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='member'").run();
+ db.sqlite.prepare("INSERT INTO player_blocks VALUES('member','owner',?)").run(Date.now());expect(await eventStillVisible(db,delivery,Date.now())).toBe(false);db.sqlite.prepare("DELETE FROM player_blocks").run();
+ const read=await handleGames(req('games/notifications/read','member','POST',{id:'announcement:'+note.id}),env);expect(read.status).toBe(200);expect(await eventStillVisible(db,delivery,Date.now())).toBe(false);await call('/'+id+'/delete','owner','POST',{});expect(await announcementInbox(db,'member')).toEqual([]);
+});
+it('migration 33 preserves existing posts and does not notify retrospectively',async()=>{
+ const old=new DB('0032_zz');try{old.sqlite.prepare("INSERT INTO players(id,display_name,created_at,updated_at) VALUES('existing','Existing',1,1)").run();old.sqlite.prepare("INSERT INTO tennis_groups(id,owner_id,visibility,name,general_location,request_id,created_at,updated_at) VALUES(?,'existing','public','Existing group','Area',?,1,1)").run(group,group);old.sqlite.prepare("INSERT INTO group_discussion_posts VALUES(?,?,'existing','Old','Old post',?,1,1,1,0,NULL)").run(crypto.randomUUID(),group,crypto.randomUUID());old.sqlite.exec(readFileSync('functions/db/migrations/0033_discussion_announcements.sql','utf8'));expect(old.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_posts').get().n).toBe(1);expect(old.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_announcements').get().n).toBe(0);expect(old.sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);}finally{old.sqlite.close();}
+});
+
+it('staff announcements use the existing account Groups push preference without a new setting',async()=>{
+ const now=Date.now()-1000;for(const [who,groups] of [['member',0],['second',1]] as const){db.sqlite.prepare('INSERT INTO notification_preferences(player_id,push_enabled,games,groups,updated_at) VALUES(?,1,1,?,?)').run(who,groups,now);db.sqlite.prepare("INSERT INTO notification_devices(id,player_id,session_id,transport,endpoint_hash,endpoint,p256dh,auth,key_id,created_at,updated_at) VALUES(?,?,?,'webpush',?,'https://push.example.invalid/test','p','a','key',?,?)").run(who,who,who,who,now,now);}await create('organizer');expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM notification_deliveries WHERE device_id='member'").get().n).toBe(0);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM notification_deliveries WHERE device_id='second'").get().n).toBe(1);expect((await announcementInbox(db,'member')).length).toBe(1);
 });

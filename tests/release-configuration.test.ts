@@ -10,7 +10,7 @@ it('production rollout examples keep production resources separate and push off 
  expect(worker.workers_dev).toBe(false);expect(processor.workers_dev).toBe(false);expect(processor.preview_urls).toBe(false);
 });
 it('reviewed migration hashes still match the exact local rollout SQL',()=>{
- const inventory=read('release/migration-inventory.json');expect(inventory.migrations).toHaveLength(32);
+ const inventory=read('release/migration-inventory.json');expect(inventory.migrations).toHaveLength(33);
  for(const item of inventory.migrations)expect(createHash('sha256').update(readFileSync('functions/db/migrations/'+item.file,'utf8').replace(/\r\n/g,'\n')).digest('hex')).toBe(item.normalizedSha256);
 });
 

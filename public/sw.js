@@ -17,6 +17,7 @@ const notificationMessages = {
  guest_approved: 'Your guest request was approved.',
  guest_rejected: 'Your guest request was declined.',
  guest_cancelled: 'A player cancelled their guest places.',
+ discussion_post: 'Your group has a new post from an organizer.',
  discussion_reply: 'Someone replied to a group discussion you follow.',
   group_requested: 'You have a new group membership request to review.',
  group_active: 'Your group membership request was approved.',

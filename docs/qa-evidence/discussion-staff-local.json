@@ -1,0 +1,20 @@
+{
+  "status": "prepared-not-published",
+  "date": "2026-11-21",
+  "fullUnitSuite": {
+    "passed": 465,
+    "files": 29
+  },
+  "additionalTargetedDiscussionSuite": {
+    "passed": 19
+  },
+  "discussionBrowserTestsPassed": 8,
+  "moderationBrowserTestsPassed": 6,
+  "finalOwnerBrowserCheckPassed": true,
+  "productionBuildPassed": true,
+  "migration": "0033_discussion_announcements.sql",
+  "existingPostsBackfilled": false,
+  "newNotificationSettingsAdded": false,
+  "productionChanged": false,
+  "backupExportStatus": "Auto-review rejected; explicit owner approval needed for local production-data export"
+}

@@ -160,6 +160,11 @@
       "file": "0032_group_discussions.sql",
       "sha256": "8fa5d7a1e81d512cddcc58136c654f816b21c7d6eac619e569c9c34289a8e7bd",
       "normalizedSha256": "8fa5d7a1e81d512cddcc58136c654f816b21c7d6eac619e569c9c34289a8e7bd"
+    },
+    {
+      "file": "0033_discussion_announcements.sql",
+      "sha256": "cf99a6a9aaebe446541eb7c5b11c425fc0d0a43cf0bd590a505eaa49d714280e",
+      "normalizedSha256": "cf99a6a9aaebe446541eb7c5b11c425fc0d0a43cf0bd590a505eaa49d714280e"
     }
   ],
   "normalizedHashNote": "Original sha256 fields preserve reviewed release bytes. normalizedSha256 hashes the same frozen SQL with CRLF converted to LF, for cross-platform working-tree verification."
