@@ -2,7 +2,7 @@
 
 Removed the discussion overview preview from Group details; discussions now appear only in their own tab. Hash navigation also restores the correct section. The Site moderation entry on Players now expands/collapses its panel with accessible expanded state, preserving the selected moderation view.
 
-Focused browser verification: 14/14 passed on a fresh local server without snapshot updates, covering phone/desktop, light/dark, repeated tab changes, mouse and keyboard moderation toggles, and existing reporting flows. Production publication pending. No database, Worker or secret changes required.
+Focused browser verification: 14/14 passed on a fresh local server without snapshot updates, covering phone/desktop, light/dark, repeated tab changes, mouse and keyboard moderation toggles, and existing reporting flows. Production build passed. Published Git commit cf9aed2 as production deployment c853ba3a-27aa-4419-8452-df8fd02c34e6. Four hosted UI checks passed (390/1440 px, light/dark), including both fixes, using live production assets and synthetic browser-local API fixtures; no real group/report data was changed. Evidence: qa-evidence/group-tabs-production-browser.json. No database, Worker or secret changes required.
 
 ## Group discussions, menus and avatars live - November 20, 2026
 
