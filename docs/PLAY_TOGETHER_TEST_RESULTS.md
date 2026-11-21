@@ -1,3 +1,7 @@
+## Player location pin - November 21, 2026
+
+Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.
+
 ## Compact Players listing and safety menu - November 21, 2026
 
 Player rows now put Invite to game beside the photo/name where space permits. Block player joins Report player in the existing three-dot menu. Location and bio align beneath the name; long names and very narrow screens move Invite below rather than squeezing the name. The invitation picker opens across the full row below the details. Its disclosure uses an accessible button with expanded state and keyboard support; invitation authorization/limits and block/report APIs are unchanged.
