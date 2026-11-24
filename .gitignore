@@ -23,6 +23,7 @@ court-data.json
 *.jks
 *.keystore
 *.mobileprovision
+development/wrangler.apns-sandbox.json
 *.db
 *.db-*
 *.sqlite

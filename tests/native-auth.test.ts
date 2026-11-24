@@ -6,7 +6,7 @@ import {nativeReturnPath,pkceChallenge} from '../functions/lib/native-auth';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class Database implements AuthDatabase {
  sqlite=new DatabaseSync(':memory:');
- constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const name of ['0002_player_auth.sql','0009_tennis_groups.sql','0034_native_auth_development.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+name,'utf8'));}
+ constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const name of ['0002_player_auth.sql','0009_tennis_groups.sql','0034_native_auth_development.sql','0035_native_provider_challenges.sql','0038_native_provider_linking.sql'])this.sqlite.exec(readFileSync('functions/db/migrations/'+name,'utf8'));}
  prepare(sql:string):AuthStatement{let values:any[]=[];const s:AuthStatement={bind(...v){values=v;return s;},first:async<T>()=>(this.sqlite.prepare(sql).get(...values)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...values) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...values).changes)}})};return s;}
  async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{for(const s of statements)await s.run();this.sqlite.exec('COMMIT');return [];}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -19,8 +19,31 @@ async function begin(){const r=await handleAuth(req('native/authorize?'+new URLS
 async function authorize(){const cookie=await begin();const r=await handleAuth(req('native/authorize','POST',{}, {Cookie:cookie+'; oc_session='+webToken,'X-CSRF-Token':csrf}),env);expect(r.status).toBe(200);const url=new URL((await r.json()).callbackURL);expect(url.protocol).toBe('opencourts-ios:');expect(url.searchParams.get('state')).toBe(state);return url.searchParams.get('code')!;}
 describe('development native identity exchange',()=>{
  it('is disabled by default and always disabled on production',async()=>{delete env.NATIVE_AUTH_DEVELOPMENT_ENABLED;expect((await handleAuth(req('native/authorize'),env)).status).toBe(404);Object.assign(env,{NATIVE_AUTH_DEVELOPMENT_ENABLED:'true',AUTH_ORIGIN:'https://opencourts.us',CF_PAGES_BRANCH:'main',PLAY_TOGETHER_ENVIRONMENT:'production',PLAY_TOGETHER_PRODUCTION_ENABLED:'true'});expect((await handleAuth(new Request('https://opencourts.us/api/auth/native/authorize'),env)).status).toBe(404);});
+ it('issues bounded provider challenges only after age confirmation and rejects invalid assertions',async()=>{
+  expect((await handleAuth(req('native/provider/challenge','POST',{provider:'google'}),env)).status).toBe(400);
+  expect((await handleAuth(req('native/provider/challenge','POST',{provider:'unknown',adultConfirmed:true}),env)).status).toBe(400);
+  const result=await handleAuth(req('native/provider/challenge','POST',{provider:'apple',adultConfirmed:true}),env);
+  expect(result.status).toBe(200);const challenge=await result.json();
+  expect(challenge.challengeId).toHaveLength(43);expect(challenge.nonce).toHaveLength(43);
+  expect((await handleAuth(req('native/provider/exchange','POST',{challengeId:challenge.challengeId,idToken:'invalid'}),env)).status).toBe(401);
+  expect(db.sqlite.prepare('SELECT consumed_at FROM native_provider_challenges').get().consumed_at).toBeNull();
+ });
  it('uses the RFC7636 S256 test vector',async()=>{expect(await pkceChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');});
  it('binds the browser flow and never accepts arbitrary return URLs',async()=>{const cookie=await begin();expect(await nativeReturnPath(req('google/start','POST',{}, {Cookie:cookie}),env,db,origin)).toBe('/api/auth/native/authorize');expect(await nativeReturnPath(req('google/start'),env,db,origin)).toBe('/account');const page=await handleAuth(req('native/authorize','GET',undefined,{Cookie:cookie}),env);expect(page.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");expect((await handleAuth(req('native/authorize'),env)).status).toBe(400);});
+ it('preserves only an allowed selected provider through the browser redirect',async()=>{
+  for(const provider of ['google','apple']){
+   const query=new URLSearchParams({challenge:await pkceChallenge(verifier),state,provider});
+   const start=await handleAuth(req('native/authorize?'+query),env);
+   expect(start.status).toBe(303);
+   expect(start.headers.get('location')).toBe('/api/auth/native/authorize?provider='+provider);
+   const cookie=start.headers.get('set-cookie')!.split(';')[0];
+   const page=await handleAuth(req('native/authorize?provider='+provider,'GET',undefined,{Cookie:cookie}),env);
+   expect(page.status).toBe(200);
+   expect(await page.text()).toContain('const selectedProvider="'+provider+'"');
+  }
+  const query=new URLSearchParams({challenge:await pkceChallenge(verifier),state,provider:'other'});
+  expect((await handleAuth(req('native/authorize?'+query),env)).status).toBe(400);
+ });
  it('rejects malformed challenges and bounded state',async()=>{for(const q of ['challenge=plain&state='+state,'challenge='+'c'.repeat(43)+'&state=x'])expect((await handleAuth(req('native/authorize?'+q),env)).status).toBe(400);});
  it('requires an active web session, exact Origin and CSRF before authorization',async()=>{const cookie=await begin();expect((await handleAuth(req('native/authorize','POST',{}, {Cookie:cookie}),env)).status).toBe(401);expect((await handleAuth(req('native/authorize','POST',{}, {Cookie:cookie+'; oc_session='+webToken}),env)).status).toBe(403);expect((await handleAuth(req('native/authorize','POST',{}, {Cookie:cookie+'; oc_session='+webToken,'X-CSRF-Token':csrf,Origin:'https://other.example'}),env)).status).toBe(403);});
  it('redeems once into the same identity and preserves recent sign-in age',async()=>{const code=await authorize();const r=await handleAuth(req('native/exchange','POST',{code,verifier}),env);expect(r.status).toBe(200);const data=await r.json();expect(data.token).toHaveLength(43);const actor=await session(req('me','GET',undefined,{Authorization:'Bearer '+data.token}),db,origin);expect(actor?.id).toBe('player');const web=db.sqlite.prepare("SELECT created_at FROM auth_sessions WHERE id='browser'").get();expect(actor?.session_created_at).toBe(web.created_at);expect((await handleAuth(req('native/exchange','POST',{code,verifier}),env)).status).toBe(401);expect(db.sqlite.prepare("SELECT count(*) AS n FROM auth_sessions WHERE client_type='ios'").get().n).toBe(1);expect((await handleAuth(req('logout','POST',{}, {Authorization:'Bearer '+data.token,'X-CSRF-Token':data.csrfToken}),env)).status).toBe(200);await expect(session(req('me','GET',undefined,{Authorization:'Bearer '+data.token}),db,origin)).rejects.toMatchObject({status:401});});

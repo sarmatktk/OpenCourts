@@ -1,5 +1,11 @@
 ## Player location pin - November 21, 2026
 
+## Current group-game policy — November 21, 2026
+
+User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
+
+Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval UI remains batch 6 work; native request/leave and approved-member game navigation exist.
+
 Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.
 
 ## Compact Players listing and safety menu - November 21, 2026
@@ -3161,3 +3167,59 @@ Changes remain local and uncommitted; no deployment, database change or producti
 
 Latest search-order verification: all 113 browser regression checks passed; approved
 full-page baselines refreshed. Development build passed. No publication this milestone.
+
+Validation for the November 21 membership-only correction: full local backend suite 502/502 passed; TypeScript app/backend checks passed; Xcode BuildProject succeeded. No remote migration/deployment. Native membership approval UI, APNs and full signed-in multi-account acceptance remain open.
+
+
+## Native chat continuation — November 22, 2026
+
+Latest native continuation is recorded in ../ios-app/IOS_APP_HANDOVER.md (composer continuation, runtime layout, H04 read/mute and H08 message reporting entries) and ../ios-app/IOS_IMPLEMENTATION_WORKLIST.md. H04 now Partial local: visible-end cursor, unread and server-backed mute/unmute; H08 now Partial local: eligible-row reporting, fresh access checks, typed details/categories, confirmation and explicit uncertain/rejected outcomes. H05 composer remains Partial. Full652 local backend checks and final Xcode build pass; network-free report form/confirmation and read-only-room mute/privacy layout have simulator evidence. No live report/mute/send acceptance, deployment or migration. Preserve all earlier photo/group/series acceptance gates. Next ordered task is batch10 members-only discussions reader/count/post/reply; native notifications/inbox including H04 integration remains batch11. The local iOS handover has exact evidence, limitations and simulator-only cleanup. Update handovers/checklist and state the next task after each slice, per user instruction.
+
+
+## Native discussions reader continuation — November 22, 2026
+
+Batch10/T01–T04/T10 now Partial local: native group section/count controls, members-only post/fulltext/reply reader and cursor pagination with fresh retained-page rebuild/access clearing. Full655 local backend checks, Swift fixtures and final Xcode build pass. Real empty Reston Tennis group simulator navigation/refresh and dark/AX3 component preview have evidence; populated threads/back/scroll and live access races remain open. No discussion writes/deployment/migration. Details and exact evidence are in ../ios-app/IOS_APP_HANDOVER.md and ../ios-app/IOS_IMPLEMENTATION_WORKLIST.md. Next: T03/T05 new-discussion/reply composers with text limits, fresh membership/lock checks and exact request recovery, then own edit/delete/version conflicts. Preserve all prior chat/photo/group/series and accessibility/device acceptance gates.
+
+
+## Native discussion composers continuation — November 22, 2026
+
+T03/T05 now Partial local: new-discussion/reply forms,120/4,000/2,000 UTF-16 limits, Unicode-safe automatic title, fresh member/thread-lock checks, exact clientId retry and session-only pending store. Existing server deduplication does not compare changed valid bodies, so immutable native payloads must be preserved. Full658 backend checks, native fixtures and final Xcode build pass. Actual simulator local draft/Keep editing/discard and dark/AX3 reply-form preview have evidence; no real posts/replies sent. Live publication/retry/access/lifecycle/keyboard/device acceptance remains open. Details: ../ios-app/IOS_APP_HANDOVER.md and ../ios-app/IOS_IMPLEMENTATION_WORKLIST.md. Next: own post/reply edit/delete with server-version conflict recovery and deletion confirmation; preserve prior chat/photo/group/series/reader gates.
+
+
+November22 native continuation: own discussion post/reply edit/delete implemented locally (T03/T05/T09 Partial): original-version edits, fresh access/version checks, explicit delete confirmation/conflict reload and no uncertain mutation replay. Delete has only client preflight, no atomic server version guard. Full660 backend checks and native payload fixtures pass; populated/live/device acceptance remains open. See latest ios-app/IOS_APP_HANDOVER.md and IOS_IMPLEMENTATION_WORKLIST.md for contracts/evidence/carried gates. Next: T06/T07 like/unlike and follow/unfollow, then privileged moderation/reporting and notifications.
+
+
+November22 native continuation: T06/T07 Partial local now includes thread post/reply like counts/actions and follow/unfollow, fixed desired-state requests, fresh authorized target checks, locked-like restrictions and refresh-based uncertain-outcome recovery. Full662 backend checks/native payload fixtures pass; populated/live UI and delivery acceptance remains open. See latest ios-app/IOS_APP_HANDOVER.md and IOS_IMPLEMENTATION_WORKLIST.md. Next: Owner/Co-owner lock/unlock and privileged deletion, then discussion reporting and inbox/notifications.
+
+
+November22 native continuation: T08/T09 Partial local now includes Owner/Co-owner foreign-content deletion and lock/unlock reviews with confirmation, fresh management/target/version preflight and no uncertain write replay. Server lock/delete lack atomic version guards; populated/live/race/device acceptance remains open. Full664 backend checks, native permission/payload fixtures, final Xcode build and empty-group simulator regression pass; dark/AX3 review component wraps, button below viewport unverified. Latest ios-app/IOS_APP_HANDOVER.md and IOS_IMPLEMENTATION_WORKLIST.md hold evidence/carried gates. Next: explanation-required discussion reporting, then notification/inbox integration.
+
+
+November22 native continuation: T09 Partial local now includes non-own post/reply Report actions, five-category explanation-required sheet,1,000-unit validation, fresh access/version review and explicit confirmation. Acknowledged/rejected/unconfirmed outcomes never replay uncertain reports. Full666 backend checks/native payload fixtures and Xcode build pass; populated/live/moderation/device acceptance remains open. Latest ios-app/IOS_APP_HANDOVER.md and IOS_IMPLEMENTATION_WORKLIST.md contain exact contracts/evidence/carried gates. Next: T11/batch11 native inbox/unread/read actions and authorized notification destinations, then preferences/push integration.
+
+
+## Guest request roles and full-capacity feedback — November 23, 2026
+
+Owner-confirmed policy is now explicit across Help, Privacy and Terms: group Owner/Co-owner/Organizer can directly add their own guest places when eligible and decide other group members’ guest requests; standalone games are host-only for direct guest additions and request decisions. Regular group members can request guests; full capacity does not reserve places, successful approval is atomic, and failure leaves the request pending. Native Guest places surfaces a pending count. Capacity alerts preserve the current detail screen and request state.
+
+Feature Preview backend role checks deployed as `f6939c04` at the stable feature alias; no migration or production change. Native Xcode build passes, but current alert/focus behavior still awaits physical-device retest. Detailed implementation and remaining acceptance gates are in `ios-app/IOS_APP_HANDOVER.md`, `ios-app/IOS_IMPLEMENTATION_WORKLIST.md` and `docs/IOS_FEATURE_PARITY_CHECKLIST.md`.
+## November 24, 2026 - Capacity reduction Preview update
+
+Published the game-capacity edit handler to the feature Preview as deployment
+`6b9814ed-79a5-4066-b205-b39d1d12f7ee` (`https://6b9814ed.opencourts.pages.dev`);
+the stable alias is `https://feature-play-together.opencourts.pages.dev`. This
+release includes the existing server preview/demotion flow: reducing capacity
+moves the newest non-host party or parties out of confirmed attendance; group
+players enter the waitlist and standalone players return to pending host approval.
+The host and active reserved offers are preserved. The isolated Preview build was
+based on feature commit `22c0e9f` with only `functions/lib/game-edit.ts` overlaid;
+the development database already had migration0031. No migration, production
+deployment, Git push or unrelated working-tree change was included. Stable Preview
+`/api/games` and `/play-together` returned HTTP200. Physical-device confirmation of
+the four-to-two-place change remains open.
+
+### November 24, 2026 - capacity edit Preview schema correction
+
+Owner retried the four-to-two capacity edit and still got “Game needs a refresh.” The code path referenced `game_capacity_fill.party_size`, added by migration 0039, which is not installed in the Preview database. Removed that schema dependency; the atomic batch now moves the newest non-host parties first and checks live remaining attendance plus active reserved offers before committing. `npm run build:dev` passed. Published code-only Preview `07ef021f` at `https://07ef021f.opencourts.pages.dev`; stable feature alias `https://feature-play-together.opencourts.pages.dev` serves `/api/games` with HTTP 200. No migration, Production deployment, Git push, or unrelated source changes. Next: owner device retry of reducing four places/three occupied to two, confirming the displaced party appears on the waitlist and the host/reserved offers remain. Keep acceptance open until confirmed.
+
+Follow-up: the next device retry returned “Game service is unavailable.” Inspection found the old Preview `game_notifications` CHECK constraint also rejects the new `waitlisted` and `confirmed` kinds. The handler now gates these optional inserts on the table schema while keeping the capacity save atomic. A clean base deployment also omitted the uncommitted native provider sign-in implementation; restored `native-auth.ts`, provider verification/Apple exchange helpers and Apple revocation support into the isolated deployment. Latest Preview `88c8dbbf` (`https://88c8dbbf.opencourts.pages.dev`) supersedes `31312983`; stable alias `/api/games` returns HTTP 200 and native authorize returns expected expired-grant HTTP 400 (enabled, no grant supplied). Build passed, no migration or Production deployment. Until migration 0039 is applied, capacity reduction saves without the new capacity-change inbox notice. Owner device sign-in and capacity acceptance remain open.

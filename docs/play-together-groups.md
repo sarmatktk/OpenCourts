@@ -1,5 +1,11 @@
 # Phase 4: public/private groups
 
+## Current group-game policy — November 21, 2026
+
+User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
+
+Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval and management UI is now implemented locally; enabled decisions, multi-account acceptance and the matching server rollout remain pending. See the latest native handover/worklist for current evidence.
+
 ## Current role clarification - read first
 
 Latest UI review Preview is a9127653. Implemented group schema still uses one Owner,
@@ -132,3 +138,6 @@ Group navigation/shared button polish published for review to approved developme
 Member management layout follow-up: compact member rows, role badges, styled selects, aligned responsive actions and expandable role help. Local UI-only change; permissions unchanged; Preview approval pending.
 
 General location display now includes existing Lucide MapPin icon in group cards/My Groups/detail, local only. General location privacy unchanged; no map tracking or geocoding added.
+
+
+November 22 native visibility continuation (R10 Partial local): group-event rows/cursors clear on refresh, account/scene changes and disappearance; membership is revalidated around feed fetches, regardless of public/private group visibility. Native group-detail edit confirmations explicitly preserve public limited previews/covers and members-only details/games; edit POST requires fresh permission/version. All612 local backend checks and native visibility fixtures pass. Read-only simulator empty-list refresh and local visibility alert/cancel/discard pass; no visibility save, deployment or live mutation. Actual transitions/races and multi-account/device acceptance remain pending. See ios-app/IOS_APP_HANDOVER.md for evidence and the recurring-series continuation queue.

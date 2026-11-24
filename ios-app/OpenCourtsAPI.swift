@@ -3,41 +3,58 @@ import CoreLocation
 
 actor OpenCourtsAPI {
     static let shared = OpenCourtsAPI()
-    private let baseURL = URL(string: "https://opencourts.us")!
+    private let baseURL: URL = {
+        #if DEBUG
+        NativeCommunityAPI.origin
+        #else
+        URL(string: "https://opencourts.us")!
+        #endif
+    }()
     private let decoder = JSONDecoder()
 
-    private func internationalCountryCode(for query: String) -> String? {
+    func internationalCountryCode(for query: String) -> String? {
         let lastPart = query.split(separator: ",").last?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        let countryNames: [String: String] = [
-            "uk": "gb", "united kingdom": "gb", "england": "gb", "scotland": "gb", "wales": "gb",
-            "canada": "ca", "france": "fr", "spain": "es", "germany": "de", "italy": "it",
-            "australia": "au", "new zealand": "nz", "japan": "jp", "ireland": "ie", "netherlands": "nl",
-            "portugal": "pt", "mexico": "mx", "brazil": "br", "south africa": "za", "india": "in",
-            "singapore": "sg", "switzerland": "ch", "sweden": "se", "norway": "no", "denmark": "dk",
-            "belgium": "be", "austria": "at", "greece": "gr", "thailand": "th", "indonesia": "id",
-            "philippines": "ph", "china": "cn", "south korea": "kr", "turkey": "tr", "poland": "pl",
-            "czechia": "cz", "finland": "fi", "iceland": "is", "argentina": "ar", "chile": "cl",
-            "colombia": "co"
+        let aliases: [String: String] = [
+            "uk": "gb", "united kingdom": "gb", "england": "gb", "scotland": "gb", "wales": "gb", "northern ireland": "gb",
+            "united states": "us", "usa": "us", "canada": "ca", "france": "fr", "spain": "es", "germany": "de",
+            "italy": "it", "australia": "au", "new zealand": "nz", "japan": "jp", "ireland": "ie", "netherlands": "nl",
+            "portugal": "pt", "mexico": "mx", "brazil": "br", "south africa": "za", "india": "in", "singapore": "sg",
+            "switzerland": "ch", "sweden": "se", "norway": "no", "denmark": "dk", "belgium": "be", "austria": "at",
+            "greece": "gr", "thailand": "th", "indonesia": "id", "philippines": "ph", "china": "cn", "south korea": "kr",
+            "turkey": "tr", "poland": "pl", "czechia": "cz", "finland": "fi", "iceland": "is", "argentina": "ar",
+            "chile": "cl", "colombia": "co"
         ]
-        if let code = countryNames[lastPart] { return code }
-        let supportedCodes = Set(["ae", "at", "au", "be", "br", "ca", "ch", "cl", "cn", "co", "cz", "de", "dk", "es", "fi", "fr", "gb", "gr", "id", "ie", "in", "is", "it", "jp", "kr", "mx", "nl", "no", "nz", "ph", "pl", "pt", "se", "sg", "th", "tr", "za"])
-        return supportedCodes.contains(lastPart) ? lastPart : nil
+        if let code = aliases[lastPart] { return code }
+        let supportedCodes = Set("ae at au be br ca ch cl cn co cz de dk es fi fr gb gr id ie in is it jp kr mx nl no nz ph pl pt se sg th tr za".split(separator: " ").map(String.init))
+        if supportedCodes.contains(lastPart) {
+            return lastPart
+        }
+        let excludedRegions = Set(["US", "UM", "VI", "PR", "GU", "AS", "MP", "GE", "EU", "UN", "EZ"])
+        return Locale.Region.isoRegions.map(\.identifier).first {
+            !excludedRegions.contains($0.uppercased()) && Locale(identifier: "en_US").localizedString(forRegionCode: $0)?.lowercased() == lastPart
+        }?.lowercased()
     }
 
-    func suggestions(for query: String) async throws -> [PlaceSuggestion] {
+    func suggestions(for query: String, preferredCountryCode: String? = nil) async throws -> [PlaceSuggestion] {
         guard query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 else { return [] }
         let countryCode = internationalCountryCode(for: query)
-        var queryItems: [(String, String)] = [("q", query), ("v", countryCode == nil ? "6" : "7")]
+        var queryItems: [(String, String)] = [("q", query), ("v", "10")]
         if let countryCode {
             queryItems.append(("country", countryCode))
+        } else if let preferredCountryCode, preferredCountryCode.count == 2 {
+            queryItems.append(("preferred_country", preferredCountryCode.lowercased()))
         }
-        let response: SuggestionsResponse = try await get(path: "/api/suggest", query: queryItems)
+        let response: SuggestionsResponse = try await get(
+            path: "/api/suggest",
+            query: queryItems,
+            cachePolicy: .reloadIgnoringLocalCacheData
+        )
         return response.suggestions ?? []
     }
 
     func findPlace(_ query: String) async throws -> Place {
         let countryCode = internationalCountryCode(for: query)
-        var queryItems: [(String, String)] = [("q", query), ("v", countryCode == nil ? "6" : "7")]
+        var queryItems: [(String, String)] = [("q", query), ("v", "8")]
         if let countryCode {
             queryItems.append(("scope", "global"))
             queryItems.append(("country", countryCode))
@@ -88,17 +105,26 @@ actor OpenCourtsAPI {
         return all
     }
 
-    private func get<T: Decodable>(path: String, query: [(String, String)]) async throws -> T {
+    private func get<T: Decodable>(
+        path: String,
+        query: [(String, String)],
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
+    ) async throws -> T {
         var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false)!
         components.queryItems = query.map { URLQueryItem(name: $0.0, value: $0.1) }
-        return try await send(URLRequest(url: components.url!))
+        return try await send(URLRequest(url: components.url!, cachePolicy: cachePolicy))
     }
 
     private func send<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (receivedData, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
             throw APIError.message("OpenCourts data is temporarily unavailable. Please try again.")
         }
+        #if DEBUG
+        let data = ScreenshotMockContent.sanitized(receivedData)
+        #else
+        let data = receivedData
+        #endif
         return try decoder.decode(T.self, from: data)
     }
 
@@ -129,11 +155,7 @@ actor OpenCourtsAPI {
 
             if let index = groups.firstIndex(where: { members in
                 guard let first = members.first,
-                      venueName(for: first)?.localizedCaseInsensitiveCompare(venue) == .orderedSame,
-                      first.surface?.lowercased() == court.surface?.lowercased(),
-                      first.lighting == court.lighting,
-                      first.access == court.access,
-                      first.sheltered == court.sheltered else {
+                      venueName(for: first)?.localizedCaseInsensitiveCompare(venue) == .orderedSame else {
                     return false
                 }
 
@@ -160,11 +182,13 @@ actor OpenCourtsAPI {
         }
 
         let normalizedName = court.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"\s+(?:tennis\s+)?courts?(?:\s*(?:#|no\.?\s*)?\d+)?(?:\s*[-–]\s*\d+)?\s*$"#, with: "", options: [.regularExpression, .caseInsensitive])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let lowercased = normalizedName.lowercased()
         let generic = lowercased == "tennis courts"
             || lowercased == "tennis court"
             || lowercased.range(of: #"^(?:tennis\s+)?court\s*#?\s*\d+$"#, options: .regularExpression) != nil
-        return generic ? nil : normalizedName
+        return generic || normalizedName.isEmpty ? nil : normalizedName
     }
 
     private func mergedVenue(_ members: [Court]) -> Court {
@@ -187,11 +211,11 @@ actor OpenCourtsAPI {
             name: venue,
             lat: centerLat,
             lon: centerLon,
-            lighting: first.lighting,
-            access: first.access,
-            surface: first.surface,
+            lighting: members.allSatisfy { $0.lighting == first.lighting } ? first.lighting : .unknown,
+            access: members.contains(where: { $0.access == .publicAccess }) ? .publicAccess : first.access,
+            surface: members.allSatisfy { $0.surface?.lowercased() == first.surface?.lowercased() } ? first.surface : nil,
             courts: courtCount,
-            sheltered: first.sheltered,
+            sheltered: members.allSatisfy { $0.sheltered == first.sheltered } && first.sheltered,
             address: mostCommonAddress,
             addressApprox: members.contains { $0.address == mostCommonAddress && $0.addressApprox },
             contextName: nil,

@@ -1,6 +1,11 @@
 import {productionCommunityEnabled,AuthError,assertEnvironment,checkCsrf,checkOrigin,hashToken,json,readJson,requireSession,session,type AuthEnv} from './auth';
+import {handleNativePush} from './native-push';
 
 export interface PushEnv extends AuthEnv {
+ NATIVE_PUSH_DEVELOPMENT_ENABLED?:string; NATIVE_PUSH_PRODUCTION_ENABLED?:string;
+ NATIVE_PUSH_PRODUCTION_READY?:string; APNS_ENVIRONMENT?:string; APNS_TOPIC?:string;
+ NATIVE_PUSH_SANDBOX_READY?:string; NATIVE_PUSH_ALLOWED_PLAYER_IDS?:string;
+ APNS_SENDER_ENABLED?:string; APNS_TEAM_ID?:string; APNS_KEY_ID?:string; APNS_PRIVATE_KEY?:string;
  PUSH_ENABLED?:string; PUSH_ENVIRONMENT?:string; PUSH_ALLOWED_PLAYER_IDS?:string;
  PUSH_VAPID_PUBLIC_KEY?:string; PUSH_VAPID_PRIVATE_KEY?:string; PUSH_VAPID_SUBJECT?:string;
 }
@@ -22,6 +27,7 @@ export async function handlePush(request:Request,env:PushEnv):Promise<Response>{
  try{
  const {db,origin}=assertEnvironment(request,env),actor=requireSession(await session(request,db,origin));
  const path=new URL(request.url).pathname.replace(/^\/api\/push\/?/,'').replace(/\/$/,'');
+ if(path.startsWith('native/'))return await handleNativePush(request,env,path.slice(7),db,origin,actor);
  const enabled=pushTester(env,actor.id)&&keyBytes(env.PUSH_VAPID_PUBLIC_KEY,65);
  if(path==='settings'&&request.method==='GET'){
   if(!enabled)return json({available:false});

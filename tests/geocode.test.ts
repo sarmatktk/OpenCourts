@@ -113,14 +113,14 @@ describe('ZIP lookup', () => {
     expect(suggestions[0].label).toContain('Virginia');
   });
 
-  it('keeps autocomplete suggestions in the US by default', async () => {
+  it('returns global autocomplete suggestions when no country is selected', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ features: [
       { geometry: { coordinates: [-77.3, 38.85] }, properties: { name: 'Fairfax', countrycode: 'us', country: 'United States' } },
       { geometry: { coordinates: [-123.12, 49.28] }, properties: { name: 'Fairfax', countrycode: 'ca', country: 'Canada' } },
     ] }));
     const response = await suggest(context('/api/suggest?q=Fairfax'));
-    expect((await response.json()).suggestions.map((item: any) => item.countryCode)).toEqual(['us']);
-    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('countrycode')).toBe('us');
+    expect((await response.json()).suggestions.map((item: any) => item.countryCode)).toEqual(['us', 'ca']);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.has('countrycode')).toBe(false);
   });
 
   it('scopes international autocomplete to the selected country', async () => {
@@ -133,17 +133,20 @@ describe('ZIP lookup', () => {
     expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('countrycode')).toBe('gb');
   });
 
-  it('accepts only an exact ZIP and filters unrelated suggestions', async () => {
+  it('accepts only an exact ZIP and filters unrelated country-preferred suggestions', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(Response.json([
       { display_name: 'Somewhere, Virginia 20128', lat: '38.8', lon: '-77.3', address: { postcode: '20128' } },
       { display_name: 'Somewhere, Virginia 20127', lat: '38.9', lon: '-77.2', address: { postcode: '20127' } },
     ])).mockResolvedValueOnce(Response.json({ features: [
       { geometry: { coordinates: [-96.79, 32.77] }, properties: { name: 'Dallas', postcode: '75201' } },
       { geometry: { coordinates: [-77.2, 38.9] }, properties: { name: 'Somewhere', postcode: '20127' } },
+    ] })).mockResolvedValueOnce(Response.json({ features: [
+      { geometry: { coordinates: [-96.79, 32.77] }, properties: { name: 'Dallas', postcode: '75201' } },
+      { geometry: { coordinates: [-77.2, 38.9] }, properties: { name: 'Somewhere', postcode: '20127' } },
     ] }));
     const response = await geocode(context('/api/geocode?q=20127'));
     expect((await response.json()).result.display_name).toContain('20127');
-    const suggestions = await suggest(context('/api/suggest?q=20127'));
+    const suggestions = await suggest(context('/api/suggest?q=20127&preferred_country=us'));
     expect((await suggestions.json()).suggestions).toHaveLength(1);
   });
 });

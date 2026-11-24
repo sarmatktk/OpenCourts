@@ -215,6 +215,7 @@ dialog.pt-confirmation p{margin:0 0 18px;line-height:1.6;overflow-wrap:anywhere}
 .pt-request-list>li{justify-content:flex-start;gap:8px;padding:12px 0;min-width:0}
 .pt-request-list>li+li{border-top:1px solid var(--line)}
 .pt-request-list>li>span{flex:0 1 auto;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.pt-request-list time{display:block;color:var(--muted);font-size:.875em;margin-top:3px}
 .pt-request-list>li>button{flex:0 0 auto;white-space:nowrap}
 
 .pt-welcome h2{margin-top:0}.pt-welcome p{line-height:1.6}.pt-welcome-actions{display:flex;flex-wrap:wrap;gap:12px}.pt-welcome .pt-photo{margin-block:8px}.pt-welcome{scrollbar-gutter:stable}

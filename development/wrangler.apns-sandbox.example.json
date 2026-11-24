@@ -1,0 +1,34 @@
+{
+  "name": "opencourts-apns-sandbox",
+  "main": "../functions/push-worker.ts",
+  "compatibility_date": "2025-01-01",
+  "workers_dev": false,
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "vars": {
+    "AUTH_ORIGIN": "https://feature-play-together.opencourts.pages.dev",
+    "PUSH_ENVIRONMENT": "development",
+    "PUSH_ENABLED": "false",
+    "PUSH_VAPID_SUBJECT": "https://opencourts.us/contact",
+    "PUSH_ALLOWED_PLAYER_IDS": "",
+    "NATIVE_PUSH_DEVELOPMENT_ENABLED": "false",
+    "NATIVE_PUSH_SANDBOX_READY": "false",
+    "NATIVE_PUSH_ALLOWED_PLAYER_IDS": "",
+    "APNS_ENVIRONMENT": "sandbox",
+    "APNS_TOPIC": "us.opencourts.ios",
+    "APNS_SENDER_ENABLED": "false",
+    "APNS_TEAM_ID": "",
+    "APNS_KEY_ID": ""
+  },
+  "d1_databases": [
+    {
+      "binding": "COURTS_DB",
+      "database_name": "opencourts-dev",
+      "database_id": "cae4849c-3e99-4945-9d70-bef7b48707ce",
+      "migrations_dir": "../functions/db/migrations"
+    }
+  ]
+}

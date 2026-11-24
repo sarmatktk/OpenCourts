@@ -9,7 +9,7 @@ import {notificationBatch} from '../functions/lib/notification-action';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class LocalDatabase implements AuthDatabase{
   sqlite=new DatabaseSync(':memory:');
-  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql','0024_notification_delivery.sql','0025_notification_action_actor.sql','0026_account_moderation.sql','0027_game_chat.sql','0028_series_chat.sql','0029_series_chat_staff.sql','0030_chat_lifecycle_notices.sql','0031_game_capacity_edit.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
+  constructor(){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const file of ['0001_create_tennis_courts.sql','0002_player_auth.sql','0003_public_games.sql','0004_game_participation.sql','0005_game_cancellations.sql','0006_host_notifications.sql','0007_request_notifications.sql','0008_player_notifications.sql','0009_tennis_groups.sql','0010_group_notifications.sql','0011_group_roles.sql','0014_group_games.sql','0015_group_game_lifecycle.sql','0016_game_guests.sql','0017_sharing_safety.sql','0018_player_game_invitations.sql','0019_multi_court_events.sql','0020_weekly_game_series.sql','0021_group_game_waitlist.sql','0022_public_group_events.sql','0023_series_management.sql','0024_notification_delivery.sql','0025_notification_action_actor.sql','0026_account_moderation.sql','0027_game_chat.sql','0028_series_chat.sql','0029_series_chat_staff.sql','0030_chat_lifecycle_notices.sql','0031_game_capacity_edit.sql','0039_game_capacity_notifications.sql','0040_capacity_chat_access.sql'])this.sqlite.exec(readFileSync(`functions/db/migrations/${file}`,'utf8'));}
   prepare(sql:string):AuthStatement{let values:any[]=[];const statement:AuthStatement={bind(...args){values=args;return statement;},first:async<T>()=>(this.sqlite.prepare(sql).get(...values)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...values) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...values).changes)}})};return statement;}
   async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -318,6 +318,29 @@ it('schedule sections distinguish active games, requests, completion and cancell
  const ids=async(view:string)=>(await(await handleGames(req('/mine?view='+view),env)).json()).games.map((g:any)=>g.id);
  expect(await ids('upcoming')).toEqual([upcoming]);expect(await ids('requests')).toEqual([pending]);expect(await ids('past')).toEqual([past]);expect(new Set(await ids('cancelled'))).toEqual(new Set([cancelled,removed,left,withdrawn,expired]));
  const text=await(await handleGames(req('/mine?view=cancelled'),env)).text();expect(text).not.toContain('Private reason');expect((await handleGames(req('/mine?view=bad'),env)).status).toBe(400);
+});
+it('a declined join request is hidden until the host invites again, while player withdrawals stay requestable',async()=>{
+ db.sqlite.prepare('INSERT INTO players(id,display_name,created_at,updated_at) VALUES (?,?,?,?)').run('other-host','Other Host',now,now);
+ const declined=await insertGame();db.sqlite.prepare("UPDATE games SET organizer_id='other-host' WHERE id=?").run(declined);db.sqlite.prepare('DELETE FROM game_participants WHERE game_id=? AND player_id=?').run(declined,'player-1');
+ db.sqlite.prepare("INSERT INTO game_join_requests VALUES (?,?,'rejected',?,?)").run(declined,'player-1',now,now);
+ const feed=await(await handleGames(req('/feed?filter=mine'),env)).json();
+ expect(feed.games.map((game:any)=>game.id)).not.toContain(declined);
+ expect((await(await handleGames(req('/feed?filter=all'),env)).json()).games.map((game:any)=>game.id)).not.toContain(declined);
+ expect((await(await handleGames(req(''),env)).json()).games.map((game:any)=>game.id)).not.toContain(declined);
+ expect((await(await handleGames(req('/mine?view=upcoming'),env)).json()).games.map((game:any)=>game.id)).not.toContain(declined);
+ expect((await(await handleGames(req('/mine?view=cancelled'),env)).json()).games.map((game:any)=>game.id)).not.toContain(declined);
+ expect((await handleGames(req('/'+declined,'GET',undefined),env)).status).toBe(404);
+ db.sqlite.prepare('INSERT INTO player_game_invitations(id,game_id,sender_id,recipient_id,created_at) VALUES (?,?,?,?,?)').run(crypto.randomUUID(),declined,'other-host','player-1',now+1);
+
+ expect((await(await handleGames(req('/feed?filter=all'),env)).json()).games.map((game:any)=>game.id)).toContain(declined);
+ expect((await handleGames(req('/'+declined,'GET',undefined),env)).status).toBe(200);
+ expect((await(await handleGames(req('/'+declined+'/participation'),env)).json()).canRequestAgain).toBe(true);
+ expect((await(await handleGames(req(''),env)).json()).games.map((game:any)=>game.id)).toContain(declined);
+ expect((await handleGames(req('/'+declined+'/join','POST',{}),env)).status).toBe(200);
+ const leftGame=await insertGame();db.sqlite.prepare("UPDATE games SET organizer_id='other-host' WHERE id=?").run(leftGame);db.sqlite.prepare('DELETE FROM game_participants WHERE game_id=? AND player_id=?').run(leftGame,'player-1');db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(leftGame,'player-1',now);
+ expect((await handleGames(req('/'+leftGame+'/leave','POST',{reason:''}),env)).status).toBe(200);
+ expect((await(await handleGames(req('/feed?filter=mine'),env)).json()).games.map((game:any)=>game.id)).toContain(leftGame);
+ expect((await handleGames(req('/'+leftGame+'/join','POST',{}),env)).status).toBe(200);
 });
 it('schedule filters before pagination so old history cannot hide upcoming games',async()=>{
  for(let i=0;i<52;i++)await insertGame({starts_at:now+86400000+i*60000,ends_at:now+90000000+i*60000});

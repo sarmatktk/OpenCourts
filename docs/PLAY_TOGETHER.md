@@ -1,4 +1,25 @@
+## November 24, 2026 - Capacity reduction Preview update
+
+Published the game-capacity edit handler to the feature Preview as deployment
+`6b9814ed-79a5-4066-b205-b39d1d12f7ee` (`https://6b9814ed.opencourts.pages.dev`);
+the stable alias is `https://feature-play-together.opencourts.pages.dev`. This
+release includes the existing server preview/demotion flow: reducing capacity
+moves the newest non-host party or parties out of confirmed attendance; group
+players enter the waitlist and standalone players return to pending host approval.
+The host and active reserved offers are preserved. The isolated Preview build was
+based on feature commit `22c0e9f` with only `functions/lib/game-edit.ts` overlaid;
+the development database already had migration0031. No migration, production
+deployment, Git push or unrelated working-tree change was included. Stable Preview
+`/api/games` and `/play-together` returned HTTP200. Physical-device confirmation of
+the four-to-two-place change remains open.
+
 ## Direct guest contract - November 20, 2026
+
+## Current group-game policy — November 21, 2026
+
+User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
+
+Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval UI remains batch 6 work; native request/leave and approved-member game navigation exist.
 
 Preview 1019f776: GET games/:id/guests includes canAddGuestsDirectly. It is true
 for current active group owners/co-owners/assigned organizers or the non-group
@@ -6,8 +27,10 @@ host; it does not imply a confirmed playing place. own remains null until the
 player confirms a place. POST request-guests atomically confirms eligible staff's
 own guests immediately (response approved:true), subject to occupancy, reserved
 places, live role/session and open-game checks. Other players create pending
-requests. Existing confirmed/pending guest places must be cancelled before
-replacement. One to three guests, confirmed sponsor required. No schema change.
+requests, including when the game is full; pending requests do not reserve places.
+Hosts can approve only when capacity is available at approval time. Existing
+confirmed/pending guest places must be cancelled before replacement. One to three
+guests, confirmed sponsor required. No schema change.
 This supersedes historical blanket guest-approval descriptions below.
 
 ## App testing readiness ? November 19, 2026
@@ -215,7 +238,7 @@ Next physical-device/two-account QA: fill group game, join queue, cancel a confi
 
 ## November 18 ? Group game waitlist implemented locally
 
-Approved feature: full group games offer Join waitlist to approved members. FIFO by created_at/player_id; each offer reserves one place for two hours or until start, whichever comes first. Player can accept or leave the queue. Expired offers become inactive and next player is promoted on game/inbox refresh. Cancelling attendance or approved guests refreshes the queue. No email/push or scheduled worker: promotion/expiry refreshes lazily through participation and inbox; do not promise background delivery. Each weekly occurrence has its own queue. Guests are not queued and still require host approval. Other players' identities are not exposed to waiting members.
+Approved feature: full group games offer Join waitlist to approved members. FIFO by created_at/player_id; each offer reserves one place for two hours or until start, whichever comes first. Player can accept or leave the queue. Expired offers become inactive and next player is promoted on game/inbox refresh. Cancelling attendance or approved guests refreshes the queue. No email/push or scheduled worker: promotion/expiry refreshes lazily through participation and inbox; do not promise background delivery. Each weekly occurrence has its own queue. Guests are not queued and follow the current role-based guest policy at the top of this document. Other players' identities are not exposed to waiting members.
 
 Migration 0021_group_game_waitlist.sql adds game_waitlist and reservation-capacity triggers protecting participant INSERT and guest UPDATE. Server rechecks active membership, blocks, declined participation, game state/time, offers and available capacity. Owner cannot join their own waitlist. Waiting player receives position, offer expiry and accept/leave controls. In-app inbox shows only current eligible offers, including membership checks on final response query; read support included. Reserved offers reduce UI availability. Existing group permissions and normal cancellation reasons preserved.
 
@@ -288,6 +311,10 @@ Unlisted direct invitations atomically create recipient-specific access using ex
 Validation: development build passed; 18 invitation backend tests passed, including host scoping, unlisted recipient access, revocation and approval. Four mocked browser checks passed for public/unlisted inline invitations at 375px and 1280px, including exact request payload and no horizontal overflow. Browser evidence is in `.wrangler/qa-audit/inline-invite-browser-final.log`. Physical iOS/Android retest remains necessary. Next: publish this working tree to Preview when requested, then test real two-account invitations and revocation. Dropdown selection fix from the previous task remains included.
 
 # OpenCourts Play Together
+
+## Current guest-request policy — November 23, 2026
+
+This supersedes older guest-policy and rollout notes in this chronological record. In group games, group Owners, Co-owners and Organizers can directly add their own guests and approve/reject other members' guest requests; other group members submit requests. In standalone games, only the host can add guests directly or decide requests. Requests do not reserve places; full-capacity approval leaves them pending and a failed direct addition adds no guests. Role-scoped guest API deployed to feature Preview (`f6939c04`); production unchanged. See `play-together-guests.md` for details.
 
 ### November 18 - Dropdown selection-value audit and direct callbacks published
 
@@ -890,7 +917,7 @@ Public games require organizer approval. Approved group members may join group g
 
 ### Member-brought guests and cancellation decision: November 17, 2026
 
-Members may bring guests attached to their own participation: Sam plus Tom + 1 guest uses 3 places. A guest is not necessarily another account. Member self-joining is immediate for approved group members; guest additions require approval and atomic capacity checks. Guests gain no automatic group membership/private content access. Group-phase counts must sum members plus confirmed guests. Leaving releases the member and all attached guests. Pending and approved participants can cancel; approved cancellation prompts for an OPTIONAL reason. See participation guide for schema/workflow details.
+Members may bring guest places attached to their own participation: Sam plus Tom + 1 guest uses 3 places. A guest is not necessarily another account. Approved members self-join immediately. Group Owner/Co-owner/Organizer can add their own guests directly and decide other group members' requests; standalone guest decisions belong to the host. Guest additions use atomic capacity checks. Guests gain no automatic group membership/private content access. Group-phase counts sum members plus confirmed guests. Leaving releases the member and all attached guests. Pending and approved participants can cancel; approved cancellation prompts for an OPTIONAL reason. See the current policy and participation guide for schema/workflow details.
 
 Host notification decision: notify the host in-app when a player withdraws or cancels, with optional reason and released places. In-app inbox implemented locally; email/push delivery remains unimplemented.
 

@@ -3,13 +3,21 @@
 Local implementation only. Remote migration 0004 and Preview rollout require approval.
 All first-release features are free; production remains untouched.
 
+This is the original Phase 3 participation record. Current guest-role policy and
+rollout status are superseded by the November 23 update in `play-together-guests.md`:
+group Owner/Co-owner/Organizer versus standalone host-only guest decisions.
+
 ## Approved joining policy
 
 Public games require organizer approval. Pending requests do not reserve capacity.
-Approved group members should be able to join group games immediately in the group
-phase; guest participation requires approval. Guests must not bypass existing
-private-group membership/content restrictions. Guest invitations and membership
-approval will be implemented with groups, not as a public/private shortcut now.
+Approved group members can join group games immediately. Guest policy is role-based:
+in group games, the group Owner, Co-owners and Organizers can directly add their own
+guests when eligible and can approve/reject other members' guest requests. Other
+members request guest places. In standalone games, only the game host can directly
+add guests or approve/reject requests. Requests do not reserve capacity; a full-
+capacity approval leaves the request pending and direct-add failure adds no guests.
+Guests never bypass private-group membership/content restrictions and receive no
+group or chat access.
 
 ## Database
 
@@ -75,9 +83,8 @@ Validation complete: development build, 209 unit tests, 32 browser tests and dif
 A guest is an extra place attached to a member's participation, not necessarily
 another OpenCourts account or a group membership request. Example: Sam (organizer)
 = 1 place; Tom with one guest = 2 places; total occupancy = 3. The member selects
-number of guests, subject to remaining capacity and organizer approval. Approved
-group members can join for themselves immediately; guest additions require approval.
-Pending guest additions must not consume confirmed places or block a member's own
+number of guests, subject to remaining capacity and the role-based direct-add/approval
+policy above. Pending guest requests must not consume confirmed places or block a member's own
 confirmed place. The guest receives no private-group content access or membership
 merely by being brought to a game. Do not collect guest email or expose names publicly.
 
@@ -87,7 +94,8 @@ must sum 1 + confirmed_guest_count for each participant. Approval must atomicall
 claim all requested places or fail; never partially approve a party silently.
 Leaving removes the member and all attached guest places in the same transaction.
 Changing or withdrawing guests releases only the affected places. Display names
-should clearly say Tom + 1 guest. No guest implementation is enabled yet in Phase 3.
+should clearly say Tom + 1 guest. Guest places are implemented; see
+`play-together-guests.md` for request, direct-add, role and atomic-capacity behavior.
 
 ## Voluntary cancellation update
 

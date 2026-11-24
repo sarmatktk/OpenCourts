@@ -8,12 +8,12 @@ import { AuthError, assertEnvironment, checkCsrf, checkOrigin, hashToken, json, 
 import { onRequestGet as courtsHandler } from '../api/courts';
 import { findCourtsInCatalog } from './court-catalog';
 import { queryOverpass } from './overpass';
-import { normalizeCourt, enrichNearbyCourtDetails } from '../../src/services';
+import { normalizeCourt, enrichNearbyCourtDetails, groupCourtsByVenue } from '../../src/services';
 import { gameCourtLabel } from './game-court-label';
 import { gameStart } from './game-time';
 
 export type GamesEnv = AuthEnv & { GEOAPIFY_API_KEY?: string };
-type Court = { id:string; name:string; lat:number; lon:number; access:'public'|'unknown' };
+type Court = { id:string; name:string; lat:number; lon:number; access:'public'|'unknown'; courtCount?:number };
 type GameRow = { organizer_id:string;visibility:string;group_id:string|null;group_visibility:string|null; id:string; title:string; court_id:string; court_name:string; court_lat:number; court_lon:number; court_access:string; starts_at:number; ends_at:number; time_zone:string; format:string; series_id:string|null;series_week:number|null;series_weeks:number|null;court_count:number; capacity:number; skill_preference:string; status:string; join_policy:string; notes:string; organizer_name:string; organizer_playing:number; player_count:number };
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail=(message:string):never=>{throw new AuthError(400,message);};
@@ -53,14 +53,19 @@ async function readCourtToken(token:unknown,playerId:string,env:GamesEnv,origin:
 async function courtElements(url:URL,env:GamesEnv):Promise<unknown[]>{
   const request=new Request(`${url.origin}/api/courts?${url.searchParams}`);
   const centerPoint=point(url.searchParams)!;
+  const country=url.searchParams.get('country')?.toLowerCase();
+  const international=Boolean(country&&country!=='us');
   const dlat=.135,dlon=dlat/Math.max(.2,Math.cos(centerPoint.lat*Math.PI/180));
   // Read our isolated catalog first so recently seeded context is not masked by
   // a cached raw-map response. Never contact the production catalog.
-  const catalog=env.COURTS_DB?await findCourtsInCatalog(env.COURTS_DB,{south:centerPoint.lat-dlat,north:centerPoint.lat+dlat,west:centerPoint.lon-dlon,east:centerPoint.lon+dlon}).catch(()=>[]):[];
+  // International searches must use the same country-aware source and provider
+  // fallback as the public Courts search, never the U.S.-oriented D1 shortcut.
+  const catalog=!international&&env.COURTS_DB?await findCourtsInCatalog(env.COURTS_DB,{south:centerPoint.lat-dlat,north:centerPoint.lat+dlat,west:centerPoint.lon-dlon,east:centerPoint.lon+dlon}).catch(()=>[]):[];
   const response=catalog.length?Response.json({elements:catalog}):await courtsHandler({request,env,waitUntil(promise:Promise<unknown>){void promise.catch(()=>{});}} as Parameters<typeof courtsHandler>[0]);
   if(!response.ok)throw new AuthError(503,'Court search is unavailable. Try again shortly.');
   const body=await response.json() as {elements?:unknown[]};
   const elements=Array.isArray(body.elements)?body.elements:[];
+  if(international)return elements;
   const center=point(url.searchParams)!;
   const candidates=elements.map(e=>normalizeCourt(e)).filter(c=>Number.isFinite(c.lat)&&Number.isFinite(c.lon)&&c.access!=='restricted').sort((a,b)=>milesBetween(center,a)-milesBetween(center,b)).slice(0,40);
   const labels=new Map<string,string>();
@@ -88,29 +93,38 @@ async function selectCourts(request:Request,db:AuthDatabase,env:GamesEnv,origin:
   // Fail before expensive map-provider work if court proof signing is unavailable.
   await signingKey(env,origin);
   const raw=await lookup(upstream,env);
-  const courts:Court[]=[];const ids=new Set<string>();
+  const elements:unknown[]=[];const ids=new Set<string>();
   for(const value of raw){
     const e=value as {type?:string;id?:string|number;lat?:number;lon?:number;center?:{lat:number;lon:number};tags?:Record<string,string>};
     const tags=e?.tags??{},lat=e?.lat??e?.center?.lat,lon=e?.lon??e?.center?.lon;
     if(!e||!['node','way','relation'].includes(e.type??'')||!['string','number'].includes(typeof e.id)||!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat!)>90||Math.abs(lon!)>180)continue;
     if(['private','members','member','customers','customer','permit','no','fee'].includes(tags.access)||tags.fee==='yes'||tags.private==='yes'||(tags.membership&&!['no','none','open'].includes(tags.membership)))continue;
     const id=`osm-${e.type}-${e.id}`;if(ids.has(id)||id.length>200)continue;ids.add(id);
-    const name=(tags.name||tags['name:en']||tags['opencourts:nearby_place']||'Tennis courts').replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,200);
-    courts.push({id,name,lat:lat!,lon:lon!,access:['yes','public','permissive'].includes(tags.access)||tags.leisure==='park'?'public':'unknown'});
+    elements.push(value);
   }
-  courts.sort((a,b)=>milesBetween(center,a)-milesBetween(center,b));
-  const signed=await Promise.all(courts.slice(0,40).map(async court=>({...court,distanceMiles:Math.round(milesBetween(center,court)*10)/10,selectionToken:await courtSelectionToken(court,player.id,env,origin)})));
+  const venues=groupCourtsByVenue(elements.map(element=>normalizeCourt(element)).filter(court=>court.access!=='restricted'))
+    .sort((a,b)=>milesBetween(center,a)-milesBetween(center,b)).slice(0,40);
+  const signed=await Promise.all(venues.map(async venue=>{
+    const court:Court={id:venue.id,name:venue.name.slice(0,200),lat:venue.lat,lon:venue.lon,
+      access:venue.access==='public'?'public':'unknown',courtCount:Math.max(1,Math.min(128,venue.courts??1))};
+    return {...court,distanceMiles:Math.round(milesBetween(center,court)*10)/10,selectionToken:await courtSelectionToken(court,player.id,env,origin)};
+  }));
   return json({courts:signed});
 }
 const projection=`g.organizer_id,g.visibility,g.group_id,(SELECT visibility FROM tennis_groups gv WHERE gv.id=g.group_id) AS group_visibility,g.id,g.title,g.court_id,g.court_name,g.court_lat,g.court_lon,g.court_access,g.starts_at,g.ends_at,g.time_zone,g.format,g.series_id,g.series_week,g.series_weeks,g.court_count,COALESCE(g.event_capacity,g.capacity) AS capacity,g.skill_preference,g.status,g.join_policy,g.notes,p.display_name AS organizer_name,EXISTS(SELECT 1 FROM game_participants op WHERE op.game_id=g.id AND op.player_id=g.organizer_id) AS organizer_playing,(SELECT COALESCE(SUM(1+gp.guest_count),0) FROM game_participants gp WHERE gp.game_id=g.id) AS player_count`;
-function gameDto(row:GameRow,detail=false){
-  return {visibility:row.visibility,groupId:row.group_id,groupVisibility:row.group_visibility,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,courtCount:row.court_count,seriesId:row.series_id,seriesWeek:row.series_week,seriesWeeks:row.series_weeks,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{displayName:row.organizer_name},organizerPlaying:!!row.organizer_playing,playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
+function gameDto(row:GameRow,detail=false,includeOrganizerId=false){
+  return {visibility:row.visibility,groupId:row.group_id,groupVisibility:row.group_visibility,id:row.id,title:row.title,court:{id:row.court_id,name:row.court_name,lat:row.court_lat,lon:row.court_lon,access:row.court_access},startsAt:new Date(row.starts_at).toISOString(),endsAt:new Date(row.ends_at).toISOString(),timeZone:row.time_zone,format:row.format,courtCount:row.court_count,seriesId:row.series_id,seriesWeek:row.series_week,seriesWeeks:row.series_weeks,capacity:row.capacity,skillPreference:row.skill_preference,status:row.status,joinPolicy:row.join_policy,organizer:{...(includeOrganizerId?{id:row.organizer_id}:{}),displayName:row.organizer_name},organizerPlaying:!!row.organizer_playing,playerCount:row.player_count,...(detail?{notes:row.notes}:{})};
+}
+function hostDecisionVisibilitySql(game:string,player:string){
+ return `NOT EXISTS(SELECT 1 FROM game_join_requests decision WHERE decision.game_id=${game}.id AND decision.player_id=${player} AND (decision.status='removed' OR (decision.status='rejected' AND NOT EXISTS(SELECT 1 FROM player_game_invitations reinvite WHERE reinvite.game_id=${game}.id AND reinvite.recipient_id=${player} AND reinvite.sender_id=${game}.organizer_id AND reinvite.created_at>decision.updated_at))))`;
 }
 async function getGame(db:AuthDatabase,id:string,playerId:string|null=null){
   if(!UUID.test(id))throw new AuthError(404,'Game not found.');
   // Resolve current group visibility/membership on every request; never infer access from a shared URL.
   const row=await db.prepare(`SELECT ${projection} FROM games g JOIN players p ON p.id=g.organizer_id WHERE g.id=? AND g.visibility IN ('public','group','unlisted') AND p.status='active'`).bind(id).first<GameRow>();
   if(!row||(row.visibility==='unlisted'&&!(await canViewUnlisted(db,id,playerId)))||(row.visibility==='group'&&!(await groupGameAccess(db,row.group_id!,playerId)).canView))throw new AuthError(404,'Game not found.');
+  // A fresh host invitation is the only path that restores access after a declined request.
+  if(playerId&&await db.prepare(`SELECT 1 FROM game_join_requests d WHERE d.game_id=? AND d.player_id=? AND d.status='rejected' AND NOT EXISTS(SELECT 1 FROM player_game_invitations i WHERE i.game_id=d.game_id AND i.recipient_id=d.player_id AND i.sender_id=? AND i.created_at>d.updated_at)`).bind(id,playerId,row.organizer_id).first())throw new AuthError(404,'Game not found.');
   return {...gameDto(row,true),isHost:row.organizer_id===playerId};
 }
 async function feed(request:Request,db:AuthDatabase,origin:string){
@@ -118,8 +132,9 @@ async function feed(request:Request,db:AuthDatabase,origin:string){
  if(!actor.id&&filter!=='all')throw new AuthError(401,'Sign in to see your games and groups.');
  if(groupId&&!(await groupGameAccess(db,groupId,actor.id)).canView)throw new AuthError(404,'Group not found.');
  const after=cursor(url.searchParams.get('cursor'));
- const rows=(await db.prepare(`WITH viewer(id) AS (SELECT ?) SELECT ${projection},t.name AS group_name,EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) AS joined,(SELECT status FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?) AS request_status,g.organizer_id=? AS is_organizer FROM games g JOIN players p ON p.id=g.organizer_id LEFT JOIN tennis_groups t ON t.id=g.group_id WHERE p.status='active' AND g.ends_at>? AND (g.visibility='public' OR (g.visibility='unlisted' AND ${unlistedAccessSql('g','(SELECT id FROM viewer)')}) OR (g.visibility='group' AND ${groupEventViewSql('g','?')})) AND (g.visibility='group' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (?!='groups' OR (g.visibility='group' AND EXISTS(SELECT 1 FROM group_memberships fm WHERE fm.group_id=g.group_id AND fm.player_id=(SELECT id FROM viewer) AND fm.status='active'))) AND (?!='mine' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?)) AND (? IS NULL OR g.group_id=?) AND (g.starts_at>? OR (g.starts_at=? AND g.id>?)) ORDER BY g.starts_at,g.id LIMIT 26`).bind(actor.id,actor.id,actor.id,actor.id,Date.now(),actor.id,actor.id,actor.id,actor.id,filter,filter,actor.id,actor.id,actor.id,groupId,groupId,after[0],after[0],after[1]).all<GameRow&{group_name:string|null;joined:number;request_status:string|null;is_organizer:number}>()).results;
- const shown=rows.slice(0,25);return json({games:shown.map(r=>({...gameDto(r),groupName:r.group_name,joined:!!r.joined,requestStatus:r.request_status,isOrganizer:!!r.is_organizer})),nextCursor:rows.length>25?btoa(JSON.stringify([shown[24].starts_at,shown[24].id])):null});
+ // Feed results are upcoming-only; My Games retains started and completed games in its own history view.
+ const rows=(await db.prepare(`WITH viewer(id) AS (SELECT ?) SELECT ${projection},t.name AS group_name,EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) AS joined,(SELECT status FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=?) AS request_status,g.organizer_id=? AS is_organizer,EXISTS(SELECT 1 FROM game_cancellations c WHERE c.game_id=g.id AND c.player_id=(SELECT id FROM viewer)) AS left_game,EXISTS(SELECT 1 FROM game_notifications n WHERE n.game_id=g.id AND n.actor_id=(SELECT id FROM viewer) AND n.kind='withdrawn') AS withdrew FROM games g JOIN players p ON p.id=g.organizer_id LEFT JOIN tennis_groups t ON t.id=g.group_id WHERE p.status='active' AND g.starts_at>? AND (g.visibility='public' OR (g.visibility='unlisted' AND ${unlistedAccessSql('g','(SELECT id FROM viewer)')}) OR (g.visibility='group' AND ${groupEventViewSql('g','?')})) AND (g.visibility='group' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=? AND r.status='pending') OR EXISTS(SELECT 1 FROM game_cancellations c WHERE c.game_id=g.id AND c.player_id=(SELECT id FROM viewer)) OR EXISTS(SELECT 1 FROM game_notifications n WHERE n.game_id=g.id AND n.actor_id=(SELECT id FROM viewer) AND n.kind='withdrawn') OR EXISTS(SELECT 1 FROM player_game_invitations i WHERE i.game_id=g.id AND i.recipient_id=(SELECT id FROM viewer))) AND ${hostDecisionVisibilitySql('g','(SELECT id FROM viewer)')} AND (?!='groups' OR (g.visibility='group' AND EXISTS(SELECT 1 FROM group_memberships fm WHERE fm.group_id=g.group_id AND fm.player_id=(SELECT id FROM viewer) AND fm.status='active'))) AND (?!='mine' OR g.organizer_id=? OR EXISTS(SELECT 1 FROM game_participants gp WHERE gp.game_id=g.id AND gp.player_id=?) OR EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=g.id AND r.player_id=? AND r.status='pending') OR EXISTS(SELECT 1 FROM game_cancellations c WHERE c.game_id=g.id AND c.player_id=(SELECT id FROM viewer)) OR EXISTS(SELECT 1 FROM game_notifications n WHERE n.game_id=g.id AND n.actor_id=(SELECT id FROM viewer) AND n.kind='withdrawn') OR EXISTS(SELECT 1 FROM player_game_invitations i WHERE i.game_id=g.id AND i.recipient_id=(SELECT id FROM viewer))) AND (? IS NULL OR g.group_id=?) AND (g.starts_at>? OR (g.starts_at=? AND g.id>?)) ORDER BY g.starts_at,g.id LIMIT 26`).bind(actor.id,actor.id,actor.id,actor.id,Date.now(),actor.id,actor.id,actor.id,actor.id,filter,filter,actor.id,actor.id,actor.id,groupId,groupId,after[0],after[0],after[1]).all<GameRow&{group_name:string|null;joined:number;request_status:string|null;is_organizer:number;left_game:number;withdrew:number}>()).results;
+ const shown=rows.slice(0,25);return json({games:shown.map(r=>({...gameDto(r,false,Boolean(actor.id)),groupName:r.group_name,joined:!!r.joined,requestStatus:r.request_status,isOrganizer:!!r.is_organizer,left:!!r.left_game,withdrew:!!r.withdrew})),nextCursor:rows.length>25?btoa(JSON.stringify([shown[24].starts_at,shown[24].id])):null});
 }
 function cursor(value:string|null):[number,string]{
   if(!value)return [0,''];
@@ -133,8 +148,8 @@ async function listGames(url:URL,db:AuthDatabase,actorId:string|null=null){
   if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from||to-from>366*86400_000)return fail('Choose a valid date range.');
   const format=p.get('format')??'any',skill=p.get('skill')??'any';
   if(!['any','singles','doubles'].includes(format)||!['any','beginner','intermediate','advanced'].includes(skill))return fail('Invalid game filter.');
-  const clauses=["(g.visibility='public' OR (g.visibility='group' AND EXISTS(SELECT 1 FROM tennis_groups dt WHERE dt.id=g.group_id AND dt.status='active' AND dt.visibility='public')))","g.status='scheduled'","p.status='active'",'g.starts_at>=?','g.starts_at<?'];const values:unknown[]=[Math.max(from,Date.now()),to];
-  if(actorId){clauses.push('NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=? AND b.blocked_id=g.organizer_id) OR (b.blocker_id=g.organizer_id AND b.blocked_id=?))');values.push(actorId,actorId);}
+  const clauses=["g.visibility='public'","g.status='scheduled'","p.status='active'",'g.starts_at>=?','g.starts_at<?'];const values:unknown[]=[Math.max(from,Date.now()),to];
+  if(actorId){clauses.push('NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=? AND b.blocked_id=g.organizer_id) OR (b.blocker_id=g.organizer_id AND b.blocked_id=?))');values.push(actorId,actorId);clauses.push(hostDecisionVisibilitySql('g','?'));values.push(actorId,actorId);}
   if(format!=='any'){clauses.push('g.format=?');values.push(format);}
   if(skill!=='any'){clauses.push("g.skill_preference IN ('any',?)");values.push(skill);}
   if(center){
@@ -223,5 +238,11 @@ export async function handleGames(request:Request,env:GamesEnv,lookup= courtElem
     if(path==='courts'&&request.method==='GET')return await selectCourts(request,db,env,origin,lookup);
     if(UUID.test(path)&&request.method==='GET')return json({game:await getGame(db,path,(await session(request,db,origin))?.id??null)});
     return json({error:'Not found.'},404);
-  }catch(error){return json({error:error instanceof AuthError?error.message:'Game service is unavailable. Please try again.'},error instanceof AuthError?error.status:503);}
+  }catch(error){
+    if(new URL(request.url).hostname==='feature-play-together.opencourts.pages.dev'){
+      const path=new URL(request.url).pathname.replace(/^\/api\/games\/?/,'')||'list';
+      console.error(`[Play Together] ${request.method} /api/games/${path} failed:`,error instanceof Error?`${error.name}: ${error.message}`:String(error));
+    }
+    return json({error:error instanceof AuthError?error.message:'Game service is unavailable. Please try again.'},error instanceof AuthError?error.status:503);
+  }
 }

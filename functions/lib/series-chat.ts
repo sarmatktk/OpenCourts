@@ -21,6 +21,9 @@ export function seriesChatAccessSql(g:string,p:string,now:string){return `(
    OR EXISTS(SELECT 1 FROM games sg JOIN game_participants cp ON cp.game_id=sg.id
      WHERE sg.series_id=${g}.series_id AND sg.group_id=${g}.group_id AND sg.visibility='group'
      AND sg.status='scheduled' AND cp.player_id=${p} AND sg.ends_at>${now}-2592000000)
+   OR EXISTS(SELECT 1 FROM games sg JOIN game_chat_capacity_access caa ON caa.game_id=sg.id
+     WHERE sg.series_id=${g}.series_id AND sg.group_id=${g}.group_id AND sg.visibility='group'
+     AND caa.player_id=${p})
  )))
  )`;}
 
@@ -34,7 +37,8 @@ export async function maintainSeriesChat(db:AuthDatabase,now:number,seriesId:str
     NOT EXISTS(SELECT 1 FROM series_chat_threads t JOIN tennis_groups tg ON tg.id=t.group_id JOIN group_memberships gm ON gm.group_id=t.group_id WHERE t.id=series_chat_members.series_id AND tg.status='active' AND gm.player_id=series_chat_members.player_id AND gm.status='active')
     OR (joined_at<=?-2592000000 AND last_message_at<=?-2592000000
      AND NOT EXISTS(SELECT 1 FROM game_chat_context g WHERE g.series_id=series_chat_members.series_id AND ${seriesChatStaffSql('g','series_chat_members.player_id')})
-     AND NOT EXISTS(SELECT 1 FROM games sg JOIN game_participants cp ON cp.game_id=sg.id WHERE sg.series_id=series_chat_members.series_id AND cp.player_id=series_chat_members.player_id AND sg.status='scheduled' AND sg.ends_at>?-2592000000))
+     AND NOT EXISTS(SELECT 1 FROM games sg JOIN game_participants cp ON cp.game_id=sg.id WHERE sg.series_id=series_chat_members.series_id AND cp.player_id=series_chat_members.player_id AND sg.status='scheduled' AND sg.ends_at>?-2592000000)
+     AND NOT EXISTS(SELECT 1 FROM games sg JOIN game_chat_capacity_access caa ON caa.game_id=sg.id WHERE sg.series_id=series_chat_members.series_id AND caa.player_id=series_chat_members.player_id))
    )`).bind(now,seriesId,seriesId,now,now,now),
   db.prepare(`DELETE FROM game_chat_messages WHERE created_at<=? AND game_id LIKE 'series:%' AND (? IS NULL OR game_id='series:'||?)
    AND game_id IN(SELECT game_id FROM game_chat_rooms WHERE legal_hold=0)`).bind(now-CHAT_DAYS,seriesId,seriesId)

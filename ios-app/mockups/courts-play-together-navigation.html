@@ -1,0 +1,179 @@
+<div id="oc-navigation-concept" aria-label="OpenCourts navigation concept">
+  <style>
+    #oc-navigation-concept {
+      --oc-ink: light-dark(#17231d, #f0f5f1);
+      --oc-muted: light-dark(#7c8981, #9daaa2);
+      --oc-bg: light-dark(#f1f2f7, #171c19);
+      --oc-surface: light-dark(#ffffff, #242b27);
+      --oc-soft: light-dark(#eef4ef, #29362e);
+      --oc-line: light-dark(#dfe5e0, #3b4940);
+      --oc-green: light-dark(#356d4b, #9bd2a8);
+      --oc-map: light-dark(#e8efdf, #344337);
+      color: var(--oc-ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      display: grid;
+      justify-items: center;
+      padding: 8px 0 16px;
+    }
+    #oc-navigation-concept * { box-sizing: border-box; }
+    #oc-navigation-concept .phone {
+      width: min(100%, 360px);
+      min-height: 700px;
+      padding: 10px;
+      border: 1px solid var(--oc-line);
+      border-radius: 38px;
+      background: var(--oc-bg);
+      box-shadow: 0 16px 48px #15231c24;
+      overflow: hidden;
+    }
+    #oc-navigation-concept .screen {
+      min-height: 678px;
+      display: grid;
+      grid-template-rows: 28px 56px 1fr 76px;
+      gap: 8px;
+      border-radius: 29px;
+      overflow: hidden;
+      background: var(--oc-bg);
+    }
+    #oc-navigation-concept .status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 16px 0;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    #oc-navigation-concept .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 10px;
+    }
+    #oc-navigation-concept .topbar h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.35px; }
+    #oc-navigation-concept .top-actions { display: flex; gap: 10px; justify-self: end; align-items: center; }
+    #oc-navigation-concept .top-actions button {
+      width: 38px; height: 38px; display: grid; place-items: center;
+      color: var(--oc-green); background: var(--oc-surface); border: 1px solid var(--oc-line);
+      border-radius: 50%;
+    }
+    #oc-navigation-concept .avatar { width: 34px !important; height: 34px !important; border-radius: 50%; background: var(--oc-soft) !important; color: var(--oc-green); font-weight: 600; }
+    #oc-navigation-concept .content { min-height: 0; overflow: hidden; padding: 2px 10px 4px; display: flex; flex-direction: column; gap: 10px; }
+    #oc-navigation-concept .subnav {
+      display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; padding: 3px 0 5px;
+    }
+    #oc-navigation-concept .subnav::-webkit-scrollbar { display: none; }
+    #oc-navigation-concept .subnav button {
+      flex: 0 0 auto; border: 0; border-radius: 16px; padding: 8px 11px;
+      background: transparent; color: var(--oc-muted); font-size: 12px; font-weight: 500;
+    }
+    #oc-navigation-concept .subnav button.active { color: var(--oc-green); background: var(--oc-soft); }
+    #oc-navigation-concept .context {
+      display: flex; align-items: center; gap: 10px; padding: 11px 13px;
+      border-radius: 16px; background: var(--oc-surface);
+    }
+    #oc-navigation-concept .pin { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; background: var(--oc-soft); color: var(--oc-green); }
+    #oc-navigation-concept .context strong { font-size: 14px; display: block; font-weight: 600; }
+    #oc-navigation-concept .context small { color: var(--oc-muted); font-size: 11px; display: block; margin-top: 2px; }
+    #oc-navigation-concept .map {
+      min-height: 300px; flex: 1; position: relative; overflow: hidden;
+      border-radius: 22px; background: var(--oc-map);
+      background-image: linear-gradient(30deg, transparent 48%, #ffffff70 49%, #ffffff70 50%, transparent 51%), linear-gradient(115deg, transparent 48%, #ffffff8a 49%, #ffffff8a 51%, transparent 52%), linear-gradient(75deg, transparent 62%, #cce3b9 63%, #cce3b9 75%, transparent 76%);
+      background-size: 150px 130px, 190px 160px, 100% 100%;
+    }
+    #oc-navigation-concept .map:before, #oc-navigation-concept .map:after { content: ""; position: absolute; width: 130%; height: 12px; background: #c8d0c7; border: 2px solid #f8faf6; transform: rotate(-15deg); left: -15%; top: 52%; }
+    #oc-navigation-concept .map:after { transform: rotate(42deg); top: 32%; opacity: .8; }
+    #oc-navigation-concept .map-label { position: absolute; z-index: 1; color: #66756a; font-size: 10px; font-weight: 500; }
+    #oc-navigation-concept .court-pin { position: absolute; z-index: 2; width: 31px; height: 31px; display: grid; place-items: center; border-radius: 50%; background: var(--oc-surface); color: var(--oc-green); box-shadow: 0 3px 9px #13241b38; font-size: 15px; }
+    #oc-navigation-concept .court-pin.selected { background: #356d4b; color: white; }
+    #oc-navigation-concept .legend { position: absolute; z-index: 3; top: 10px; left: 10px; right: 10px; padding: 9px 11px; border-radius: 15px; background: color-mix(in srgb, var(--oc-surface) 92%, transparent); font-size: 10px; font-weight: 500; display: flex; justify-content: space-around; color: var(--oc-ink); }
+    #oc-navigation-concept .section-title { margin: 1px 0 0; font-size: 17px; font-weight: 600; }
+    #oc-navigation-concept .feed-card { background: var(--oc-surface); border-radius: 18px; padding: 14px; }
+    #oc-navigation-concept .eyebrow { font-size: 10px; color: var(--oc-muted); margin-bottom: 6px; }
+    #oc-navigation-concept .game-title { font-size: 16px; font-weight: 600; margin: 0 0 5px; }
+    #oc-navigation-concept .detail { color: var(--oc-muted); font-size: 12px; line-height: 1.5; }
+    #oc-navigation-concept .disclaimer { font-size: 11px; color: var(--oc-muted); margin: 0; padding: 2px 3px; }
+    #oc-navigation-concept .bottom {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center;
+      margin: 0 3px 4px; padding: 6px; border: 1px solid var(--oc-line);
+      border-radius: 24px; background: color-mix(in srgb, var(--oc-surface) 88%, transparent);
+      box-shadow: 0 5px 18px #15231c12;
+    }
+    #oc-navigation-concept .bottom button {
+      border: 0; background: transparent; color: var(--oc-muted); border-radius: 18px;
+      min-height: 58px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      gap: 3px; font-size: 11px; font-weight: 500;
+    }
+    #oc-navigation-concept .bottom button.active { background: var(--oc-soft); color: var(--oc-green); }
+    #oc-navigation-concept .bottom button i { width: 19px; height: 19px; }
+    #oc-navigation-concept button { font: inherit; }
+    @media (max-width: 380px) { #oc-navigation-concept .phone { min-height: 660px; } #oc-navigation-concept .screen { min-height: 638px; } }
+  </style>
+  <div class="phone">
+    <div class="screen">
+      <div class="status"><span>9:41</span><span>•••　◉　▰</span></div>
+      <header class="topbar">
+        <span></span><h2 id="oc-title">Courts</h2>
+        <div class="top-actions" id="oc-actions"></div>
+      </header>
+      <main class="content">
+        <nav class="subnav" id="oc-subnav" aria-label="Courts sections"></nav>
+        <div id="oc-panel" style="display:flex; flex-direction:column; gap:10px; flex:1; min-height:0;"></div>
+      </main>
+      <nav class="bottom" role="tablist" aria-label="Main destinations">
+        <button id="oc-courts-tab" class="cursor-interaction active" role="tab" aria-selected="true" type="button"><i data-lucide="map" aria-hidden="true"></i><span>Courts</span></button>
+        <button id="oc-play-tab" class="cursor-interaction" role="tab" aria-selected="false" type="button"><i data-lucide="users-round" aria-hidden="true"></i><span>Play Together</span></button>
+      </nav>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById("oc-navigation-concept");
+      const title = root.querySelector("#oc-title");
+      const actions = root.querySelector("#oc-actions");
+      const subnav = root.querySelector("#oc-subnav");
+      const panel = root.querySelector("#oc-panel");
+      const courtsTab = root.querySelector("#oc-courts-tab");
+      const playTab = root.querySelector("#oc-play-tab");
+      let destination = "courts";
+      let courtSection = "Map";
+      let playSection = "Feed";
+      const courtSections = ["Map", "Courts", "Search", "Dry Courts", "Weather"];
+      const playSections = ["Feed", "Find Games", "My Games", "Groups", "Players"];
+      const icon = (name) => '<i data-lucide="' + name + '" aria-hidden="true"></i>';
+      function render() {
+        const isCourts = destination === "courts";
+        const items = isCourts ? courtSections : playSections;
+        const selected = isCourts ? courtSection : playSection;
+        title.textContent = isCourts ? "Courts" : "Play Together";
+        actions.innerHTML = isCourts
+          ? '<button class="cursor-interaction avatar" aria-label="Open account">A</button>'
+          : '<button class="cursor-interaction" aria-label="Notifications">' + icon("bell") + '</button><button class="cursor-interaction avatar" aria-label="Open account">A</button>';
+        subnav.setAttribute("aria-label", isCourts ? "Courts sections" : "Play Together sections");
+        subnav.innerHTML = items.map((item) => '<button type="button" class="cursor-interaction ' + (item === selected ? "active" : "") + '" aria-pressed="' + (item === selected) + '" data-section="' + item + '">' + item + '</button>').join("");
+        courtsTab.classList.toggle("active", isCourts);
+        playTab.classList.toggle("active", !isCourts);
+        courtsTab.setAttribute("aria-selected", String(isCourts));
+        playTab.setAttribute("aria-selected", String(!isCourts));
+        if (isCourts && selected === "Map") {
+          panel.innerHTML = '<div class="context"><div class="pin">' + icon("map-pin") + '</div><div><strong>Fairfax, Virginia</strong><small>476 courts nearby</small></div></div><div class="map" role="img" aria-label="Map preview with nearby tennis courts"><div class="legend">● Lighted　 ◌ Unlighted　 ● Unknown</div><span class="map-label" style="top:39%;left:13%">Fairfax</span><span class="map-label" style="top:70%;left:54%">George Mason University</span><span class="court-pin" style="top:27%;left:23%">◉</span><span class="court-pin" style="top:44%;left:65%">◉</span><span class="court-pin selected" style="top:59%;left:45%">◉</span><span class="court-pin" style="top:73%;left:24%">◉</span><span class="court-pin" style="top:78%;left:78%">◉</span><span class="court-pin" style="top:34%;left:82%">◉</span></div>';
+        } else if (isCourts) {
+          panel.innerHTML = '<h3 class="section-title">' + selected + '</h3><div class="feed-card"><p class="game-title">Explore nearby courts</p><div class="detail">Browse court details, surface, lighting and current conditions.</div></div>';
+        } else {
+          const group = selected === "Feed" || selected === "Groups";
+          panel.innerHTML = '<h3 class="section-title">' + (selected === "Feed" ? "Upcoming games" : selected) + '</h3><div class="feed-card">' + (group ? '<div class="eyebrow">YOUR GROUPS</div><p class="game-title">Reston Tennis</p><div class="detail">Local players · Find a game or manage your group</div>' : '<div class="eyebrow">OPEN GAME</div><p class="game-title">Saturday game</p><div class="detail">Tue, Nov 24 · Fair Woods Park<br>1 / 2 places · Singles</div>') + '</div><p class="disclaimer">Games do not reserve courts.</p>';
+        }
+        if (globalThis.lucide) globalThis.lucide.createIcons({ attrs: { width: 18, height: 18 } });
+      }
+      subnav.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-section]");
+        if (!button) return;
+        if (destination === "courts") courtSection = button.dataset.section;
+        else playSection = button.dataset.section;
+        render();
+      });
+      courtsTab.addEventListener("click", () => { destination = "courts"; render(); });
+      playTab.addEventListener("click", () => { destination = "play"; render(); });
+      render();
+    })();
+  </script>
+</div>

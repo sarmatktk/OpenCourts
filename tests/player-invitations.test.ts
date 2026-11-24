@@ -21,6 +21,83 @@ function game(visibility='public',owner='host',offset=86400000){const id=crypto.
 const send=(id:string,target='target',who='host',csrf='csrf')=>handlePlayers(request('players/invite-game',who,'POST',{gameId:id,playerId:target},csrf),env);
 const inbox=async(who='target')=>(await(await handleGames(request('games/notifications',who),env)).json()).notifications;
 
+function nativeInvitationCall(path:string,who='host',body?:unknown){
+ const r=new Request(origin+'/api/'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Authorization:'Bearer '+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ return path.startsWith('players/')?handlePlayers(r,env):handleGames(r,env);
+}
+function groupInviteFixture(visibility:string){
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const id=game('group');
+ db.sqlite.prepare("UPDATE games SET join_policy='instant' WHERE id=?").run(id);
+ db.sqlite.prepare('UPDATE tennis_groups SET visibility=? WHERE id=?').run(visibility,'private-group');
+ for(const who of ['target','hidden'])db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group',?,'member','active',?,?)").run(who,Date.now(),Date.now());
+ return id;
+}
+
+it.each(['public','private'])('native %s group invite search lists only eligible approved members and preserves member joining',async visibility=>{
+ const id=groupInviteFixture(visibility),path='players/game-invitees?gameId='+id;
+ for(const status of ['pending','rejected','removed','left']){
+  db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group','other','member',?,?,?) ON CONFLICT(group_id,player_id) DO UPDATE SET status=excluded.status").run(status,Date.now(),Date.now());
+  const picker=await nativeInvitationCall(path);expect(picker.status).toBe(200);
+  expect((await picker.json()).players.map((p:any)=>p.id)).toEqual(['target']);
+ }
+ db.sqlite.prepare("DELETE FROM group_memberships WHERE player_id='other'").run();
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'other'})).status).toBe(404);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(200);
+ const refreshed=await(await nativeInvitationCall(path)).json();expect(refreshed.invitationCount).toBe(1);expect(refreshed.players[0].invited).toBe(1);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(1);
+ expect((await nativeInvitationCall('games/'+id+'/join','target',{})).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_join_requests WHERE game_id=?').get(id).n).toBe(0);
+ expect((await(await nativeInvitationCall(path)).json()).players).toEqual([]);
+});
+
+it.each(['public','private'])('native %s group search and send recheck recipient membership and both block directions',async visibility=>{
+ const id=groupInviteFixture(visibility),path='players/game-invitees?gameId='+id;
+ expect((await(await nativeInvitationCall(path)).json()).players).toHaveLength(1);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='target'").run();
+ expect((await(await nativeInvitationCall(path)).json()).players).toEqual([]);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='target'").run();
+ for(const [a,b] of [['host','target'],['target','host']]){
+  db.sqlite.prepare('INSERT INTO player_blocks VALUES (?,?,?)').run(a,b,Date.now());
+  expect((await(await nativeInvitationCall(path)).json()).players).toEqual([]);
+  expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+  db.sqlite.prepare('DELETE FROM player_blocks').run();
+ }
+ db.sqlite.prepare("UPDATE players SET status='disabled' WHERE id='target'").run();
+ expect((await(await nativeInvitationCall(path)).json()).players).toEqual([]);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+});
+
+it.each(['public','private'])('native %s group invite search denies non-hosts, lost host membership and archive races',async visibility=>{
+ const id=groupInviteFixture(visibility),path='players/game-invitees?gameId='+id;
+ expect((await nativeInvitationCall(path,'target')).status).toBe(404);
+ expect((await nativeInvitationCall(path,'other')).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='host'").run();
+ expect((await nativeInvitationCall(path)).status).toBe(404);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='host'").run();
+ db.sqlite.prepare("UPDATE tennis_groups SET status='archived'").run();
+ expect((await nativeInvitationCall(path)).status).toBe(404);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM player_game_invitations').get().n).toBe(0);
+});
+
+it.each(['public','private'])('native %s group picker respects capacity and clears inbox access after membership loss',async visibility=>{
+ const id=groupInviteFixture(visibility),path='players/game-invitees?gameId='+id;
+ db.sqlite.prepare('UPDATE game_participants SET guest_count=3 WHERE game_id=?').run(id);
+ expect((await(await nativeInvitationCall(path)).json()).players).toEqual([]);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(404);
+ db.sqlite.prepare('UPDATE game_participants SET guest_count=0 WHERE game_id=?').run(id);
+ expect((await nativeInvitationCall('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(200);
+ expect((await(await nativeInvitationCall('games/notifications','target')).json()).notifications.some((n:any)=>n.gameId===id)).toBe(true);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='target'").run();
+ expect((await(await nativeInvitationCall('games/notifications','target')).json()).notifications.some((n:any)=>n.gameId===id)).toBe(false);
+ expect((await nativeInvitationCall('games/'+id,'target')).status).toBe(404);
+ expect((await nativeInvitationCall('games/'+id+'/join','target',{})).status).toBe(404);
+});
+
 it('excludes the signed-in account from discovery and explains rejected self-invitations',async()=>{
  const id=game();const search=await handlePlayers(request('players?q=QA'),env);const data=await search.json();expect(data.viewerId).toBe('host');expect(data.players.some((p:{id:string})=>p.id==='host')).toBe(false);
  const choices=await handlePlayers(request('players/invitable-games?playerId=host'),env);expect((await choices.json()).games).toEqual([]);
@@ -127,10 +204,43 @@ it('inline invite searches accept expanded general locality terms instead of an 
  const data=await gameInvitees(db,'host',id,'22033',['22033','Fairfax']);expect(data.players.map((p:any)=>p.id)).toContain('target');
 });
 
-it('public group hosts can invite outsiders without granting membership or private access',async()=>{
+it('public group games reject outsider invitations until membership approval',async()=>{
  const id=game('group');db.sqlite.prepare("UPDATE tennis_groups SET visibility='public' WHERE id='private-group'").run();
- expect((await send(id)).status).toBe(200);expect((await inbox()).some((n:any)=>n.gameId===id)).toBe(true);
- expect((await handleGames(request('games/'+id+'/join','target','POST',{}),env)).status).toBe(200);
- expect(db.sqlite.prepare('SELECT 1 FROM group_memberships WHERE player_id=?').get('target')).toBeUndefined();
- db.sqlite.prepare("UPDATE tennis_groups SET visibility='private' WHERE id='private-group'").run();expect((await inbox()).some((n:any)=>n.gameId===id)).toBe(false);expect((await handleGames(request('games/'+id,'target'),env)).status).toBe(404);
+ expect((await send(id)).status).toBe(404);expect((await inbox()).some((n:any)=>n.gameId===id)).toBe(false);
+ expect((await handleGames(request('games/'+id+'/join','target','POST',{}),env)).status).toBe(404);
+ db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group','target','member','active',?,?)").run(Date.now(),Date.now());
+ expect((await send(id)).status).toBe(200);
+ expect((await inbox()).some((n:any)=>n.gameId===id)).toBe(true);
+});
+
+it('native bearer invitation search, recipient inbox and read state preserve approval and revocation rules',async()=>{
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const call=(path:string,who='host',body?:unknown,csrf='csrf')=>{
+  const r=new Request(origin+'/api/'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Authorization:'Bearer '+tokens[who],'X-CSRF-Token':csrf,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  return path.startsWith('players/')?handlePlayers(r,env):handleGames(r,env);
+ };
+ const id=game('unlisted');
+ const picker=await call('players/game-invitees?gameId='+id);expect(picker.status).toBe(200);expect((await picker.json()).invitationCount).toBe(0);
+ expect((await call('players/invite-game','host',{gameId:id,playerId:'target'},'wrong')).status).toBe(403);
+ expect((await call('players/invite-game','host',{gameId:id,playerId:'target'})).status).toBe(200);
+ const refreshed=await(await call('players/game-invitees?gameId='+id)).json();expect(refreshed.invitationCount).toBe(1);expect(refreshed.players.find((p:any)=>p.id==='target').invited).toBe(1);
+ const notes=(await(await call('games/notifications','target')).json()).notifications;const note=notes.find((n:any)=>n.kind==='game_invited');expect(note).toMatchObject({gameId:id,invitationStatus:'available',readAt:null});
+ await call('games/notifications/read','other',{id:note.id});expect(db.sqlite.prepare('SELECT read_at FROM player_game_invitations').get().read_at).toBeNull();
+ await call('games/notifications/read','target',{id:note.id});expect(db.sqlite.prepare('SELECT read_at FROM player_game_invitations').get().read_at).toBeTypeOf('number');
+ expect((await call('games/'+id+'/join','target',{})).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(1);
+ expect((await call('games/'+id+'/share-links','target')).status).toBe(404);
+ const links=(await(await call('games/'+id+'/share-links')).json()).links;expect(links[0].recipientName).toBe('QA target');
+ expect((await call('games/'+id+'/revoke-link','host',{linkId:links[0].id})).status).toBe(200);
+ expect((await call('games/'+id,'target')).status).toBe(404);expect((await(await call('games/notifications','target')).json()).notifications.some((n:any)=>n.gameId===id)).toBe(false);
+});
+
+it('native forwardable links grant viewing access only and honor expiry and revocation',async()=>{
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const call=(path:string,who='host',body?:unknown)=>handleGames(new Request(origin+'/api/games/'+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,Authorization:'Bearer '+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);
+ const id=game('unlisted');const response=await call(id+'/share-links','host',{expiresInDays:7});expect(response.status).toBe(201);const link=await response.json();const token=new URL(link.url).hash.slice(1);
+ expect((await call('invitation-accept','target',{token})).status).toBe(200);expect((await call('invitation-accept','target',{token})).status).toBe(200);
+ expect((await call(id,'target')).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(1);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_join_requests WHERE game_id=?').get(id).n).toBe(0);
+ expect((await call(id,'other')).status).toBe(404);
+ await call(id+'/revoke-link','host',{linkId:link.id});expect((await call('invitation-accept','other',{token})).status).toBe(404);expect((await call(id,'target')).status).toBe(404);
+ const second=await(await call(id+'/share-links','host',{expiresInDays:1})).json();db.sqlite.prepare('UPDATE game_invitation_links SET expires_at=? WHERE id=?').run(Date.now()-1,second.id);expect((await call('invitation-accept','target',{token:new URL(second.url).hash.slice(1)})).status).toBe(404);
 });

@@ -3,14 +3,15 @@ import {AuthError,checkOrigin,checkCsrf,json,readJson,requireSession,session,typ
 const DAY=86400000;
 // Aliases/expressions are constants supplied by source code, never user input.
 export function chatAccessSql(g:string,p:string,now:string){return `(${seriesChatAccessSql(g,p,now)} OR (${g}.series_id IS NULL AND (
- (${g}.visibility!='group' OR EXISTS(SELECT 1 FROM tennis_groups cg WHERE cg.id=${g}.group_id AND cg.status='active' AND (cg.visibility='public' OR EXISTS(SELECT 1 FROM group_memberships cm WHERE cm.group_id=cg.id AND cm.player_id=${p} AND cm.status='active'))))
+ (${g}.visibility!='group' OR EXISTS(SELECT 1 FROM tennis_groups cg WHERE cg.id=${g}.group_id AND cg.status='active' AND EXISTS(SELECT 1 FROM group_memberships cm WHERE cm.group_id=cg.id AND cm.player_id=${p} AND cm.status='active')))
  AND NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=${p} AND b.blocked_id=${g}.organizer_id) OR (b.blocker_id=${g}.organizer_id AND b.blocked_id=${p}))
- AND (${g}.organizer_id=${p} OR (NOT EXISTS(SELECT 1 FROM game_chat_exclusions x WHERE x.game_id=${g}.id AND x.player_id=${p}) AND NOT EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=${g}.id AND r.player_id=${p} AND r.status IN ('rejected','removed')) AND (
+ AND (${g}.organizer_id=${p} OR (NOT EXISTS(SELECT 1 FROM game_chat_exclusions x WHERE x.game_id=${g}.id AND x.player_id=${p}) OR EXISTS(SELECT 1 FROM game_chat_capacity_access caa WHERE caa.game_id=${g}.id AND caa.player_id=${p})) AND NOT EXISTS(SELECT 1 FROM game_join_requests r WHERE r.game_id=${g}.id AND r.player_id=${p} AND r.status IN ('rejected','removed')) AND (
  EXISTS(SELECT 1 FROM game_participants cp WHERE cp.game_id=${g}.id AND cp.player_id=${p})
+ OR EXISTS(SELECT 1 FROM game_chat_capacity_access caa WHERE caa.game_id=${g}.id AND caa.player_id=${p})
  OR EXISTS(SELECT 1 FROM player_game_invitations ci WHERE ci.game_id=${g}.id AND ci.recipient_id=${p} AND ci.created_at+604800000>${now} AND ${g}.starts_at>${now} AND (${g}.visibility!='unlisted' OR EXISTS(SELECT 1 FROM game_invitation_links cl WHERE cl.id=ci.id AND cl.revoked_at IS NULL AND cl.expires_at>${now})))
  OR EXISTS(SELECT 1 FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE ca.player_id=${p} AND cl.game_id=${g}.id AND cl.revoked_at IS NULL AND cl.expires_at>${now} AND ${g}.starts_at>${now})
- )))
- )))`;} 
+  )))
+ ))`;}
 const live=`EXISTS(SELECT 1 FROM auth_sessions s JOIN players ap ON ap.id=s.player_id WHERE s.token_hash=c.token AND s.player_id=c.actor AND s.revoked_at IS NULL AND s.expires_at>c.now AND ap.status='active')`;
 const visible=`NOT EXISTS(SELECT 1 FROM player_blocks b WHERE (b.blocker_id=c.actor AND b.blocked_id=m.author_id) OR (b.blocker_id=m.author_id AND b.blocked_id=c.actor))`;
 const expiry='CASE WHEN g.series_id IS NOT NULL THEN MAX(g.chat_expiry,c.now+2592000000) ELSE g.chat_expiry END';
@@ -35,7 +36,7 @@ export async function gameChat(request:Request,db:AuthDatabase,origin:string,pat
  const game=await db.prepare(`WITH c AS(SELECT ? AS actor,? AS now) SELECT g.*,${expiry} AS chatExpiry,${chatAccessSql('g','c.actor','c.now')} AS allowed FROM game_chat_context g CROSS JOIN c WHERE g.id=?`).bind(actor.id,now,id).first<{visibility:string;status:string;ends_at:number;chatExpiry:number;allowed:number;series_id:string|null;route_game_id:string}>();
  if(!game)throw new AuthError(404,'Game not found.');
  if(!game.allowed&&game.visibility!=='public')throw new AuthError(404,'Game chat unavailable.');
- if(!game.allowed)return request.method==='GET'?json({available:false,notice:'Chat is available to the organizer, valid invitees and confirmed players with current game access.'}):json({error:'You no longer have access to this game chat.'},403);
+ if(!game.allowed)return request.method==='GET'?json({available:false,notice:'Chat is available to the organizer, valid invitees, confirmed players and players moved to the waitlist after confirmation.'}):json({error:'You no longer have access to this game chat.'},403);
  if(game.chatExpiry<=now){await cleanupChat(db,now);if(request.method!=='GET')throw new AuthError(409,'This conversation has expired.');return json({available:true,expired:true,canSend:false,expiresAt:game.chatExpiry,messages:[],unread:0});}
  const canSend=game.status==='scheduled'&&(game.series_id!==null||now<game.ends_at+DAY)&&Boolean(actor.display_name.trim());
  const base=[actor.id,now,actor.token_hash,id];
@@ -51,7 +52,7 @@ export async function gameChat(request:Request,db:AuthDatabase,origin:string,pat
    JOIN group_memberships members ON members.group_id=g.group_id AND members.status='active'
    JOIN players p ON p.id=members.player_id AND p.status='active' CROSS JOIN c
    WHERE g.id=? AND ${seriesChatAccessSql('g','p.id','c.now')} ORDER BY CASE WHEN p.id=g.organizer_id THEN 0 ELSE 1 END,lower(p.display_name),p.id`
-   :`WITH c AS(SELECT ? AS now) SELECT p.id,p.display_name AS displayName,CASE WHEN p.id=g.organizer_id THEN 'organizer' WHEN EXISTS(SELECT 1 FROM game_participants cp WHERE cp.game_id=g.id AND cp.player_id=p.id) THEN 'player' ELSE 'invitee' END AS role FROM game_chat_context g CROSS JOIN c JOIN players p ON p.status='active' AND p.id IN(SELECT g.organizer_id UNION SELECT cp.player_id FROM game_participants cp WHERE cp.game_id=g.id UNION SELECT ci.recipient_id FROM player_game_invitations ci WHERE ci.game_id=g.id UNION SELECT ca.player_id FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE cl.game_id=g.id) WHERE g.id=? AND ${chatAccessSql('g','p.id','c.now')} ORDER BY CASE WHEN p.id=g.organizer_id THEN 0 ELSE 1 END,lower(p.display_name),p.id`;
+   :`WITH c AS(SELECT ? AS now) SELECT p.id,p.display_name AS displayName,CASE WHEN p.id=g.organizer_id THEN 'organizer' WHEN EXISTS(SELECT 1 FROM game_participants cp WHERE cp.game_id=g.id AND cp.player_id=p.id) OR EXISTS(SELECT 1 FROM game_chat_capacity_access caa WHERE caa.game_id=g.id AND caa.player_id=p.id) THEN 'player' ELSE 'invitee' END AS role FROM game_chat_context g CROSS JOIN c JOIN players p ON p.status='active' AND p.id IN(SELECT g.organizer_id UNION SELECT cp.player_id FROM game_participants cp WHERE cp.game_id=g.id UNION SELECT caa.player_id FROM game_chat_capacity_access caa WHERE caa.game_id=g.id UNION SELECT ci.recipient_id FROM player_game_invitations ci WHERE ci.game_id=g.id UNION SELECT ca.player_id FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE cl.game_id=g.id) WHERE g.id=? AND ${chatAccessSql('g','p.id','c.now')} ORDER BY CASE WHEN p.id=g.organizer_id THEN 0 ELSE 1 END,lower(p.display_name),p.id`;
   const audience=params.get('state')==='1'?[]:(await db.prepare(audienceSql).bind(now,id).all()).results;
   return json({available:true,expired:false,canSend,audience,expiresAt:game.chatExpiry,closesAt:game.series_id?game.chatExpiry:game.ends_at+DAY,series:!!game.series_id,roomId:id,muted:!!rd?.muted,unread:unread?.n??0,messages:messages.slice(0,50).reverse(),hasOlder:messages.length>50,viewerId:actor.id});
  }
@@ -72,7 +73,7 @@ export async function gameChat(request:Request,db:AuthDatabase,origin:string,pat
  if(!canSend)throw new AuthError(409,'Chat is read-only. A display name is required to send messages.');
  if(!text(body.body,2000)||typeof body.clientId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.clientId))throw new AuthError(400,'Enter a message of up to 2000 characters.');
  const previous=await db.prepare('SELECT id,seq,body FROM game_chat_messages WHERE game_id=? AND author_id=? AND client_id=?').bind(id,actor.id,body.clientId).first<{id:string;seq:number;body:string}>();if(previous){if(previous.body!==String(body.body).trim())throw new AuthError(409,'This message request was already used.');return json({id:previous.id,seq:previous.seq},200);}
- const recipients=game.series_id?`EXISTS(SELECT 1 FROM group_memberships recipient WHERE recipient.group_id=g.group_id AND recipient.player_id=p.id AND recipient.status='active')`:`p.id IN(SELECT g.organizer_id UNION SELECT cp.player_id FROM game_participants cp WHERE cp.game_id=g.id UNION SELECT ci.recipient_id FROM player_game_invitations ci WHERE ci.game_id=g.id UNION SELECT ca.player_id FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE cl.game_id=g.id)`;
+ const recipients=game.series_id?`EXISTS(SELECT 1 FROM group_memberships recipient WHERE recipient.group_id=g.group_id AND recipient.player_id=p.id AND recipient.status='active')`:`p.id IN(SELECT g.organizer_id UNION SELECT cp.player_id FROM game_participants cp WHERE cp.game_id=g.id UNION SELECT caa.player_id FROM game_chat_capacity_access caa WHERE caa.game_id=g.id UNION SELECT ci.recipient_id FROM player_game_invitations ci WHERE ci.game_id=g.id UNION SELECT ca.player_id FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE cl.game_id=g.id)`;
  const messageId=crypto.randomUUID();
  await db.batch([
  db.prepare(`WITH c AS(SELECT ? AS actor,? AS now,? AS token) INSERT INTO game_chat_rooms(game_id,expires_at) SELECT g.id,${expiry} FROM game_chat_context g CROSS JOIN c WHERE g.id=? AND ${live} AND ${chatAccessSql('g','c.actor','c.now')} ON CONFLICT(game_id) DO NOTHING`).bind(...base),

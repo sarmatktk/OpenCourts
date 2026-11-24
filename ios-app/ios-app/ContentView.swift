@@ -7,13 +7,23 @@ import UIKit
 import AppKit
 #endif
 
-private enum Brand {
+enum Brand {
     static let green = Color(red: 18/255, green: 61/255, blue: 50/255)
     static let lime = Color(red: 220/255, green: 233/255, blue: 175/255)
-    static let accent = Color(red: 105/255, green: 139/255, blue: 66/255)
+    // Adaptive foreground tint stays legible on system surfaces in both appearances.
     #if os(iOS) || os(tvOS) || os(visionOS)
-    static let background = Color(uiColor: .systemBackground)
-    static let surface = Color(uiColor: .secondarySystemBackground)
+    static let accent = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 168/255, green: 199/255, blue: 129/255, alpha: 1)
+            : UIColor(red: 52/255, green: 104/255, blue: 66/255, alpha: 1)
+    })
+    #else
+    static let accent = Color(red: 52/255, green: 104/255, blue: 66/255)
+    #endif
+    static let actionFill = green
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    static let background = Color(uiColor: .secondarySystemGroupedBackground)
+    static let surface = Color(uiColor: .systemGroupedBackground)
     #elseif os(macOS)
     static let background = Color(nsColor: .windowBackgroundColor)
     static let surface = Color(nsColor: .controlBackgroundColor)
@@ -30,16 +40,23 @@ private enum AppDestination: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .map: "map.fill"
+        case .map: "map"
         case .courts: "list.bullet"
         case .dryCourts: "cloud.rain"
-        case .weather: "cloud.sun.fill"
+        case .weather: "cloud.sun"
         }
     }
 }
 
 struct ContentView: View {
     @State private var store = OpenCourtsStore()
+    // Present community flows from the stable root, outside transient toolbar content.
+    @State private var playTogetherPresented = false
+    @State private var accountPresented = false
+    @State private var account = NativeAccountStore()
+    @State private var notificationSummary = NativeNotificationSummary()
+    @State private var pushOpened = false
+    @State private var pushPayload: NativePushPayload?
     @State private var destination: AppDestination = .map
     @State private var searchPresented = false
     @State private var duoSelectedCourt: Court?
@@ -50,6 +67,136 @@ struct ContentView: View {
     @Environment(\.requestReview) private var requestReview
 
     var body: some View {
+        NavigationStack {
+            appContent
+                .navigationTitle(destination.rawValue)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(Brand.surface, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            playTogetherPresented = true
+                        } label: {
+                            HStack(spacing: 7) {
+                                Image(systemName: "person.2")
+                                Text("Play Together")
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Brand.accent)
+                            .padding(.horizontal, 8)
+                            .frame(minHeight: 44)
+                            .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        HStack(spacing: 4) {
+                            if account.player != nil {
+                                NavigationLink {
+                                    NativeNotificationsView()
+                                } label: {
+                                    NativeInboxToolbarLabel(
+                                        count: notificationSummary.actorID == account.player?.id
+                                            ? notificationSummary.unreadCount
+                                            : nil
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            Button {
+                                accountPresented = true
+                            } label: {
+                                NativeAccountToolbarAvatar(account: account)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Account")
+                        }
+                    }
+                }
+        }
+        .environment(account)
+        .environment(notificationSummary)
+        .tint(Brand.accent)
+        .overlay { NativeSessionUnlockOverlay(account: account) }
+        .toolbar(hasCompletedInitialLoad ? .visible : .hidden, for: .navigationBar)
+        .overlay {
+            if !hasCompletedInitialLoad {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: hasCompletedInitialLoad)
+        .fullScreenCover(isPresented: $playTogetherPresented, onDismiss: presentPendingPush) {
+            PlayTogetherView(place: store.place, account: account, onReturnToMap: returnToMap)
+                .environment(notificationSummary)
+                .tint(Brand.accent)
+        }
+        .sheet(isPresented: $accountPresented, onDismiss: {
+            pushOpened = false
+            pushPayload = nil
+            presentPendingPush()
+        }) {
+            Group {
+                if pushOpened {
+                    NativePushOpenedView(payload: pushPayload, account: account)
+                } else {
+                    NavigationStack {
+                        NativeAccountView(account: account)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") { accountPresented = false }
+                                }
+                            }
+                    }
+                }
+            }
+            .tint(Brand.accent)
+            .overlay { NativeSessionUnlockOverlay(account: account) }
+        }
+        .task { await account.refresh(); presentPendingPush() }
+        .task(id: "\(account.player?.id ?? "signed-out")-\(scenePhase)-\(playTogetherPresented)") {
+            guard scenePhase == .active, !playTogetherPresented, account.player != nil else {
+                if scenePhase != .active || account.player == nil { notificationSummary.clear() }
+                return
+            }
+            await notificationSummary.refresh(account: account)
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                await notificationSummary.refresh(account: account)
+            }
+        }
+        .onChange(of: NativePushCoordinator.shared.tapID) { _, _ in presentPendingPush() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await account.refresh() }
+            } else if phase == .background {
+                account.lockSession()
+            }
+            presentPendingPush()
+        }
+    }
+
+    private func returnToMap() {
+        destination = .map
+        duoSelectedCourt = nil
+        duoDetailsCourt = nil
+        searchPresented = false
+        phoneSearchPresented = false
+    }
+
+    private func presentPendingPush() {
+        guard scenePhase == .active, !accountPresented, !playTogetherPresented,
+              NativePushCoordinator.shared.tapID != nil else { return }
+        pushPayload = NativePushCoordinator.shared.takeTap()
+        pushOpened = true
+        accountPresented = true
+    }
+
+    private var appContent: some View {
         GeometryReader { proxy in
             Group {
                 if proxy.size.width >= 700 {
@@ -63,7 +210,6 @@ struct ContentView: View {
                 } else {
                     ZStack(alignment: .bottom) {
                         VStack(spacing: 0) {
-                            AppHeader(store: store)
                             if let message = store.refreshErrorMessage {
                                 RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
                                     Task { await store.load() }
@@ -86,14 +232,6 @@ struct ContentView: View {
         }
         .background(Brand.background)
         .tint(Brand.accent)
-        .overlay {
-            if !hasCompletedInitialLoad {
-                SplashView()
-                    .transition(.opacity)
-                    .zIndex(1)
-            }
-        }
-        .animation(.easeOut(duration: 0.35), value: hasCompletedInitialLoad)
         .task {
             guard !hasCompletedInitialLoad else { return }
             await store.load()
@@ -154,8 +292,6 @@ private struct ExpandedDuoLayout: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AppHeader(store: store)
-
             if let message = store.refreshErrorMessage {
                 RefreshStatusBanner(message: message, lastUpdated: store.lastUpdated) {
                     Task { await store.load() }
@@ -353,6 +489,9 @@ private struct DuoSearchPanel: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
+            if let suggestionError = store.suggestionError {
+                Text(suggestionError).font(.footnote).foregroundStyle(.secondary)
+            }
 
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -522,7 +661,7 @@ private struct DuoCourtDetailsPanel: View {
                         Text(court.name)
                             .font(.headline)
                             .lineLimit(2)
-                        Text(court.contextName ?? court.address ?? "Location details unavailable")
+                        AppLocationLabel(title: court.contextName ?? court.address ?? "Location details unavailable")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -784,6 +923,8 @@ private struct SplashView: View {
                 isVisible = true
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("OpenCourts")
     }
@@ -851,15 +992,24 @@ private struct CourtsScreen: View {
     let mode: ExploreMode
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if let error = store.errorMessage {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .padding()
+        Group {
+            if mode == .map {
+                GeometryReader { proxy in
+                    ExploreSection(store: store, mode: mode, availableMapHeight: proxy.size.height)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
                 }
-                ExploreSection(store: store, mode: mode)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        if let error = store.errorMessage {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .padding()
+                        }
+                        ExploreSection(store: store, mode: mode)
+                    }
+                }
             }
         }
     }
@@ -870,45 +1020,22 @@ private struct BottomNavigation: View {
     let searchAction: () -> Void
 
     var body: some View {
-        ZStack(alignment: .top) {
-            HStack(spacing: 3) {
-                ForEach([AppDestination.map, .courts]) { destination in
-                    BottomDestinationButton(
-                        destination: destination,
-                        isSelected: selection == destination
-                    ) {
-                        select(destination)
-                    }
-                }
-
-                Color.clear
-                    .frame(width: 58, height: 1)
-                    .accessibilityHidden(true)
-
-                ForEach([AppDestination.dryCourts, .weather]) { destination in
-                    BottomDestinationButton(
-                        destination: destination,
-                        isSelected: selection == destination
-                    ) {
-                        select(destination)
-                    }
+        AppFloatingBar {
+            ForEach([AppDestination.map, .courts]) { destination in
+                BottomDestinationButton(destination: destination, isSelected: selection == destination) {
+                    select(destination)
                 }
             }
-            .padding(6)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay { Capsule().stroke(.separator.opacity(0.75), lineWidth: 0.8) }
-            .shadow(color: .black.opacity(0.15), radius: 14, y: 6)
-
-            Button("Search courts", systemImage: "magnifyingglass", action: searchAction)
-                .labelStyle(.iconOnly)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 58, height: 58)
-                .background(Brand.green, in: Circle())
-                .overlay { Circle().stroke(.white.opacity(0.7), lineWidth: 3) }
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                .offset(y: -18)
-                .accessibilityHint("Opens location search")
+            Button(action: searchAction) {
+                AppTabLabel(title: "Search", icon: "magnifyingglass", isSelected: false)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search courts")
+            ForEach([AppDestination.dryCourts, .weather]) { destination in
+                BottomDestinationButton(destination: destination, isSelected: selection == destination) {
+                    select(destination)
+                }
+            }
         }
     }
 
@@ -926,81 +1053,15 @@ private struct BottomDestinationButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 3) {
-                Image(systemName: destination.systemImage)
-                    .font(.system(size: 17, weight: .semibold))
-                Text(destination.rawValue)
-                    .font(.system(size: 9, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .foregroundStyle(isSelected ? Brand.accent : .secondary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .background(
-                isSelected ? Brand.accent.opacity(0.14) : .clear,
-                in: RoundedRectangle(cornerRadius: 16)
-            )
-            .contentShape(Rectangle())
+            AppTabLabel(title: destination.rawValue, icon: destination.systemImage, isSelected: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-private struct AppHeader: View {
-    let store: OpenCourtsStore
-    @State private var playTogetherPresented = false
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        HStack {
-            OpenCourtsLogo()
-            Spacer()
-            Button("Play Together", systemImage: "person.2.fill") {
-                playTogetherPresented = true
-            }
-            .labelStyle(.iconOnly)
-            .font(.title3)
-            .frame(width: 44, height: 44)
-            .background(headerSurface, in: Circle())
-            .overlay { Circle().stroke(headerBorderColor) }
-            Button("Use my location", systemImage: "location.fill") {
-                store.requestLocation()
-            }
-            .labelStyle(.iconOnly)
-            .font(.title3)
-            .frame(width: 44, height: 44)
-            .background(headerSurface, in: Circle())
-            .overlay {
-                Circle()
-                    .stroke(headerBorderColor)
-            }
-            .accessibilityLabel("Use my location")
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 4)
-        .background(headerSurface)
-        .sheet(isPresented: $playTogetherPresented) {
-            PlayTogetherView(place: store.place)
-                .tint(Brand.accent)
-        }
-    }
-
-    private var headerSurface: Color {
-        colorScheme == .dark
-            ? Color(red: 13/255, green: 31/255, blue: 24/255)
-            : .white
-    }
-
-    private var headerBorderColor: Color {
-        colorScheme == .dark
-            ? Color(red: 43/255, green: 56/255, blue: 48/255)
-            : Color(red: 230/255, green: 235/255, blue: 229/255)
-    }
-}
-
 private struct OpenCourtsLogo: View {
+    var showsWordmark = true
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -1013,16 +1074,18 @@ private struct OpenCourtsLogo: View {
             }
             .frame(width: 40, height: 40)
 
-            HStack(spacing: 0) {
-                Text("open")
-                    .fontWeight(.heavy)
-                    .foregroundStyle(.primary)
-                Text("courts")
-                    .fontWeight(.medium)
-                    .foregroundStyle(mutedWordColor)
+            if showsWordmark {
+                HStack(spacing: 0) {
+                    Text("open")
+                        .fontWeight(.heavy)
+                        .foregroundStyle(.primary)
+                    Text("courts")
+                        .fontWeight(.medium)
+                        .foregroundStyle(mutedWordColor)
+                }
+                .font(.title3)
+                .tracking(-0.8)
             }
-            .font(.title3)
-            .tracking(-0.8)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("OpenCourts")
@@ -1140,6 +1203,12 @@ private struct SearchSheet: View {
                         .foregroundStyle(.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                if let suggestionError = store.suggestionError {
+                    Text(suggestionError)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -1217,67 +1286,126 @@ private struct ExploreSection: View {
     let mode: ExploreMode
     let onCourtSelected: ((Court) -> Void)?
     let onFiltersRequested: (() -> Void)?
+    let availableMapHeight: CGFloat?
     @State private var filtersPresented = false
 
     init(
         store: OpenCourtsStore,
         mode: ExploreMode,
         onCourtSelected: ((Court) -> Void)? = nil,
-        onFiltersRequested: (() -> Void)? = nil
+        onFiltersRequested: (() -> Void)? = nil,
+        availableMapHeight: CGFloat? = nil
     ) {
         self.store = store
         self.mode = mode
         self.onCourtSelected = onCourtSelected
         self.onFiltersRequested = onFiltersRequested
+        self.availableMapHeight = availableMapHeight
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionHeading(kicker: "EXPLORE", title: "Courts near you.", detail: "\(store.filteredCourts.count) courts around \(store.place.label)")
-
-            HStack(spacing: 12) {
-                Button("Filters", systemImage: "slider.horizontal.3") {
-                    if let onFiltersRequested {
-                        onFiltersRequested()
-                    } else {
-                        filtersPresented = true
-                    }
-                }
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 13)
-                .padding(.vertical, 9)
-                .background(Brand.background, in: Capsule())
-                .overlay { Capsule().stroke(.separator.opacity(0.55), lineWidth: 0.7) }
-
-                Spacer()
-
-                if mode == .list {
-                    Picker("Sort", selection: $store.sort) {
-                        ForEach(CourtSort.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Brand.background, in: Capsule())
-                }
-            }
-            .sheet(isPresented: $filtersPresented) { FilterSheet(store: store) }
-
+        Group {
             if mode == .map {
-                ExploreMapView(store: store)
-            } else if store.isLoading && store.courts.isEmpty {
-                ProgressView("Finding nearby courts…")
-                    .frame(maxWidth: .infinity)
-                    .padding()
+                ExploreMapView(store: store, mapHeight: max((availableMapHeight ?? 544) - 24, 1))
+                    .overlay(alignment: .top) {
+                        mapHeader
+                            .padding(12)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(12)
             } else {
-                CourtListView(store: store, onCourtSelected: onCourtSelected)
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 12) {
+                        AppLocationLabel(title: "\(store.filteredCourts.count) courts · \(store.place.label)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        filterButton
+                        Picker("Sort", selection: $store.sort) {
+                            ForEach(CourtSort.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(Brand.background, in: Capsule())
+                    }
+                    if store.isLoading && store.courts.isEmpty {
+                        ProgressView("Finding nearby courts…")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    } else {
+                        CourtListView(store: store, onCourtSelected: onCourtSelected)
+                    }
+                }
+                .padding(20)
             }
         }
-        .padding(20)
         .background(Brand.surface)
+        .sheet(isPresented: $filtersPresented) { FilterSheet(store: store) }
         .sheet(item: $store.selectedCourt) { court in
             CourtDetail(court: court, rain: store.rain.first { $0.courtId == court.id }, store: store)
         }
+    }
+
+    private var mapHeader: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "mappin.and.ellipse")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Brand.accent)
+                    .frame(width: 38, height: 38)
+                    .background(Brand.accent.opacity(0.12), in: Circle())
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(store.place.label)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                    Text("\(store.filteredCourts.count) courts")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    Task { await store.load() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.body.weight(.medium))
+                        .frame(width: 44, height: 44)
+                        .background(Brand.surface, in: Circle())
+                        .overlay { Circle().stroke(.separator.opacity(0.5), lineWidth: 0.7) }
+                }
+                .accessibilityLabel("Refresh courts")
+                .disabled(store.isLoading)
+                filterButton
+            }
+            if let error = store.errorMessage {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .overlay { RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.42), lineWidth: 0.8) }
+        .shadow(color: .black.opacity(0.14), radius: 14, y: 5)
+    }
+
+    private var filterButton: some View {
+        Button("Filters", systemImage: "slider.horizontal.3") {
+            if let onFiltersRequested {
+                onFiltersRequested()
+            } else {
+                filtersPresented = true
+            }
+        }
+        .labelStyle(.iconOnly)
+        .font(.body.weight(.medium))
+        .frame(width: 44, height: 44)
+        .background(Brand.surface, in: Circle())
+        .overlay { Circle().stroke(.separator.opacity(0.5), lineWidth: 0.7) }
+        .accessibilityLabel("Filters")
     }
 }
 
@@ -1289,15 +1417,18 @@ private struct ExploreMapView: View {
     @State private var previewCourt: Court?
     @State private var selectedAlert: WeatherAlert?
     let onOpenCourtDetails: ((Court) -> Void)?
+    let mapHeight: CGFloat
 
     init(
         store: OpenCourtsStore,
         selectedCourt: Binding<Court?> = .constant(nil),
-        onOpenCourtDetails: ((Court) -> Void)? = nil
+        onOpenCourtDetails: ((Court) -> Void)? = nil,
+        mapHeight: CGFloat = 520
     ) {
         self.store = store
         self._externalSelectedCourt = selectedCourt
         self.onOpenCourtDetails = onOpenCourtDetails
+        self.mapHeight = mapHeight
     }
 
     var body: some View {
@@ -1316,7 +1447,7 @@ private struct ExploreMapView: View {
         .mapControls { MapCompass(); MapScaleView() }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .id("\(store.place.lat),\(store.place.lon)")
-        .frame(height: 520)
+        .frame(height: mapHeight)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 8) {
@@ -1327,7 +1458,9 @@ private struct ExploreMapView: View {
                     }
                 }
             }
-            .padding(10)
+            .padding(.top, 76)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
         }
         .overlay {
             if store.isLoading {
@@ -1688,7 +1821,7 @@ private struct CourtRow: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                             .lineLimit(2)
-                        Text(court.contextName ?? court.address ?? "Location details unavailable")
+                        AppLocationLabel(title: court.contextName ?? court.address ?? "Location details unavailable")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -1699,9 +1832,9 @@ private struct CourtRow: View {
                     VStack(alignment: .trailing, spacing: 3) {
                         Text(court.distance(from: place), format: .number.precision(.fractionLength(1)))
                             .font(.headline.weight(.bold))
-                            .foregroundStyle(colorScheme == .dark ? Brand.lime : Brand.green)
-                        Text("MILES")
-                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Brand.accent)
+                        Text("mi")
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(colorScheme == .dark ? .white.opacity(0.78) : .secondary)
                     }
                 }
@@ -1836,7 +1969,7 @@ private struct CourtDetailHero: View {
                     Text(name)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(.white)
-                    Text(location)
+                    AppLocationLabel(title: location)
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.72))
                 }
@@ -1999,11 +2132,9 @@ private struct RainPlannerSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SectionHeading(
-                kicker: isInternational ? "RAIN FORECAST · NEARBY COURTS" : "RECENT PRECIPITATION · NEARBY COURTS",
-                title: "Your best bets for a playable court.",
-                detail: isInternational ? "Nearby courts share the area forecast and are listed by distance." : "Radar estimates are compared across nearby public courts."
-            )
+            Text(isInternational ? "Nearby courts share the area forecast and are listed by distance." : "Radar estimates are compared across nearby public courts.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             ForEach(Array(store.rainRecommendations.enumerated()), id: \.element.0.id) { index, item in
                 DryCourtCard(
@@ -2242,11 +2373,9 @@ private struct WeatherSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SectionHeading(
-                kicker: isInternational ? "LOCAL WEATHER" : "7-DAY WEATHER",
-                title: "Plan the perfect time to play.",
-                detail: "\(store.place.label) · \(isInternational ? "available hourly forecast" : "daylight forecast windows")"
-            )
+            AppLocationLabel(title: "\(store.place.label) · \(isInternational ? "available hourly forecast" : "daylight forecast windows")")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
             if isInternational, let source = store.weatherSource {
                 Label("Forecast source: \(source)", systemImage: "cloud.sun")
@@ -2369,7 +2498,7 @@ private struct CurrentWeatherHero: View {
                 .background(.white.opacity(0.14), in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(location)
+                AppLocationLabel(title: location)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.72))
                     .lineLimit(1)
@@ -2992,7 +3121,7 @@ private struct SectionHeading: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(kicker).font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(Brand.accent)
-            Text(title).font(.system(.title2, design: .serif))
+            Text(title).font(.title2.weight(.semibold))
             Text(detail).font(.footnote).foregroundStyle(.secondary)
         }
     }

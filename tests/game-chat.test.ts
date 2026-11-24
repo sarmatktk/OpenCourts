@@ -213,6 +213,7 @@ it('migrates old occurrence rooms without losing messages, mute choices, reports
  expect(db.sqlite.prepare('SELECT id,game_id,body FROM game_chat_messages ORDER BY seq').all()).toEqual([{id:'legacy-0',game_id:room,body:'Legacy 0'},{id:'legacy-1',game_id:room,body:'Legacy 1'}]);
  expect(db.sqlite.prepare('SELECT muted,last_seq FROM game_chat_reads WHERE game_id=?').get(room)).toMatchObject({muted:1,last_seq:1});expect(db.sqlite.prepare('SELECT legal_hold FROM game_chat_rooms WHERE game_id=?').get(room).legal_hold).toBe(1);
  expect(db.sqlite.prepare("SELECT game_id FROM game_chat_reports WHERE id='legacy-case'").get().game_id).toBe(room);
+ for(const migration of readdirSync('functions/db/migrations').filter(file=>file.endsWith('.sql')&&file>'0028_series_chat.sql').sort())db.sqlite.exec(readFileSync('functions/db/migrations/'+migration,'utf8'));
  expect(await(await chat(b)).json()).toMatchObject({series:true});db.sqlite.prepare('DELETE FROM games WHERE id=?').run(a);expect((await(await chat(b)).json()).messages).toHaveLength(2);expect(db.sqlite.prepare('PRAGMA foreign_key_check').all()).toHaveLength(0);
 });
 
@@ -296,20 +297,22 @@ it('does not announce pending requests and keeps the nonplaying organizer in sta
 const edit=(id:string,body:Record<string,unknown>,who='host',preview=false)=>handleGames(request('games/'+id+(preview?'/edit-preview':'/edit'),who,'POST',body),env);
 function pending(id:string,who:string,createdAt:number){db.sqlite.prepare("INSERT INTO game_join_requests VALUES (?,?,'pending',?,?)").run(id,who,createdAt,createdAt);}
 function extra(who:string){db.sqlite.prepare('INSERT INTO players(id,display_name,created_at,updated_at) VALUES (?,?,?,?)').run(who,'QA '+who,Date.now(),Date.now());}
-it('edits singles to doubles and fills pending requests in order without adding guests',async()=>{
+it('increases standalone capacity without auto-approving pending requests',async()=>{
  const id=game();db.sqlite.prepare("UPDATE games SET format='singles',capacity=2 WHERE id=?").run(id);join(id);pending(id,'other',Date.now()-20);pending(id,'hidden',Date.now()-10);
- const input={title:'Expanded',notes:'Two more places',format:'doubles',courtCount:1,capacity:4,version:1,fillWaiting:true};const preview=await(await edit(id,input,'host',true)).json();expect(preview.candidates.map((p:any)=>[p.playerId,!!p.willConfirm])).toEqual([['other',true],['hidden',true]]);
+ const input={title:'Expanded',notes:'Two more places',format:'doubles',courtCount:1,capacity:4,version:1,fillWaiting:true};const preview=await(await edit(id,input,'host',true)).json();expect(preview.candidates).toEqual([]);
  expect((await edit(id,input)).status).toBe(200);expect(db.sqlite.prepare('SELECT format,capacity,event_capacity,court_count,version FROM games WHERE id=?').get(id)).toMatchObject({format:'doubles',capacity:4,event_capacity:4,court_count:1,version:2});
- expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(4);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? ORDER BY created_at").all(id).map((r:any)=>r.status)).toEqual(['approved','approved']);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(2);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? ORDER BY created_at").all(id).map((r:any)=>r.status)).toEqual(['pending','pending']);
+ expect((await handleGames(request('games/'+id+'/approve','host','POST',{playerId:'other'}),env)).status).toBe(200);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? AND player_id='other'").get(id).status).toBe('approved');expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(3);
  expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_edit_jobs').get().n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_capacity_fill').get().n).toBe(0);
 });
-it('grows four places to eight or twelve while preserving existing players and approving only the FIFO prefix',async()=>{
+it('keeps standalone requests pending after capacity increases until the host approves them',async()=>{
  const id=game();for(const who of ['target','other','hidden'])join(id,who);
  for(let i=0;i<6;i++){extra('queued-'+i);pending(id,'queued-'+i,Date.now()-100+i);}
  expect((await edit(id,{title:'Eight players',notes:'',capacity:8,courtCount:2,version:1,fillWaiting:true})).status).toBe(200);
- expect(db.sqlite.prepare("SELECT player_id FROM game_join_requests WHERE game_id=? AND status='approved' ORDER BY created_at").all(id).map((r:any)=>r.player_id)).toEqual(['queued-0','queued-1','queued-2','queued-3']);
- expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(8);
- expect((await edit(id,{title:'Twelve players',notes:'',capacity:12,courtCount:3,version:2,fillWaiting:true})).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(10);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_join_requests WHERE game_id=? AND status='pending'").get(id).n).toBe(6);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(4);
+ expect((await edit(id,{title:'Twelve players',notes:'',capacity:12,courtCount:3,version:2,fillWaiting:true})).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(4);
+ expect((await handleGames(request('games/'+id+'/approve','host','POST',{playerId:'queued-0'}),env)).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(5);
 });
 it('can increase capacity without auto approval and then approve a pending guest in full',async()=>{
  const id=game();db.sqlite.prepare("UPDATE games SET format='singles',capacity=2 WHERE id=?").run(id);join(id);
@@ -318,20 +321,36 @@ it('can increase capacity without auto approval and then approve a pending guest
  expect((await edit(id,{title:'Guest place',notes:'',capacity:3,version:1,fillWaiting:false})).status).toBe(200);expect(db.sqlite.prepare("SELECT status FROM game_guest_requests WHERE game_id=?").get(id).status).toBe('pending');
  expect((await handleGames(request('games/'+id+'/approve-guests','host','POST',{playerId:'target'}),env)).status).toBe(200);expect(db.sqlite.prepare("SELECT guest_count FROM game_participants WHERE game_id=? AND player_id='target'").get(id).guest_count).toBe(1);
 });
-it('merges group waitlist and pending requests, honoring reserved offers and deduplicating a player',async()=>{
+it('fills group waitlist members in request order without requiring an approval toggle',async()=>{
  const id=game('group'),now=Date.now();for(const who of ['target','other','hidden'])db.sqlite.prepare("INSERT OR IGNORE INTO group_memberships(group_id,player_id,status,created_at,updated_at) VALUES ('private-group',?,'active',?,?)").run(who,now,now);join(id);
  pending(id,'other',now-50);pending(id,'hidden',now-30);db.sqlite.prepare("INSERT INTO game_waitlist(game_id,player_id,status,created_at,offer_expires_at) VALUES (?, 'other','offered',?,?)").run(id,now-40,now+60000);db.sqlite.prepare("INSERT INTO game_waitlist(game_id,player_id,status,created_at) VALUES (?, 'hidden','waiting',?)").run(id,now-20);
- const input={title:'More places',notes:'',capacity:8,courtCount:2,version:1,fillWaiting:true};const plan=await(await edit(id,input,'host',true)).json();expect(plan.candidates.map((p:any)=>p.playerId)).toEqual(['other','hidden']);
+ const input={title:'More places',notes:'',capacity:8,courtCount:2,version:1,fillWaiting:false};const plan=await(await edit(id,input,'host',true)).json();expect(plan.candidates.map((p:any)=>p.playerId)).toEqual(['other','hidden']);
  expect((await edit(id,input)).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_waitlist WHERE game_id=?').get(id).n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM game_participants WHERE game_id=?').get(id).n).toBe(4);
+});
+it('moves the latest standalone join to host approval and notifies again when approved',async()=>{
+ const id=game();join(id,'other');join(id,'target');const now=Date.now();db.sqlite.prepare("UPDATE game_participants SET joined_at=CASE player_id WHEN 'host' THEN ? WHEN 'other' THEN ? ELSE ? END WHERE game_id=?").run(now-30,now-20,now-10,id);
+ const reduced={title:'Singles',notes:'',format:'singles',courtCount:1,capacity:2,version:1};const preview=await(await edit(id,reduced,'host',true)).json();expect(preview.demoted).toMatchObject([{playerId:'target',partySize:1}]);
+ expect((await edit(id,reduced)).status).toBe(200);expect(db.sqlite.prepare('SELECT player_id FROM game_participants WHERE game_id=? ORDER BY player_id').all(id).map((p:any)=>p.player_id)).toEqual(['host','other']);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? AND player_id='target'").get(id).status).toBe('pending');expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id='target' ORDER BY created_at DESC LIMIT 1").get().kind).toBe('waitlisted');
+ expect((await edit(id,{...reduced,title:'Capacity available',capacity:3,version:2})).status).toBe(200);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? AND player_id='target'").get(id).status).toBe('pending');expect((await handleGames(request('games/'+id+'/approve','host','POST',{playerId:'target'}),env)).status).toBe(200);expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id='target' ORDER BY created_at DESC LIMIT 1").get().kind).toBe('approved');
+});
+it('moves the latest group join to the FIFO waitlist and sends a return confirmation',async()=>{
+ const id=game('group'),now=Date.now();for(const who of ['other','target'])db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group',?,'member','active',?,?)").run(who,now,now);join(id,'other');join(id,'target');db.sqlite.prepare("UPDATE game_participants SET joined_at=CASE player_id WHEN 'host' THEN ? WHEN 'other' THEN ? ELSE ? END WHERE game_id=?").run(now-30,now-20,now-10,id);
+ const reduced={title:'Group singles',notes:'',format:'singles',courtCount:1,capacity:2,version:1};expect((await edit(id,reduced,'host',true)).status).toBe(200);expect((await edit(id,reduced)).status).toBe(200);expect(db.sqlite.prepare("SELECT status,created_at FROM game_waitlist WHERE game_id=? AND player_id='target'").get(id)).toMatchObject({status:'waiting'});expect(db.sqlite.prepare("SELECT created_at FROM game_waitlist WHERE game_id=? AND player_id='target'").get(id).created_at).toBeGreaterThanOrEqual(now-10);expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id='target' ORDER BY created_at DESC LIMIT 1").get().kind).toBe('waitlisted');
+ expect((await edit(id,{...reduced,title:'Group doubles',format:'doubles',capacity:4,version:2})).status).toBe(200);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_participants WHERE game_id=? AND player_id='target'").get(id).n).toBe(1);expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id='target' ORDER BY created_at DESC LIMIT 1").get().kind).toBe('confirmed');
+});
+it('fills a place freed by a group capacity reduction with the earlier waiter before displaced players',async()=>{
+ const id=game('group'),now=Date.now(),first='fifo-'+crypto.randomUUID();extra(first);for(const who of ['other','target',first])db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group',?,'member','active',?,?)").run(who,now,now);join(id,'other');join(id,'target');db.sqlite.prepare("UPDATE game_participants SET guest_count=1,joined_at=? WHERE game_id=? AND player_id='target'").run(now-10,id);db.sqlite.prepare("UPDATE game_participants SET joined_at=? WHERE game_id=? AND player_id='other'").run(now-20,id);db.sqlite.prepare("INSERT INTO game_waitlist(game_id,player_id,status,created_at) VALUES (?,?,'waiting',?)").run(id,first,now-100);
+ const reduced={title:'Capacity reduced',notes:'',format:'singles',courtCount:1,capacity:3,version:1};expect((await edit(id,reduced,'host',true)).status).toBe(200);const preview=await(await edit(id,reduced,'host',true)).json();expect(preview.demoted.map((p:any)=>p.playerId)).toEqual(['target']);expect((await edit(id,reduced)).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT player_id FROM game_participants WHERE game_id=? ORDER BY player_id').all(id).map((p:any)=>p.player_id)).toEqual([first,'host','other']);expect(db.sqlite.prepare("SELECT status FROM game_waitlist WHERE game_id=? AND player_id='target'").get(id).status).toBe('waiting');expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id=? ORDER BY created_at DESC LIMIT 1").get(first).kind).toBe('confirmed');expect(db.sqlite.prepare("SELECT kind FROM game_notifications WHERE recipient_id='target' ORDER BY created_at DESC LIMIT 1").get().kind).toBe('waitlisted');
 });
 it('protects confirmed guests and offered places from capacity reductions and rejects stale edits',async()=>{
  const id=game('group'),now=Date.now();for(const who of ['target','other'])db.sqlite.prepare("INSERT OR IGNORE INTO group_memberships(group_id,player_id,status,created_at,updated_at) VALUES ('private-group',?,'active',?,?)").run(who,now,now);join(id);db.sqlite.prepare("UPDATE game_participants SET guest_count=1 WHERE game_id=? AND player_id='target'").run(id);db.sqlite.prepare("INSERT INTO game_waitlist(game_id,player_id,status,created_at,offer_expires_at) VALUES (?, 'other','offered',?,?)").run(id,now,now+60000);
  expect((await edit(id,{title:'Too small',notes:'',format:'singles',capacity:3,version:1})).status).toBe(409);
  expect((await edit(id,{title:'Okay',notes:'',capacity:8,version:1,fillWaiting:false})).status).toBe(200);expect((await edit(id,{title:'Stale',notes:'',capacity:12,version:1})).status).toBe(409);
 });
-it('skips blocked and inactive requests and never auto-approves guest requests',async()=>{
+it('does not auto-approve standalone requests even when some are blocked or inactive',async()=>{
  const id=game();pending(id,'target',Date.now()-30);pending(id,'other',Date.now()-20);pending(id,'hidden',Date.now()-10);db.sqlite.prepare("INSERT INTO player_blocks VALUES ('host','target',?)").run(Date.now());db.sqlite.exec("UPDATE players SET status='disabled' WHERE id='other'");
- expect((await edit(id,{title:'Larger',notes:'',capacity:8,version:1,fillWaiting:true})).status).toBe(200);expect(db.sqlite.prepare("SELECT player_id FROM game_join_requests WHERE game_id=? AND status='approved'").all(id).map((r:any)=>r.player_id)).toEqual(['hidden']);
+ expect((await edit(id,{title:'Larger',notes:'',capacity:8,version:1,fillWaiting:true})).status).toBe(200);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_join_requests WHERE game_id=? AND status='approved'").get(id).n).toBe(0);expect(db.sqlite.prepare("SELECT status FROM game_join_requests WHERE game_id=? AND player_id='hidden'").get(id).status).toBe('pending');
  expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_notifications WHERE game_id=? AND recipient_id='host' AND kind='approved'").get(id).n).toBe(0);
 });
 it('rolls back a capacity reduction cleanly if guest occupancy changes before the edit batch',async()=>{
@@ -358,12 +377,32 @@ it('lets a public-game host add their own guests directly without self notificat
  expect(db.sqlite.prepare('SELECT status FROM game_guest_requests WHERE game_id=?').get(id).status).toBe('approved');
  expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_guest_notifications WHERE recipient_id='host'").get().n).toBe(0);
 });
+it('tells an open-game host when guest places do not fit',async()=>{
+ const id=game();for(const who of ['other','target','hidden'])join(id,who);
+ const response=await handleGames(request('games/'+id+'/request-guests','host','POST',{guestCount:1}),env);
+ expect(response.status).toBe(409);expect(await response.json()).toMatchObject({error:'There are not enough available places for these guests.'});
+ expect(db.sqlite.prepare('SELECT guest_count FROM game_participants WHERE game_id=? AND player_id=?').get(id,'host').guest_count).toBe(0);
+});
 it('lets group owners, coowners and assigned organizers add their own guests without approval',async()=>{
  for(const role of ['owner','coowner','organizer']){
   const id=game('group'),who=role==='owner'?'host':'target';if(role!=='owner'){groupStaff(who,role as 'coowner'|'organizer');join(id,who);}
   expect((await(await handleGames(request('games/'+id+'/guests',who),env)).json()).canAddGuestsDirectly).toBe(true);
   expect((await handleGames(request('games/'+id+'/request-guests',who,'POST',{guestCount:1}),env)).status).toBe(200);
   expect(db.sqlite.prepare('SELECT status FROM game_guest_requests WHERE game_id=? AND player_id=?').get(id,who).status).toBe('approved');
+ }
+});
+it('lets group owners, coowners and organizers approve other members guest requests',async()=>{
+ for(const role of ['owner','coowner','organizer']){
+  const id=game('group'),manager=role==='owner'?'host':'target',now=Date.now();
+  if(role!=='owner')groupStaff(manager,role as 'coowner'|'organizer');
+  const permissions=await(await handleGames(request('games/'+id+'/participation',manager),env)).json();
+  expect(permissions.canManageGuests).toBe(true);
+  if(role==='organizer')expect(permissions.isOrganizer).toBe(false);
+  db.sqlite.prepare("INSERT OR IGNORE INTO group_memberships(group_id,player_id,role,status,created_at,updated_at) VALUES ('private-group','other','member','active',?,?)").run(now,now);
+  join(id,'other');
+  expect((await handleGames(request('games/'+id+'/request-guests','other','POST',{guestCount:1}),env)).status).toBe(200);
+  expect((await handleGames(request('games/'+id+'/approve-guests',manager,'POST',{playerId:'other'}),env)).status).toBe(200);
+  expect(db.sqlite.prepare('SELECT guest_count FROM game_participants WHERE game_id=? AND player_id=?').get(id,'other').guest_count).toBe(1);
  }
 });
 it('keeps ordinary members pending and protects direct guests from overbooking or missing attendance',async()=>{

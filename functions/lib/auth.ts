@@ -30,6 +30,7 @@ export interface AuthEnv {
   APPLE_TOKEN_ENCRYPTION_KEY?: string;
   AUTH_RATE_LIMIT_SECRET?: string;
   NATIVE_AUTH_DEVELOPMENT_ENABLED?: string;
+  NATIVE_AUTH_PRODUCTION_ENABLED?: string;
 }
 type Provider = 'google' | 'apple';
 type Player = { id: string; display_name: string; bio: string; general_location: string; skill_level: string; discoverable: number; status: string };
@@ -108,7 +109,7 @@ function appleEncryptionKey(env: AuthEnv) {
 function client(provider: Provider, env: AuthEnv): oauth.Client {
   return { client_id: (provider === 'google' ? env.GOOGLE_CLIENT_ID : env.APPLE_CLIENT_ID?.trim())!, id_token_signed_response_alg: 'RS256' };
 }
-async function providerAuth(provider: Provider, env: AuthEnv) {
+async function providerAuth(provider: Provider, env: AuthEnv, appleClientId?: string) {
   if (provider === 'google') return oauth.ClientSecretPost(env.GOOGLE_CLIENT_SECRET!);
   const pem = normalizeApplePrivateKey(env.APPLE_PRIVATE_KEY!);
   let key: CryptoKey;
@@ -117,7 +118,7 @@ async function providerAuth(provider: Provider, env: AuthEnv) {
   let secret: string;
   try {
     secret = await new SignJWT({}).setProtectedHeader({ alg: 'ES256', kid: env.APPLE_KEY_ID!.trim() })
-      .setIssuer(env.APPLE_TEAM_ID!.trim()).setSubject(env.APPLE_CLIENT_ID!.trim()).setAudience('https://appleid.apple.com')
+      .setIssuer(env.APPLE_TEAM_ID!.trim()).setSubject(appleClientId ?? env.APPLE_CLIENT_ID!.trim()).setAudience('https://appleid.apple.com')
       .setIssuedAt().setExpirationTime('5m').sign(key);
   } catch { throw new AppleSigningError('apple-key-sign'); }
   return oauth.ClientSecretPost(secret);
@@ -349,7 +350,9 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
         if (!providerReady('apple', env) || !appleIdentity.provider_token_encrypted) fail(503, 'Sign in with Apple again before deleting your account.');
         const { payload } = await jwtDecrypt(appleIdentity.provider_token_encrypted, appleEncryptionKey(env));
         if (typeof payload.token !== 'string') fail(503, 'Account deletion is temporarily unavailable.');
-        const revoked = await oauth.revocationRequest(providers.apple, client('apple', env), await providerAuth('apple', env), payload.token, { signal: AbortSignal.timeout(12000) });
+        if (payload.clientId !== undefined && payload.clientId !== 'us.opencourts.ios') fail(503, 'Account deletion is temporarily unavailable.');
+        const appleClientId = payload.clientId === 'us.opencourts.ios' ? payload.clientId : env.APPLE_CLIENT_ID!.trim();
+        const revoked = await oauth.revocationRequest(providers.apple, { ...client('apple', env), client_id: appleClientId }, await providerAuth('apple', env, appleClientId), payload.token, { signal: AbortSignal.timeout(12000) });
         await oauth.processRevocationResponse(revoked);
       }
       await db.batch([db.prepare("DELETE FROM tennis_groups WHERE owner_id=? AND status='archived'").bind(signedIn.id),db.prepare('DELETE FROM players WHERE id=?').bind(signedIn.id)]);

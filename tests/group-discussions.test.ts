@@ -131,3 +131,195 @@ it('requires a saved photo before enabling sharing, while allowing sharing to be
 it('removing a profile photo clears its sharing preference atomically',async()=>{
  const now=Date.now();db.sqlite.prepare("INSERT INTO media_assets VALUES('player','owner','saved-object','v',?)").run(now);db.sqlite.prepare("INSERT INTO player_photo_preferences VALUES('owner',1,?)").run(now);const mediaEnv:MediaEnv={...env,MEDIA_UPLOADS_ENABLED:'true',PLAY_TOGETHER_MEDIA:{get:async()=>null,put:async()=>{},delete:async()=>{}},PLAY_TOGETHER_IMAGE_PROCESSOR:{fetch:async()=>new Response('unused')}};const response=await handleMedia(req('media/player/owner','owner','DELETE'),mediaEnv);expect(response.status).toBe(200);expect(db.sqlite.prepare("SELECT shared FROM player_photo_preferences WHERE player_id='owner'").get().shared).toBe(0);expect(await(await handleMedia(req('media/player/owner/visibility','owner'),mediaEnv)).json()).toEqual({shared:false,hasPhoto:false});
 });
+
+
+function nativeDiscussionRead(path='',who='member'){
+ return handleDiscussions(new Request(origin+'/api/discussions/'+group+path,{headers:{Origin:origin,Authorization:'Bearer '+tokens[who]}}),env);
+}
+function seedNativeDiscussionPosts(count:number){
+ const now=Date.now(),ids=[];
+ for(let i=0;i<count;i++){const id=crypto.randomUUID();ids.push(id);db.sqlite.prepare('INSERT INTO group_discussion_posts(id,group_id,author_id,title,body,client_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)').run(id,group,['owner','coowner','organizer'][i%3],'Post '+i,'Full body '+i,crypto.randomUUID(),now+i,now+i);}
+ return ids;
+}
+it('native discussions list uses member-visible totals, roles and descending cursor pages',async()=>{
+ const ids=seedNativeDiscussionPosts(23);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const first=await(await nativeDiscussionRead()).json();expect(first).toMatchObject({available:true,viewerId:'member',canManage:false,total:23});expect(first.posts).toHaveLength(20);expect(first.posts.map((p:any)=>p.id)).toEqual(ids.slice(3).reverse());
+ expect(new Set(first.posts.map((p:any)=>p.authorRole))).toEqual(new Set(['owner','coowner','organizer']));
+ const earlier=await(await nativeDiscussionRead('?before='+encodeURIComponent(first.next))).json();expect(earlier.posts.map((p:any)=>p.id)).toEqual(ids.slice(0,3).reverse());expect(earlier.next).toBeNull();
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('member','owner',?)").run(Date.now());
+ const blocked=await(await nativeDiscussionRead()).json();expect(blocked.total).toBe(15);expect(blocked.posts.every((p:any)=>p.authorId!=='owner')).toBe(true);
+ expect((await nativeDiscussionRead('/'+ids[0])).status).toBe(404);
+});
+it('native discussion reader loads latest fifty replies chronologically and rebuilds earlier history',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);const ids=[],now=Date.now();
+ for(let i=0;i<105;i++){const cid=crypto.randomUUID();ids.push(cid);db.sqlite.prepare('INSERT INTO group_discussion_comments(id,post_id,author_id,body,client_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(cid,id,'second','Reply '+i,crypto.randomUUID(),now+i,now+i);}
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const latest=await(await nativeDiscussionRead('/'+id)).json();expect(latest.post).toMatchObject({id,body:'Full body 0',commentCount:105});expect(latest.comments.map((c:any)=>c.id)).toEqual(ids.slice(55));
+ const earlier=await(await nativeDiscussionRead('/'+id+'?before='+encodeURIComponent(latest.next))).json();expect(earlier.comments.map((c:any)=>c.id)).toEqual(ids.slice(5,55));
+ const oldest=await(await nativeDiscussionRead('/'+id+'?before='+encodeURIComponent(earlier.next))).json();expect(oldest.comments.map((c:any)=>c.id)).toEqual(ids.slice(0,5));expect(oldest.next).toBeNull();
+ db.sqlite.prepare('DELETE FROM group_discussion_comments WHERE id=?').run(ids[104]);
+ const refreshed=await(await nativeDiscussionRead('/'+id)).json();expect(refreshed.post.commentCount).toBe(104);expect(refreshed.comments.some((c:any)=>c.id===ids[104])).toBe(false);
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('second','member',?)").run(Date.now());
+ const blocked=await(await nativeDiscussionRead('/'+id)).json();expect(blocked.comments).toEqual([]);expect(blocked.post.commentCount).toBe(0);
+});
+it('native discussion URLs deny outsiders, pending and removed members, archive and revoked sessions',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ for(const visibility of ['public','private']){
+  db.sqlite.prepare('UPDATE tennis_groups SET visibility=?').run(visibility);
+  for(const who of ['outsider','pending','removed'])for(const path of ['', '/'+id]){const r=await nativeDiscussionRead(path,who);expect(r.status).toBe(404);const data=await r.json();expect(data.posts).toBeUndefined();expect(data.total).toBeUndefined();}
+ }
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='member'").run();expect((await nativeDiscussionRead('/'+id)).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='member'").run();db.sqlite.prepare("UPDATE tennis_groups SET status='archived'").run();expect((await nativeDiscussionRead()).status).toBe(404);
+ db.sqlite.prepare("UPDATE tennis_groups SET status='active'").run();db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=? WHERE player_id='member'").run(Date.now());expect((await nativeDiscussionRead('/'+id)).status).toBe(401);
+});
+
+
+function nativeDiscussionMutation(path:string,who:string,body:unknown){
+ return handleDiscussions(new Request(origin+'/api/discussions/'+group+path,{method:'POST',headers:{Origin:origin,Authorization:'Bearer '+tokens[who],'X-CSRF-Token':'csrf','Content-Type':'application/json'},body:JSON.stringify(body)}),env);
+}
+it('native discussion creation retries keep one post, content and subscription',async()=>{
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();const payload={title:'Weekend plans',body:'Who can play?',clientId:crypto.randomUUID()};
+ const first=await nativeDiscussionMutation('','member',payload);expect(first.status).toBe(201);const saved=await first.json();
+ const retry=await nativeDiscussionMutation('','member',payload);expect(retry.status).toBe(200);expect(await retry.json()).toEqual(saved);
+ // Existing server contract returns the original ID; clients must preserve exact retry bytes.
+ expect(await(await nativeDiscussionMutation('','member',{...payload,body:'Changed body'})).json()).toEqual(saved);
+ expect(db.sqlite.prepare('SELECT body FROM group_discussion_posts WHERE id=?').get(saved.id).body).toBe(payload.body);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM group_discussion_posts WHERE client_id=?').get(payload.clientId).n).toBe(1);
+ expect(db.sqlite.prepare("SELECT muted FROM group_discussion_subscriptions WHERE post_id=? AND player_id='member'").get(saved.id).muted).toBe(0);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='member'").run();expect((await nativeDiscussionMutation('','member',payload)).status).toBe(404);
+});
+it('native discussion replies retry exactly once and recheck locks, blocking and membership',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();const payload={body:'Saturday works.',clientId:crypto.randomUUID()};
+ const first=await nativeDiscussionMutation('/'+id+'/comment','member',payload);expect(first.status).toBe(201);const saved=await first.json();
+ expect(await(await nativeDiscussionMutation('/'+id+'/comment','member',payload)).json()).toEqual(saved);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM group_discussion_comments WHERE client_id=?').get(payload.clientId).n).toBe(1);
+ expect((await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:true})).status).toBe(200);
+ expect((await nativeDiscussionMutation('/'+id+'/comment','member',payload)).status).toBe(409);
+ await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:false});
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('owner','member',?)").run(Date.now());expect((await nativeDiscussionMutation('/'+id+'/comment','member',payload)).status).toBe(404);
+ db.sqlite.prepare('DELETE FROM player_blocks').run();db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='member'").run();expect((await nativeDiscussionMutation('/'+id+'/comment','member',payload)).status).toBe(404);
+});
+it('native discussion composers enforce UTF16 text and title bounds and bounded posting rates',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const post=(body:string,title='Title')=>nativeDiscussionMutation('','member',{title,body,clientId:crypto.randomUUID()});
+ expect((await post('😀'.repeat(2000),'😀'.repeat(60))).status).toBe(201);
+ expect((await post('😀'.repeat(2001))).status).toBe(400);expect((await post('Body','😀'.repeat(61))).status).toBe(400);
+ expect((await post(String.fromCharCode(1))).status).toBe(400);
+ for(let i=0;i<4;i++)expect((await post('Post '+i)).status).toBe(201);expect((await post('Rate limited')).status).toBe(429);
+ const reply=(body:string)=>nativeDiscussionMutation('/'+id+'/comment','second',{body,clientId:crypto.randomUUID()});
+ expect((await reply('😀'.repeat(1001))).status).toBe(400);expect((await reply('😀'.repeat(1000))).status).toBe(201);
+ for(let i=0;i<9;i++)expect((await reply('Reply '+i)).status).toBe(201);expect((await reply('Rate limited')).status).toBe(409);
+ db.sqlite.prepare("UPDATE tennis_groups SET status='archived'").run();expect((await post('Archived')).status).toBe(404);
+});
+
+it('native own discussion edits preserve versions and reject stale or foreign edits',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const edit=(who:string,version:number)=>nativeDiscussionMutation('/'+id+'/edit',who,{title:'Revised',body:'Updated body',version});
+ expect((await edit('member',1)).status).toBe(403);expect((await edit('owner',1)).status).toBe(200);expect((await edit('owner',1)).status).toBe(409);
+ const page=await(await nativeDiscussionRead('/'+id,'owner')).json();expect(page.post).toMatchObject({version:2,title:'Revised',body:'Updated body'});
+ const reply=await(await nativeDiscussionMutation('/'+id+'/comment','member',{body:'Original reply',clientId:crypto.randomUUID()})).json();
+ expect((await nativeDiscussionMutation('/'+id+'/edit','member',{commentId:reply.id,body:'Revised reply',version:1})).status).toBe(200);
+ expect((await nativeDiscussionMutation('/'+id+'/edit','member',{commentId:reply.id,body:'Stale reply',version:1})).status).toBe(409);
+ const refreshed=await(await nativeDiscussionRead('/'+id)).json();expect(refreshed.comments[0]).toMatchObject({body:'Revised reply',version:2});expect(refreshed.post.version).toBe(2);
+});
+it('native own deletion allows locked reply removal and rechecks membership',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const reply=await(await nativeDiscussionMutation('/'+id+'/comment','member',{body:'My reply',clientId:crypto.randomUUID()})).json();
+ expect((await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:true})).status).toBe(200);
+ expect((await nativeDiscussionMutation('/'+id+'/edit','member',{commentId:reply.id,body:'Locked edit',version:1})).status).toBe(409);
+ expect((await nativeDiscussionMutation('/'+id+'/delete','second',{commentId:reply.id})).status).toBe(403);
+ expect((await nativeDiscussionMutation('/'+id+'/delete','member',{commentId:reply.id})).status).toBe(200);
+ expect((await nativeDiscussionRead('/'+id)).status).toBe(200);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='owner'").run();expect((await nativeDiscussionMutation('/'+id+'/delete','owner',{})).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='owner'").run();expect((await nativeDiscussionMutation('/'+id+'/delete','owner',{})).status).toBe(200);
+ expect((await nativeDiscussionRead('/'+id)).status).toBe(404);
+});
+
+it('native explicit likes are idempotent for posts and replies and reject locked changes',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const reply=await(await nativeDiscussionMutation('/'+id+'/comment','member',{body:'Reply',clientId:crypto.randomUUID()})).json();
+ for(const commentId of [undefined,reply.id]){
+  const like=(liked:boolean)=>nativeDiscussionMutation('/'+id+'/like','second',{liked,commentId});
+  expect((await like(true)).status).toBe(200);expect((await like(true)).status).toBe(200);
+  expect(db.sqlite.prepare("SELECT COUNT(*) n FROM group_discussion_likes WHERE post_id=? AND comment_id=? AND player_id='second'").get(id,commentId??'').n).toBe(1);
+  expect((await like(false)).status).toBe(200);expect((await like(false)).status).toBe(200);
+  expect(db.sqlite.prepare("SELECT COUNT(*) n FROM group_discussion_likes WHERE post_id=? AND comment_id=? AND player_id='second'").get(id,commentId??'').n).toBe(0);
+ }
+ await nativeDiscussionMutation('/'+id+'/lock','owner',{locked:true});
+ for(const liked of [true,false])expect((await nativeDiscussionMutation('/'+id+'/like','second',{liked})).status).toBe(409);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='second'").run();expect((await nativeDiscussionMutation('/'+id+'/like','second',{liked:true})).status).toBe(404);
+});
+it('native following maps explicit mute states and remains available on locked threads',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ expect((await(await nativeDiscussionRead('/'+id)).json()).post.muted).toBe(1);
+ for(const muted of [false,false,true,true]){
+  expect((await nativeDiscussionMutation('/'+id+'/mute','member',{muted})).status).toBe(200);
+  expect((await(await nativeDiscussionRead('/'+id)).json()).post.muted).toBe(muted?1:0);
+ }
+ // First reply follows by default; replying again never overrides an explicit mute.
+ expect((await nativeDiscussionMutation('/'+id+'/comment','second',{body:'Following by replying',clientId:crypto.randomUUID()})).status).toBe(201);
+ expect((await(await nativeDiscussionRead('/'+id,'second')).json()).post.muted).toBe(0);
+ expect((await nativeDiscussionMutation('/'+id+'/comment','member',{body:'Keep muted',clientId:crypto.randomUUID()})).status).toBe(201);
+ expect((await(await nativeDiscussionRead('/'+id)).json()).post.muted).toBe(1);
+ await nativeDiscussionMutation('/'+id+'/lock','owner',{locked:true});expect((await nativeDiscussionMutation('/'+id+'/mute','member',{muted:false})).status).toBe(200);
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('owner','member',?)").run(Date.now());
+ expect((await nativeDiscussionMutation('/'+id+'/mute','member',{muted:true})).status).toBe(404);
+});
+
+it('native managers lock threads and delete foreign replies while organizers cannot',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const reply=await(await nativeDiscussionMutation('/'+id+'/comment','member',{body:'Review this reply',clientId:crypto.randomUUID()})).json();
+ for(const who of ['organizer','member']){
+  expect((await nativeDiscussionMutation('/'+id+'/lock',who,{locked:true})).status).toBe(403);
+  expect((await nativeDiscussionMutation('/'+id+'/delete',who,{commentId:reply.id})).status).toBe(who==='member'?200:403);
+ }
+ const other=await(await nativeDiscussionMutation('/'+id+'/comment','second',{body:'Other reply',clientId:crypto.randomUUID()})).json();
+ expect((await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:true})).status).toBe(200);
+ expect((await(await nativeDiscussionRead('/'+id,'coowner')).json()).post).toMatchObject({locked:1,version:2});
+ expect((await nativeDiscussionMutation('/'+id+'/edit','coowner',{body:'Not my content',version:1,commentId:other.id})).status).toBe(403);
+ expect((await nativeDiscussionMutation('/'+id+'/delete','coowner',{commentId:other.id})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT actor_id FROM group_discussion_actions WHERE content_id=? AND action='delete_comment'").get(other.id).actor_id).toBe('coowner');
+ expect((await nativeDiscussionMutation('/'+id+'/lock','owner',{locked:false})).status).toBe(200);
+ expect((await(await nativeDiscussionRead('/'+id)).json()).post).toMatchObject({locked:0,version:3});
+ expect((await nativeDiscussionMutation('/'+id+'/delete','coowner',{})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT actor_id FROM group_discussion_actions WHERE content_id=? AND action='delete_post'").get(id).actor_id).toBe('coowner');
+ expect((await nativeDiscussionRead('/'+id)).status).toBe(404);
+});
+it('native discussion management rechecks demotion, blocking and archive',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ db.sqlite.prepare("UPDATE group_memberships SET assigned_role='member' WHERE player_id='coowner'").run();
+ expect((await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:true})).status).toBe(403);
+ expect((await nativeDiscussionMutation('/'+id+'/delete','coowner',{})).status).toBe(403);
+ db.sqlite.prepare("UPDATE group_memberships SET assigned_role='coowner' WHERE player_id='coowner'").run();
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('owner','coowner',?)").run(Date.now());
+ expect((await nativeDiscussionMutation('/'+id+'/delete','coowner',{})).status).toBe(404);
+ db.sqlite.prepare('DELETE FROM player_blocks').run();db.sqlite.prepare("UPDATE tennis_groups SET status='archived'").run();
+ expect((await nativeDiscussionMutation('/'+id+'/lock','coowner',{locked:true})).status).toBe(404);
+ expect((await nativeDiscussionMutation('/'+id+'/delete','coowner',{})).status).toBe(404);
+});
+
+it('native discussion reports snapshot post/reply evidence and reject duplicate or own reports',async()=>{
+ const [id]=seedNativeDiscussionPosts(1);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const reply=await(await nativeDiscussionMutation('/'+id+'/comment','second',{body:'Reply evidence',clientId:crypto.randomUUID()})).json();
+ for(const [subjectType,subjectId] of [['post',id],['comment',reply.id]]){
+  const body={subjectType,subjectId,category:'harassment',details:'Explanation for site moderators.'};
+  expect((await nativeDiscussionMutation('/report','member',body)).status).toBe(201);
+  expect((await nativeDiscussionMutation('/report','member',body)).status).toBe(429);
+  const saved=db.sqlite.prepare('SELECT * FROM group_discussion_reports WHERE content_id=?').get(subjectId);
+  expect(saved.reporter_id).toBe('member');expect(JSON.parse(saved.snapshot).body).toBe(subjectType==='post'?'Full body 0':'Reply evidence');
+  expect((await nativeDiscussionMutation('/report',subjectType==='post'?'owner':'second',body)).status).toBe(404);
+ }
+ await nativeDiscussionMutation('/'+id+'/delete','owner',{});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM group_discussion_reports').get().n).toBe(2);
+});
+it('native reporting validates explanations, rates and live access even on locked threads',async()=>{
+ const ids=seedNativeDiscussionPosts(6);db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ const report=(subjectId:string,details:string)=>nativeDiscussionMutation('/report','member',{subjectType:'post',subjectId,category:'other',details});
+ for(const details of ['',String.fromCharCode(1),'😀'.repeat(501)])expect((await report(ids[0],details)).status).toBe(400);
+ await nativeDiscussionMutation('/'+ids[0]+'/lock','owner',{locked:true});expect((await report(ids[0],'😀'.repeat(500))).status).toBe(201);
+ for(const id of ids.slice(1,5))expect((await report(id,'Required explanation')).status).toBe(201);
+ expect((await report(ids[5],'Rate limited')).status).toBe(429);
+ db.sqlite.prepare("UPDATE group_memberships SET status='removed' WHERE player_id='member'").run();expect((await report(ids[5],'Removed')).status).toBe(404);
+ db.sqlite.prepare("UPDATE group_memberships SET status='active' WHERE player_id='member'").run();
+ db.sqlite.prepare("INSERT INTO player_blocks(blocker_id,blocked_id,created_at) VALUES ('owner','member',?)").run(Date.now());expect((await report(ids[0],'Blocked')).status).toBe(404);
+});

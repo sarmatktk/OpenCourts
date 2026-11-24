@@ -1,5 +1,11 @@
 # Phase 5A: group roles transition proposal
 
+## Current rules and native implementation — November 22, 2026
+
+The historical proposal below is superseded where it differs from current `functions/lib/groups.ts`, `group-game-access.ts`, `src/GroupDetails.tsx` and the newest membership-only policy. The primary Owner remains permanent; ownership transfer is disabled. Only the Owner assigns Member/Organizer/Co-owner roles, with one active Co-owner and one Organizer. Co-owner and legacy Admin management rights do not include role assignment. Organizers approve/reject membership requests and manage their own group games, not metadata or other managers' games. Legacy Admin remains unchanged until explicit Owner conversion and cannot be newly assigned. All group games require approved active membership for both group visibilities.
+
+Native `ios-app/ios-app/NativeGroupRoles.swift` now implements explained role choices and explicit review/confirmation from the member directory. It revalidates current Owner/target membership, preserves legacy conversion as an explicit choice and uses existing server-authoritative role-slot/lifecycle guards; no automatic mutation retries. Ten added native-bearer regressions cover supported roles, conversion, protected ownership, non-owner denial, concurrent slots, session/target/archive changes and demotion-host transfer with retained member attendance. Full local backend suite: 556/556; Xcode build and Swift eligibility fixtures pass. Actual isolated role-save and multi-account/device acceptance remain open. No live role changes, migrations or deployment. See the latest native handover/worklist for simulator evidence and continuation.
+
 Prepared November 17, 2026. Next implementation milestone; no schema/code changes yet.
 
 ## Scope and approved permissions

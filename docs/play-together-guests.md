@@ -1,16 +1,23 @@
-# Guest places - local development milestone
+# Guest places — policy and implementation
 
-Published Preview remains703d8689 (badge, avatar framing and non-scrolling group shortcuts).
-Private development image processor versionc5e01912-6e84-4938-bf78-049d2096bd24 preserves full portrait framing. Re-upload original headshots to replace old square crops.
+## Current permission and capacity policy — November 23, 2026
 
-## Implemented locally
+This owner-confirmed policy supersedes older blanket-approval wording below. In group games, the Owner, Co-owners and Organizers can add their own guests directly without approval after confirming their own place and when capacity permits; all three roles can approve/reject other group members' guest requests. Other group members request guest places. In standalone games, only the game host can add guests directly or decide guest requests. Requests reserve no capacity. A full-capacity approval leaves the request pending; a failed direct addition adds no guests. Guests get no player account, group membership, private content or chat access.
+
+The role-scoped guest API is deployed to feature Preview deployment `f6939c04`; no migration was needed for that change and production is unchanged. Native pending counts and capacity alerts build locally; physical-device alert/focus acceptance remains pending.
+
+The guest feature and migration0016 are already present in the Preview rollout. This supersedes the original local-only and remote-schema warnings in the dated implementation notes below. Production remains unchanged.
+
+## Implemented behavior
+
+The earlier image-processing and layout Preview checkpoints below are unrelated history. Current deployment status is recorded above.
 
 Migration0016 adds confirmed guest_count to a participant, one guest request per sponsor/game,
 and private guest notifications. Guest records have no account, membership, name or private-content access.
-Approved active group members self-join; confirmed players may then request1-3 guests subject to game format capacity. Public players must first receive approval for their own place. The host cannot request guest places through this participant workflow.
+Approved active group members self-join; confirmed players may then add or request1-3 guests subject to game-format capacity and the role policy above. Standalone players must first receive host approval for their own place. A host or authorized group role uses direct addition when permitted rather than submitting an approval request for their own guests.
 
-Hosts and authorized group event managers approve/deny guest requests in Game details.
-A request consumes no places until approved. Database triggers enforce SUM(1+guest_count),
+For group games, group Owners, Co-owners and Organizers approve/reject requests in Game details. For standalone games, only the game host can decide guest requests.
+A request consumes no places until approved. A capacity conflict leaves it pending and is reported to the manager. Database triggers enforce SUM(1+guest_count),
 including concurrent member joining, guest approval and capacity changes. Requests use current
 session/CSRF and repeated SQL checks of event state and group management/membership rights.
 
@@ -24,7 +31,7 @@ The existing bell counts them. Notifications link to Game details for decisions;
 approval in the inbox is not implemented. No OS push/email. Group notifications require current
 approved membership. No private addresses, tokens or guest identities added to API projections.
 
-## Validation and rollout
+## Original guest rollout notes (historical)
 
 Full243-unit suite passed, including real SQLite guest approval, complete-party release,
 unique request behavior, overbooking rollback, group privacy and lifecycle. Focused guest
@@ -33,7 +40,7 @@ Migration0016 applied to LOCAL SQLite ONLY. Do not publish this new backend agai
 schema0015; first obtain explicit approval to apply0016 to opencourts-dev and publish Preview.
 No production changes or GitHub push. Manual two-account Preview testing remains next.
 
-## Next work
+## Original next-work list (historical)
 
 Preview acceptance: Sam host, Tom member + one guest should show3/4, Jane can fill final
 place, another guest approval must fail, Tom cancels guests then leaves, host receives notices.

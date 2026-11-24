@@ -15,9 +15,18 @@ nonisolated struct PlaceSuggestion: Codable, Identifiable, Sendable {
     let label: String
     let lat: Double
     let lon: Double
+    var generalLabel: String? = nil
     var countryCode: String? = nil
     var id: String { "\(lat),\(lon)" }
     var place: Place { Place(label: label, lat: lat, lon: lon, countryCode: countryCode) }
+    var generalLocationLabel: String {
+        let area = generalLabel?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = (area?.isEmpty == false ? area : nil) ?? title
+        guard let countryCode, countryCode.lowercased() != "us",
+              let country = Locale(identifier: "en_US").localizedString(forRegionCode: countryCode),
+              !value.localizedCaseInsensitiveContains(country) else { return value }
+        return "\(value), \(country)"
+    }
 }
 
 struct Court: Identifiable, Codable, Hashable, Sendable {

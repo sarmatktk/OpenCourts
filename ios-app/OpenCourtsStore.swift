@@ -9,6 +9,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     var place: Place = .fairfax
     var query = ""
     var suggestions: [PlaceSuggestion] = []
+    var suggestionError: String?
     var courts: [Court] = []
     var forecasts: [Forecast] = []
     var weatherTimeZone = "America/New_York"
@@ -30,6 +31,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     var sort: CourtSort = .near
     private let locationManager = CLLocationManager()
     private let cacheKey = "opencourts.cached-data"
+    private let courtCacheLifetime: TimeInterval = 3 * 24 * 60 * 60
     private let valueUsesKey = "opencourts.review-value-uses"
     private let reviewPromptedVersionKey = "opencourts.review-prompted-version"
     private var suggestionRequestID = 0
@@ -39,16 +41,20 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     private struct CachedData: Codable {
         let place: Place
         let courts: [Court]
-        let forecasts: [Forecast]
-        let weatherTimeZone: String?
-        let alerts: [WeatherAlert]
-        let rain: [RainAssessment]
         let updatedAt: Date
     }
 
     override init() {
         super.init()
         locationManager.delegate = self
+        #if DEBUG
+        if ScreenshotMockContent.isEnabled {
+            place = Self.screenshotPlace
+            courts = Self.screenshotCourts
+            lastUpdated = Date()
+            return
+        }
+        #endif
         if let data = UserDefaults.standard.data(forKey: "opencourts.place"),
            let saved = try? JSONDecoder().decode(Place.self, from: data) { place = saved }
         loadCachedData()
@@ -70,17 +76,15 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     }
 
     private func loadCachedData() {
-        guard
-            let data = UserDefaults.standard.data(forKey: cacheKey),
-            let cached = try? JSONDecoder().decode(CachedData.self, from: data),
-            cached.place == place
-        else { return }
+        guard let data = UserDefaults.standard.data(forKey: cacheKey),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: data) else { return }
+        guard Date().timeIntervalSince(cached.updatedAt) < courtCacheLifetime else {
+            UserDefaults.standard.removeObject(forKey: cacheKey)
+            return
+        }
+        guard cached.place == place else { return }
 
         courts = cached.courts
-        forecasts = cached.forecasts
-        weatherTimeZone = cached.weatherTimeZone ?? weatherTimeZone
-        alerts = cached.alerts
-        rain = cached.rain
         lastUpdated = cached.updatedAt
         isShowingStaleData = true
     }
@@ -89,10 +93,6 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         let cached = CachedData(
             place: place,
             courts: courts,
-            forecasts: forecasts,
-            weatherTimeZone: weatherTimeZone,
-            alerts: alerts,
-            rain: rain,
             updatedAt: lastUpdated ?? Date()
         )
         if let data = try? JSONEncoder().encode(cached) {
@@ -118,18 +118,40 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     }
 
     func load(_ newPlace: Place? = nil) async {
+        #if DEBUG
+        if ScreenshotMockContent.isEnabled {
+            place = Self.screenshotPlace
+            courts = Self.screenshotCourts
+            forecasts = []
+            alerts = []
+            rain = []
+            errorMessage = nil
+            refreshErrorMessage = nil
+            lastUpdated = Date()
+            isLoading = false
+            return
+        }
+        #endif
         let previousPlace = place
-        if let newPlace {
-            place = newPlace
-            if newPlace != previousPlace,
-               newPlace.countryCode?.lowercased() != "us" || previousPlace.countryCode?.lowercased() != "us" {
-                courts = []
-                forecasts = []
-                alerts = []
-                rain = []
-                lastUpdated = nil
-            }
-            if let data = try? JSONEncoder().encode(newPlace) { UserDefaults.standard.set(data, forKey: "opencourts.place") }
+        let requestedPlace = newPlace ?? place
+        let inferredCountry: String?
+        if let countryCode = requestedPlace.countryCode {
+            inferredCountry = countryCode
+        } else {
+            inferredCountry = await OpenCourtsAPI.shared.internationalCountryCode(for: requestedPlace.label)
+        }
+        let resolvedPlace = Place(label: requestedPlace.label, lat: requestedPlace.lat, lon: requestedPlace.lon, countryCode: inferredCountry)
+        place = resolvedPlace
+        if resolvedPlace != previousPlace,
+           (resolvedPlace.countryCode?.lowercased() != "us" || previousPlace.countryCode?.lowercased() != "us") {
+            courts = []
+            forecasts = []
+            alerts = []
+            rain = []
+            lastUpdated = nil
+        }
+        if newPlace != nil || resolvedPlace != previousPlace {
+            if let data = try? JSONEncoder().encode(resolvedPlace) { UserDefaults.standard.set(data, forKey: "opencourts.place") }
         }
         loadRequestID += 1
         let requestID = loadRequestID
@@ -172,6 +194,21 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         }
         isLoading = false
     }
+
+    #if DEBUG
+    private static let screenshotPlace = Place(label: "Bethesda, MD", lat: 38.9847, lon: -77.0947, countryCode: "us")
+    private static let screenshotCourts = [
+        Court(id: "mock-maplewood-1", name: "Maplewood Tennis Center", lat: 38.9910, lon: -77.1010,
+              lighting: .yes, access: .publicAccess, surface: "Hard", courts: 6, sheltered: false,
+              address: "Bethesda, MD", addressApprox: true, contextName: nil, sourceURL: URL(string: "https://opencourts.us")!),
+        Court(id: "mock-cedar-grove-1", name: "Cedar Grove Courts", lat: 38.9778, lon: -77.0810,
+              lighting: .no, access: .publicAccess, surface: "Hard", courts: 4, sheltered: false,
+              address: "Bethesda, MD", addressApprox: true, contextName: nil, sourceURL: URL(string: "https://opencourts.us")!),
+        Court(id: "mock-river-park-1", name: "River Park Courts", lat: 38.9701, lon: -77.1093,
+              lighting: .yes, access: .publicAccess, surface: "Clay", courts: 3, sheltered: false,
+              address: "Bethesda, MD", addressApprox: true, contextName: nil, sourceURL: URL(string: "https://opencourts.us")!)
+    ]
+    #endif
 
     private func loadInternational(hadExistingData: Bool, requestID: Int) async {
         var loadedCourts: [Court]?
@@ -266,6 +303,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
 
     func updateSuggestions() async {
         let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        suggestionError = nil
         guard search.count >= 3 else {
             suggestions = []
             return
@@ -274,19 +312,22 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         suggestionRequestID += 1
         let requestID = suggestionRequestID
         do {
-            let results = try await OpenCourtsAPI.shared.suggestions(for: search)
+            let results = try await OpenCourtsAPI.shared.suggestions(for: search, preferredCountryCode: place.countryCode)
             guard requestID == suggestionRequestID,
                   query.trimmingCharacters(in: .whitespacesAndNewlines) == search else { return }
             suggestions = results
+            if results.isEmpty { suggestionError = "No address suggestions found. Continue typing or search this area." }
         } catch {
             guard requestID == suggestionRequestID else { return }
             suggestions = []
+            suggestionError = "Address suggestions are unavailable right now. Continue typing or search this area."
         }
     }
     func submitSearch() async {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         suggestionRequestID += 1
         suggestions = []
+        suggestionError = nil
         do { await load(try await OpenCourtsAPI.shared.findPlace(query)) }
         catch { errorMessage = error.localizedDescription }
     }
@@ -294,6 +335,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
         suggestionRequestID += 1
         query = ""
         suggestions = []
+        suggestionError = nil
         await load(suggestion.place)
     }
     func requestLocation() {
@@ -339,7 +381,19 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        Task { @MainActor in await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude, countryCode: nil)) }
+        Task { @MainActor in
+            let countryCode = await countryCode(for: location)
+            await load(Place(label: "Your location", lat: location.coordinate.latitude, lon: location.coordinate.longitude, countryCode: countryCode))
+        }
+    }
+
+    private func countryCode(for location: CLLocation) async -> String? {
+        let geocoder = CLGeocoder()
+        return await withCheckedContinuation { continuation in
+            geocoder.reverseGeocodeLocation(location) { placemarks, _ in
+                continuation.resume(returning: placemarks?.first?.isoCountryCode?.lowercased())
+            }
+        }
     }
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in

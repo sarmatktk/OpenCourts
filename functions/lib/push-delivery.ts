@@ -6,18 +6,21 @@ import {type AuthDatabase} from './auth';
 import {groupGameAccess} from './group-game-access';
 import {canViewUnlisted} from './game-sharing';
 import {refreshWaitlist} from './game-waitlist';
+import {gameReminderLead} from './game-reminders';
 import {pushEnvironmentEnabled,pushTester,validPushEndpoint,type PushEnv} from './push';
 
-type Delivery={discussionPostId?:string;id:string;event_id:string;device_id:string;attempts:number;recipient_id:string;category:string;kind:string;entity_type:string;entity_id:string;source:string;source_id:string;expires_at:number;endpoint:string;p256dh:string;auth:string;key_id:string;session_id:string;transport:string};
+export type Delivery={discussionPostId?:string;id:string;event_id:string;device_id:string;attempts:number;recipient_id:string;category:string;kind:string;entity_type:string;entity_id:string;source:string;source_id:string;expires_at:number;endpoint:string;p256dh:string;auth:string;key_id:string;session_id:string;transport:string};
 const sources=new Set(['game_notifications','group_notifications','game_guest_notifications','player_game_invitations','game_schedule_notifications']);
 export async function eventStillVisible(db:AuthDatabase,d:Delivery,now:number){
  if(d.expires_at<=now)return false;
  if(d.source==='discussion_announcements'){const target=await announcementPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target.groupId;d.discussionPostId=target.postId;return true;}
  if(d.source==='discussion_notifications'){const target=await discussionPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target.groupId;d.discussionPostId=target.postId;return true;}
  if(d.source==='game_chat_messages'){const target=await chatPushTarget(db,d.source_id,d.recipient_id,now);if(!target)return false;d.entity_id=target;return true;}
+ const reminderLead=d.source==='game_reminders'?gameReminderLead(d.kind):null;
+ if(d.source==='game_reminders'&&(!reminderLead||d.entity_type!=='game'||d.category!=='games'))return false;
  if(d.source==='game_waitlist'){
   const w=await db.prepare("SELECT 1 FROM game_waitlist WHERE game_id=? AND player_id=? AND status='offered' AND offer_expires_at>? AND game_id||':'||player_id||':'||offered_at=?").bind(d.entity_id,d.recipient_id,now,d.source_id).first();if(!w)return false;
- }else{
+ }else if(d.source!=='game_reminders'){
   if(!sources.has(d.source))return false;
   const actorColumn=d.source==='player_game_invitations'?'sender_id':d.source==='game_schedule_notifications'?'NULL':'actor_id';
   const n=await db.prepare(`SELECT ${actorColumn} AS actor FROM ${d.source} WHERE id=? AND recipient_id=? AND read_at IS NULL`).bind(d.source_id,d.recipient_id).first<{actor:string|null}>();if(!n)return false;
@@ -27,11 +30,15 @@ export async function eventStillVisible(db:AuthDatabase,d:Delivery,now:number){
   // Membership outcomes can be notified without granting content access. Payload is generic.
   if(d.kind==='group_archived')return !!await db.prepare("SELECT 1 FROM tennis_groups WHERE id=? AND status='archived'").bind(d.entity_id).first();
   if(['group_active','group_rejected','group_removed'].includes(d.kind))return !!await db.prepare('SELECT 1 FROM group_memberships WHERE group_id=? AND player_id=? AND status=?').bind(d.entity_id,d.recipient_id,d.kind.slice(6)).first();
-  return !!await db.prepare("SELECT 1 FROM tennis_groups t JOIN group_memberships m ON m.group_id=t.id WHERE t.id=? AND t.status='active' AND m.player_id=? AND m.status='active' AND (t.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role) IN ('coowner','admin'))").bind(d.entity_id,d.recipient_id).first();
+  return !!await db.prepare("SELECT 1 FROM tennis_groups t JOIN group_memberships m ON m.group_id=t.id WHERE t.id=? AND t.status='active' AND m.player_id=? AND m.status='active' AND (t.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role) IN ('coowner','admin','organizer'))").bind(d.entity_id,d.recipient_id).first();
  }
- const game=await db.prepare('SELECT organizer_id,visibility,group_id,starts_at,status FROM games WHERE id=?').bind(d.entity_id).first<{organizer_id:string;visibility:string;group_id:string|null;starts_at:number;status:string}>();
+ const game=await db.prepare('SELECT organizer_id,visibility,group_id,starts_at,status,created_at FROM games WHERE id=?').bind(d.entity_id).first<{organizer_id:string;visibility:string;group_id:string|null;starts_at:number;status:string;created_at:number}>();
  if(!game)return false;
  if(d.kind!=='game_cancelled'&&(game.status!=='scheduled'||game.starts_at<=now))return false;
+ if(reminderLead){
+  if(d.source_id!==`${d.entity_id}:${game.starts_at}:${d.kind}`||game.created_at>=game.starts_at-reminderLead||
+     !await db.prepare('SELECT 1 FROM game_participants WHERE game_id=? AND player_id=?').bind(d.entity_id,d.recipient_id).first())return false;
+ }
  if(game.visibility==='group'&&!(await groupGameAccess(db,game.group_id!,d.recipient_id,game.organizer_id)).canView)return false;
  if(game.visibility==='unlisted'&&!await canViewUnlisted(db,d.entity_id,d.recipient_id))return false;
  return !await db.prepare('SELECT 1 FROM player_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)').bind(d.recipient_id,game.organizer_id,game.organizer_id,d.recipient_id).first();

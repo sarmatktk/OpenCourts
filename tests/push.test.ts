@@ -6,12 +6,16 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {generateVapidKeys} from '@mmmike/web-push/vapid';
 import {WebPushError} from '@mmmike/web-push/send';
 import {pushEnvironmentEnabled,pushTester,handlePush,validPushEndpoint,type PushEnv} from '../functions/lib/push';
-import {drainPush} from '../functions/lib/push-delivery';
+import {cleanupNativePushDevices,nativePushRegistrationEnabled,nativePushToken} from '../functions/lib/native-push';
+import {drainPush,eventStillVisible} from '../functions/lib/push-delivery';
+import {enqueueGameReminders} from '../functions/lib/game-reminders';
+import {drainAPNs} from '../functions/lib/apns-delivery';
+import type {APNsClient,APNsOutcome} from '../functions/lib/apns-provider';
 import {hashToken,type AuthDatabase,type AuthStatement} from '../functions/lib/auth';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class DB implements AuthDatabase{
  sqlite=new DatabaseSync(':memory:');
- constructor(actorMigration=true){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('functions/db/migrations').filter(f=>f.endsWith('.sql')&&(actorMigration||f!=='0025_notification_action_actor.sql')).sort())this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
+ constructor(actorMigration=true){this.sqlite.exec('PRAGMA foreign_keys=ON');for(const f of readdirSync('functions/db/migrations').filter(f=>f.endsWith('.sql')&&(actorMigration||!['0025_notification_action_actor.sql','0039_game_capacity_notifications.sql'].includes(f))).sort())this.sqlite.exec(readFileSync('functions/db/migrations/'+f,'utf8'));}
  prepare(sql:string):AuthStatement{let args:unknown[]=[];const s:AuthStatement={bind(...v){args=v;return s;},first:async<T>()=>(this.sqlite.prepare(sql).get(...args)??null) as T|null,all:async<T>()=>({results:this.sqlite.prepare(sql).all(...args) as T[]}),run:async()=>({meta:{changes:Number(this.sqlite.prepare(sql).run(...args).changes)}})};return s;}
  async batch(ops:AuthStatement[]){this.sqlite.exec('BEGIN');try{const r=[];for(const o of ops)r.push(await o.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
@@ -27,6 +31,253 @@ beforeEach(async()=>{db=new DB();const now=Date.now(),vapid=await generateVapidK
 afterEach(()=>{db.sqlite.close();vi.restoreAllMocks();vi.unstubAllGlobals();});
 const req=(path:string,method='GET',body?:unknown,headers:Record<string,string>={})=>handlePush(new Request(origin+'/api/push/'+path,{method,headers:{Origin:origin,Cookie:'__Host-oc_session='+token,'X-CSRF-Token':'csrf','Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),env);
 async function register(){const r=await req('devices','POST',{subscription});expect(r.status,await r.clone().text()).toBe(200);return (await r.json()).id;}
+const nativeRegistration={deviceToken:'ab'.repeat(32),installationId:'cd'.repeat(32),consent:true,environment:'sandbox',topic:'us.opencourts.ios'};
+function enableNative(){Object.assign(env,{NATIVE_PUSH_DEVELOPMENT_ENABLED:'true',APNS_ENVIRONMENT:'sandbox',APNS_TOPIC:'us.opencourts.ios'});db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios' WHERE id='s'").run();}
+const nativePush=(path:string,method='GET',body?:unknown,headers:Record<string,string>={})=>req('native/'+path,method,body,{Cookie:'',Authorization:'Bearer '+token,...headers});
+function enableNativeSender(){enableNative();Object.assign(env,{NATIVE_PUSH_SANDBOX_READY:'true',NATIVE_PUSH_ALLOWED_PLAYER_IDS:'sam',APNS_SENDER_ENABLED:'true',APNS_TEAM_ID:'TESTTEAM01',APNS_KEY_ID:'TESTKEY001',APNS_PRIVATE_KEY:'-----BEGIN PRIVATE KEY-----\nsynthetic-injected-client-only\n-----END PRIVATE KEY-----'});}
+function nativeClient(outcome:APNsOutcome={status:'accepted'}):APNsClient{return {prepare:vi.fn().mockResolvedValue(undefined),send:vi.fn(async(_job,authorize)=>await authorize()?outcome:{status:'skipped'})};}
+it('exposes sandbox readiness only after an explicit assertion to exact listed accounts',async()=>{
+ enableNative();
+ for(const patch of [{},{NATIVE_PUSH_SANDBOX_READY:'true'},{NATIVE_PUSH_SANDBOX_READY:'true',NATIVE_PUSH_ALLOWED_PLAYER_IDS:'sam-other'},{NATIVE_PUSH_SANDBOX_READY:'false',NATIVE_PUSH_ALLOWED_PLAYER_IDS:'sam'}]){
+  delete env.NATIVE_PUSH_SANDBOX_READY;delete env.NATIVE_PUSH_ALLOWED_PLAYER_IDS;Object.assign(env,patch);
+  expect((await(await nativePush('settings')).json()).deliveryAvailable).toBe(false);
+ }
+ Object.assign(env,{NATIVE_PUSH_SANDBOX_READY:'true',NATIVE_PUSH_ALLOWED_PLAYER_IDS:'other, sam ,third'});
+ expect((await(await nativePush('settings')).json()).deliveryAvailable).toBe(true);
+ expect((await(await nativePush('devices','POST',nativeRegistration)).json()).deliveryAvailable).toBe(true);
+ env.CF_PAGES_BRANCH='main';
+ expect((await nativePush('settings')).status).toBe(404);
+});
+it.each(['','someone-else'])('does not send native work outside the sandbox tester list: %s',async(list)=>{
+ enableNativeSender();env.NATIVE_PUSH_ALLOWED_PLAYER_IDS=list;
+ await nativePush('devices','POST',nativeRegistration);event();const client=nativeClient();
+ await drainAPNs(db,env,client);expect(client.send).not.toHaveBeenCalled();
+});
+it('rechecks the sandbox tester list immediately before provider egress',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();let egress=0;
+ const client:APNsClient={prepare:async()=>{},send:async(_job,authorize)=>{env.NATIVE_PUSH_ALLOWED_PLAYER_IDS='';if(await authorize())egress++;return {status:'skipped'};}};
+ await drainAPNs(db,env,client);expect(egress).toBe(0);
+});
+it('leaves native queues untouched unless enabled and signing preflight succeeds',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();const client=nativeClient();env.APNS_SENDER_ENABLED='false';
+ expect(await drainAPNs(db,env,client)).toEqual({processed:0});expect(client.send).not.toHaveBeenCalled();
+ env.APNS_SENDER_ENABLED='true';client.prepare=vi.fn().mockRejectedValue(new Error('SECRET SIGNING MATERIAL'));
+ expect(await drainAPNs(db,env,client)).toEqual({processed:0,configurationError:true});expect(db.sqlite.prepare('SELECT status,attempts FROM notification_deliveries').get()).toMatchObject({status:'pending',attempts:0});
+});
+it('sends native-only work once without browser keys and records provider acceptance',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();delete env.PUSH_VAPID_PRIVATE_KEY;const client=nativeClient();
+ expect((await drainAPNs(db,env,client)).processed).toBe(1);expect(client.send).toHaveBeenCalledOnce();
+ expect(db.sqlite.prepare('SELECT channel,status,attempts FROM notification_deliveries').get()).toMatchObject({channel:'apns',status:'sent',attempts:1});
+ await drainAPNs(db,env,client);expect(client.send).toHaveBeenCalledOnce();
+});
+it.each([
+ "UPDATE game_notifications SET read_at=1",
+ "INSERT INTO player_blocks VALUES ('sam','host',1)",
+ "UPDATE group_memberships SET status='removed' WHERE player_id='sam'",
+ "UPDATE tennis_groups SET status='archived'",
+ "UPDATE notification_preferences SET push_enabled=0",
+ "UPDATE auth_sessions SET expires_at=1",
+ "UPDATE auth_sessions SET revoked_at=1",
+])('suppresses native queued game delivery after current authorization changes: %s',async(change)=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);gameNote('group');db.sqlite.exec(change);db.sqlite.exec('UPDATE group_notifications SET read_at=1');
+ const client=nativeClient();await drainAPNs(db,env,client);expect(client.send).not.toHaveBeenCalled();
+});
+it('revalidates access at the provider boundary after preparation',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();let egress=0;
+ const client:APNsClient={prepare:async()=>{},send:async(_job,authorize)=>{db.sqlite.exec("UPDATE group_memberships SET status='removed' WHERE player_id='sam'");if(await authorize()){egress++;return {status:'accepted'};}return {status:'skipped'};}};
+ await drainAPNs(db,env,client);expect(egress).toBe(0);expect(db.sqlite.prepare("SELECT q.status FROM notification_deliveries q JOIN notification_events e ON e.id=q.event_id WHERE e.kind='group_active'").get().status).toBe('skipped');
+});
+it('claims native leases once across overlapping workers',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();const client=nativeClient();
+ await Promise.all([drainAPNs(db,env,client),drainAPNs(db,env,client)]);expect(client.send).toHaveBeenCalledOnce();
+});
+it('bounds native retries and finishes exhausted abandoned leases',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();const client=nativeClient({status:'retry',code:'provider_503',retryAfterMs:900000});const now=Date.now();
+ await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT status,attempts,next_attempt_at FROM notification_deliveries').get()).toMatchObject({status:'pending',attempts:1});
+ expect(db.sqlite.prepare('SELECT next_attempt_at FROM notification_deliveries').get().next_attempt_at).toBeGreaterThanOrEqual(now+900000);
+ await drainAPNs(db,env,client);expect(client.send).toHaveBeenCalledOnce();
+ db.sqlite.exec("UPDATE notification_deliveries SET attempts=4,next_attempt_at=1");await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT status,attempts FROM notification_deliveries').get()).toMatchObject({status:'failed',attempts:5});
+ db.sqlite.exec("UPDATE notification_deliveries SET status='sending',lease_until=1");await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT status,last_error FROM notification_deliveries').get()).toMatchObject({status:'failed',last_error:'attempt_limit'});
+});
+it('cascades invalid native tokens but protects newer registrations from old invalidation responses',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();await drainAPNs(db,env,nativeClient({status:'invalid_token',code:'provider_410'}));
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(0);
+ await nativePush('devices','POST',nativeRegistration);event('next');
+ const client:APNsClient={prepare:async()=>{},send:async()=>{db.sqlite.prepare('UPDATE notification_devices SET updated_at=?').run(Date.now()+10000);return {status:'invalid_token',code:'provider_410',invalidatedAt:Date.now()-1000};}};
+ await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(1);expect(db.sqlite.prepare('SELECT status FROM notification_deliveries').get().status).toBe('failed');
+});
+it('stops the native batch on provider authentication errors without removing devices or consuming remaining jobs',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();event('second');const client=nativeClient({status:'failed',code:'provider_403',stopBatch:true});
+ expect((await drainAPNs(db,env,client)).processed).toBe(1);expect(client.send).toHaveBeenCalledOnce();expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(1);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM notification_deliveries WHERE status='pending' AND attempts=0").get().n).toBe(1);
+});
+it('sanitizes thrown native provider errors and ignores mismatched environment/topic metadata',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();const client=nativeClient();client.send=vi.fn().mockRejectedValue(new Error('SECRET TOKEN PRIVATE KEY'));
+ await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT last_error FROM notification_deliveries').get().last_error).toBe('delivery_error');
+ db.sqlite.exec("UPDATE native_push_devices SET topic='other.app';UPDATE notification_deliveries SET next_attempt_at=1");client.send=vi.fn();await drainAPNs(db,env,client);expect(client.send).not.toHaveBeenCalled();
+});
+it('does not let an old native lease invalidate a device or overwrite a newer worker outcome',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();
+ const client:APNsClient={prepare:async()=>{},send:async()=>{db.sqlite.prepare("UPDATE notification_deliveries SET lease_token='newer-worker',lease_until=?").run(Date.now()+120000);return {status:'invalid_token',code:'provider_410'};}};
+ await drainAPNs(db,env,client);expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(1);
+ expect(db.sqlite.prepare('SELECT status,lease_token FROM notification_deliveries').get()).toMatchObject({status:'sending',lease_token:'newer-worker'});
+});
+it('applies native Groups preferences without suppressing eligible Games activity',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();gameNote();db.sqlite.exec('UPDATE notification_preferences SET groups=0,games=1');const client=nativeClient();
+ await drainAPNs(db,env,client);expect(client.send).toHaveBeenCalledOnce();expect(vi.mocked(client.send).mock.calls[0][0].kind).toBe('approved');
+});
+it('prunes expired native event work without attempting delivery',async()=>{
+ enableNativeSender();await nativePush('devices','POST',nativeRegistration);event();db.sqlite.exec('UPDATE notification_events SET expires_at=1');const client=nativeClient();
+ await drainAPNs(db,env,client);expect(client.send).not.toHaveBeenCalled();expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(0);
+});
+it('keeps native registration disabled by default, scoped to sandbox and schema-ready development only',async()=>{
+ db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios'").run();
+ expect(await(await nativePush('settings')).json()).toEqual({available:false,deliveryAvailable:false});
+ expect((await nativePush('devices','POST',nativeRegistration)).status).toBe(404);
+ enableNative();expect(nativePushRegistrationEnabled(env,origin)).toBe(true);
+ for(const patch of [{APNS_ENVIRONMENT:'production'},{APNS_TOPIC:'other.app'},{CF_PAGES_BRANCH:'main'},{PLAY_TOGETHER_ENVIRONMENT:'production'}])expect(nativePushRegistrationEnabled({...env,...patch},origin)).toBe(false);
+ expect(nativePushRegistrationEnabled({...env,AUTH_ORIGIN:'https://opencourts.us'},'https://opencourts.us')).toBe(false);
+ expect(nativePushRegistrationEnabled({...env,AUTH_ORIGIN:'http://localhost.evil.test'},'http://localhost.evil.test')).toBe(false);
+ expect(nativePushRegistrationEnabled({...env,AUTH_ORIGIN:'http://127.0.0.1:8788'},'http://127.0.0.1:8788')).toBe(true);
+ db.sqlite.exec('DROP TABLE native_push_devices');
+ expect(await(await nativePush('settings')).json()).toEqual({available:false,deliveryAvailable:false});
+ expect((await nativePush('devices','POST',nativeRegistration)).status).toBe(404);
+});
+it('requires native auth, CSRF, Origin, explicit consent and bounded non-fixed-length hex tokens',async()=>{
+ enableNative();
+ expect((await nativePush('devices','POST',nativeRegistration,{'X-CSRF-Token':'bad'})).status).toBe(403);
+ expect((await nativePush('devices','POST',nativeRegistration,{Origin:'https://evil.test'})).status).toBe(403);
+ expect((await nativePush('settings','GET',undefined,{Authorization:''})).status).toBe(401);
+ for(const patch of [{consent:'true'},{installationId:'bad'},{deviceToken:'xyz'},{deviceToken:'abc'},{deviceToken:'ab'.repeat(513)},{environment:'production'},{topic:'other.app'}])expect((await nativePush('devices','POST',{...nativeRegistration,...patch})).status).toBe(400);
+ expect((await nativePush('devices','POST',{...nativeRegistration,consent:false})).status).toBe(403);
+ expect(nativePushToken('AB'.repeat(48))).toBe('ab'.repeat(48));expect(nativePushToken('01')).toBe('01');
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM native_push_devices').get().n).toBe(0);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_preferences').get().n).toBe(0);
+});
+it('registers APNs idempotently, preserves category choices, rotates tokens and exposes no token or installation secret',async()=>{
+ enableNative();db.sqlite.prepare('INSERT INTO notification_preferences VALUES (?,0,0,1,?)').run('sam',Date.now());
+ const first=await nativePush('devices','POST',nativeRegistration);expect(first.status).toBe(200);const {id}=await first.json();
+ expect(await(await nativePush('devices','POST',{...nativeRegistration,deviceToken:nativeRegistration.deviceToken.toUpperCase()})).json()).toMatchObject({ok:true,id,deliveryAvailable:false});
+ expect(db.sqlite.prepare("SELECT push_enabled,games,groups FROM notification_preferences WHERE player_id='sam'").get()).toMatchObject({push_enabled:1,games:0,groups:1});
+ event();expect(db.sqlite.prepare('SELECT channel,status,attempts FROM notification_deliveries').get()).toMatchObject({channel:'apns',status:'pending',attempts:0});
+ const send=vi.fn();await drainPush(db,env,send);expect(send).not.toHaveBeenCalled();
+ expect((await(await nativePush('devices','POST',nativeRegistration)).json()).id).toBe(id);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(1);
+ const rotated=await(await nativePush('devices','POST',{...nativeRegistration,deviceToken:'ef'.repeat(48),expectedRegistrationId:id})).json();expect(rotated.id).not.toBe(id);
+ expect((await(await nativePush('devices','POST',{...nativeRegistration,deviceToken:'ef'.repeat(48),expectedRegistrationId:id})).json()).id).toBe(rotated.id);
+ expect((await nativePush('devices','POST',{...nativeRegistration,expectedRegistrationId:id})).status).toBe(409);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(0);
+ const settings=await(await nativePush('settings')).json();expect(settings).toMatchObject({available:true,deliveryAvailable:false,environment:'sandbox',playerId:'sam'});expect(settings.devices).toHaveLength(1);
+ for(const secret of [nativeRegistration.deviceToken,nativeRegistration.installationId,'endpointHash','installation_hash'])expect(JSON.stringify(settings)).not.toContain(secret);
+ expect(db.sqlite.prepare('SELECT installation_hash FROM native_push_devices').get().installation_hash).not.toBe(nativeRegistration.installationId);
+ expect((await nativePush('devices','DELETE',{id:rotated.id})).status).toBe(200);expect((await(await nativePush('settings')).json()).devices).toEqual([]);
+});
+it('rebinds an installation across native sessions/accounts without retaining old deliveries and rejects other-installation token claims',async()=>{
+ enableNative();const first=await(await nativePush('devices','POST',nativeRegistration)).json();event();
+ expect((await nativePush('devices','POST',{...nativeRegistration,installationId:'ee'.repeat(32)})).status).toBe(409);
+ const other='host-native-push-registration-at-least-32-chars',now=Date.now();
+ db.sqlite.prepare("INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at,client_type) VALUES ('host-ios','host',?,'other-csrf',?,?,'ios')").run(await hashToken(other),now,now+86400000);
+ const otherHeaders={Authorization:'Bearer '+other,'X-CSRF-Token':'other-csrf'};
+ const second=await(await nativePush('devices','POST',{...nativeRegistration,expectedRegistrationId:first.id},otherHeaders)).json();expect(second.id).not.toBe(first.id);
+ expect((await nativePush('devices','POST',{...nativeRegistration,expectedRegistrationId:first.id})).status).toBe(409);
+ expect(db.sqlite.prepare('SELECT player_id,session_id FROM notification_devices').get()).toMatchObject({player_id:'host',session_id:'host-ios'});
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(0);
+ expect((await nativePush('devices','DELETE',{id:second.id})).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(1);
+ expect((await(await nativePush('settings')).json()).devices).toEqual([]);
+});
+it('immediately cascades native registrations and deliveries on logout, suspension and account deletion',async()=>{
+ enableNative();await nativePush('devices','POST',nativeRegistration);event();
+ db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=? WHERE id='s'").run(Date.now());
+ for(const table of ['native_push_devices','notification_devices','notification_deliveries'])expect(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n).toBe(0);
+ expect((await nativePush('settings')).status).toBe(401);
+ db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=NULL WHERE id='s'").run();await nativePush('devices','POST',nativeRegistration);
+ db.sqlite.prepare("UPDATE players SET status='disabled',updated_at=? WHERE id='sam'").run(Date.now());
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM native_push_devices').get().n).toBe(0);
+ db.sqlite.prepare("UPDATE players SET status='active' WHERE id='sam'").run();db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=NULL WHERE id='s'").run();await nativePush('devices','POST',nativeRegistration);
+ db.sqlite.prepare("DELETE FROM players WHERE id='sam'").run();
+ for(const table of ['native_push_devices','notification_devices','notification_deliveries'])expect(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n).toBe(0);
+});
+it('does not register or opt in when the native session is revoked between authorization and the write batch',async()=>{
+ enableNative();const batch=db.batch.bind(db);db.batch=async ops=>{db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=1 WHERE id='s'").run();return batch(ops);};
+ expect((await nativePush('devices','POST',nativeRegistration)).status).toBe(409);
+ for(const table of ['native_push_devices','notification_devices','notification_preferences'])expect(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n).toBe(0);
+});
+it('enforces the shared ten-registration cap without inserting a partial native device',async()=>{
+ enableNative();const now=Date.now();for(let i=0;i<10;i++)db.sqlite.prepare("INSERT INTO notification_devices VALUES(?, 'sam','s','webpush',?,?,'','','',?,?,NULL)").run('web-'+i,'hash-'+i,'endpoint-'+i,now,now);
+ expect((await nativePush('devices','POST',nativeRegistration)).status).toBe(409);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM native_push_devices').get().n).toBe(0);
+ expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_devices').get().n).toBe(10);
+});
+it('cleans expired native registrations and queued work independently of VAPID readiness',async()=>{
+ enableNative();await nativePush('devices','POST',nativeRegistration);event();
+ db.sqlite.prepare("UPDATE auth_sessions SET expires_at=1 WHERE id='s'").run();
+ delete env.PUSH_VAPID_PRIVATE_KEY;
+ await cleanupNativePushDevices(db);
+ for(const table of ['native_push_devices','notification_devices','notification_deliveries'])expect(db.sqlite.prepare('SELECT COUNT(*) n FROM '+table).get().n).toBe(0);
+});
+it('refreshes only an already authorized installation without re-enabling account-wide push',async()=>{
+ enableNative();const first=await(await nativePush('devices','POST',nativeRegistration)).json();
+ db.sqlite.prepare("UPDATE notification_preferences SET push_enabled=0,games=0,groups=1 WHERE player_id='sam'").run();
+ expect((await nativePush('devices','POST',{...nativeRegistration,consent:false,deviceToken:'ef'.repeat(48),expectedRegistrationId:first.id})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT push_enabled,games,groups FROM notification_preferences WHERE player_id='sam'").get()).toMatchObject({push_enabled:0,games:0,groups:1});
+ event();expect(db.sqlite.prepare('SELECT COUNT(*) n FROM notification_deliveries').get().n).toBe(0);
+ db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=1 WHERE id='s'").run();
+ db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=NULL WHERE id='s'").run();
+ expect((await nativePush('devices','POST',{...nativeRegistration,consent:false})).status).toBe(403);
+});
+it('shares native preference semantics without depending on browser VAPID configuration',async()=>{
+ enableNative();delete env.PUSH_VAPID_PUBLIC_KEY;delete env.PUSH_VAPID_PRIVATE_KEY;
+ expect((await(await req('settings','GET',undefined,{Cookie:'',Authorization:'Bearer '+token})).json()).available).toBe(false);
+ expect((await nativePush('preferences','PATCH',{enabled:true,games:false,groups:true})).status).toBe(200);
+ expect((await(await nativePush('settings')).json()).preferences).toEqual({enabled:1,games:0,groups:1});
+ expect((await nativePush('preferences','PATCH',{enabled:false,games:true})).status).toBe(400);
+ expect((await nativePush('preferences','PATCH',{enabled:false,games:true,groups:false},{'X-CSRF-Token':'bad'})).status).toBe(403);
+ expect((await nativePush('preferences','PATCH',{enabled:false,games:true,groups:false})).status).toBe(200);
+ expect((await(await nativePush('settings')).json()).preferences).toEqual({enabled:0,games:1,groups:0});
+});
+it('reviews only a possessed installation version without exposing token or account identity',async()=>{
+ enableNative();expect(await(await nativePush('installation','POST',{installationId:nativeRegistration.installationId})).json()).toEqual({registrationId:null,currentSession:false});
+ const {id}=await(await nativePush('devices','POST',nativeRegistration)).json();
+ expect(await(await nativePush('installation','POST',{installationId:nativeRegistration.installationId})).json()).toEqual({registrationId:id,currentSession:true});
+ expect(await(await nativePush('installation','POST',{installationId:'ef'.repeat(32)})).json()).toEqual({registrationId:null,currentSession:false});
+ expect((await nativePush('installation','POST',{installationId:nativeRegistration.installationId},{'X-CSRF-Token':'bad'})).status).toBe(403);
+ const other='host-installation-review-session-at-least-32-chars',now=Date.now();db.sqlite.prepare("INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at,client_type) VALUES ('review-host','host',?,'other-csrf',?,?,'ios')").run(await hashToken(other),now,now+86400000);
+ expect(await(await nativePush('installation','POST',{installationId:nativeRegistration.installationId},{Authorization:'Bearer '+other,'X-CSRF-Token':'other-csrf'})).json()).toEqual({registrationId:id,currentSession:false});
+});
+it('supports native bearer preference review, explicit saves and owned-device removal with session and CSRF guards',async()=>{
+ const id=await register();db.sqlite.prepare("UPDATE auth_sessions SET client_type='ios' WHERE id='s'").run();
+ const native=(path:string,method='GET',body?:unknown,headers:Record<string,string>={})=>req(path,method,body,{Cookie:'',Authorization:'Bearer '+token,...headers});
+ const settings=await(await native('settings')).json();
+ expect(settings).toMatchObject({available:true,preferences:{enabled:1,games:1,groups:1}});
+ expect(settings.devices[0]).toMatchObject({id,transport:'webpush',currentSession:true});
+ expect(JSON.stringify(settings)).not.toContain(subscription.endpoint);
+ expect((await native('preferences','PATCH',{enabled:false,games:true,groups:false},{'X-CSRF-Token':'wrong'})).status).toBe(403);
+ expect((await native('preferences','PATCH',{enabled:false,games:true})).status).toBe(400);
+ expect((await native('preferences','PATCH',{enabled:false,games:true,groups:false},{Origin:'https://evil.test'})).status).toBe(403);
+ expect((await native('preferences','PATCH',{enabled:false,games:true,groups:false})).status).toBe(200);
+ expect((await(await native('settings')).json()).preferences).toEqual({enabled:0,games:1,groups:0});
+ expect((await native('devices','DELETE',{id})).status).toBe(200);
+ expect((await(await native('settings')).json()).devices).toEqual([]);
+ db.sqlite.prepare("UPDATE auth_sessions SET revoked_at=1 WHERE id='s'").run();
+ expect((await native('settings')).status).toBe(401);
+ expect((await native('preferences','PATCH',{enabled:true,games:true,groups:true})).status).toBe(401);
+});
+it('isolates native settings and unregister from other accounts and fails closed when push is unavailable',async()=>{
+ const id=await register(),other='other-native-push-session-at-least-32-characters',now=Date.now();
+ db.sqlite.prepare("INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at,client_type) VALUES ('native-host','host',?,'host-csrf',?,?,'ios')").run(await hashToken(other),now,now+86400000);
+ const native=(path:string,method='GET',body?:unknown)=>req(path,method,body,{Cookie:'',Authorization:'Bearer '+other,'X-CSRF-Token':'host-csrf'});
+ expect((await(await native('settings')).json()).devices).toEqual([]);
+ expect((await native('devices','DELETE',{id})).status).toBe(200);
+ expect(db.sqlite.prepare('SELECT player_id FROM notification_devices WHERE id=?').get(id).player_id).toBe('sam');
+ expect((await native('preferences','PATCH',{enabled:false,games:false,groups:true})).status).toBe(200);
+ expect(db.sqlite.prepare("SELECT push_enabled,games,groups FROM notification_preferences WHERE player_id='sam'").get()).toMatchObject({push_enabled:1,games:1,groups:1});
+ expect((await req('settings','GET',undefined,{Cookie:'',Authorization:'Bearer '+token})).status).toBe(401);
+ expect((await req('settings','GET',undefined,{Cookie:'__Host-oc_session='+other})).status).toBe(401);
+ env.PUSH_ENABLED='false';
+ expect(await(await native('settings')).json()).toEqual({available:false});
+ expect((await native('preferences','PATCH',{enabled:true,games:true,groups:true})).status).toBe(404);
+});
 function event(id='note'){const now=Date.now();db.sqlite.prepare("INSERT INTO tennis_groups(id,owner_id,name,public_description,description,general_location,skill_preference,visibility,status,created_at,updated_at,request_id) VALUES ('group','host','Secret group','','','Fairfax','any','private','active',?,?,'r') ON CONFLICT DO NOTHING").run(now,now);db.sqlite.prepare("INSERT INTO group_memberships(group_id,player_id,status,created_at,updated_at) VALUES ('group','sam','active',?,?) ON CONFLICT DO NOTHING").run(now,now);db.sqlite.prepare("INSERT INTO group_notifications(id,group_id,recipient_id,actor_id,kind,created_at) VALUES (?,'group','sam','host','group_active',?)").run(id,now);}
 it('requires authentication, Origin and CSRF',async()=>{expect((await req('settings','GET',undefined,{Cookie:''})).status).toBe(401);expect((await req('devices','POST',{subscription},{Origin:'https://evil.test'})).status).toBe(403);expect((await req('devices','POST',{subscription},{'X-CSRF-Token':'bad'})).status).toBe(403);});
 it('fails closed when disabled or using the wrong environment, while allowing all accounts',async()=>{env.PUSH_ENABLED='false';expect((await(await req('settings')).json()).available).toBe(false);env.PUSH_ENABLED='true';env.PUSH_ALLOWED_PLAYER_IDS='someoneelse';expect((await(await req('settings')).json()).available).toBe(true);env.PUSH_ALLOWED_PLAYER_IDS='';expect((await(await req('settings')).json()).available).toBe(true);env.CF_PAGES_BRANCH='main';expect((await req('settings')).status).toBe(404);});
@@ -98,6 +349,44 @@ function gameNote(visibility='public'){
  db.sqlite.prepare(`INSERT INTO games(id,organizer_id,visibility,group_id,title,court_id,court_name,court_lat,court_lon,court_access,starts_at,ends_at,time_zone,format,capacity,request_id,request_hash,created_at,updated_at) VALUES ('game','host',?,?,'Private title','court','Private address',38,-77,'public',?,?,'UTC','doubles',4,'game','hash',?,?)`).run(visibility,visibility==='group'?'group':null,now+3600000,now+7200000,now,now);
  db.sqlite.prepare("INSERT INTO game_notifications(id,game_id,recipient_id,actor_id,kind,places_released,created_at) VALUES ('game-note','game','sam','host','approved',0,?)").run(now);
 }
+function reminderGame(id:string,startsAt:number,createdAt:number){
+ db.sqlite.prepare(`INSERT INTO games(id,organizer_id,visibility,title,court_id,court_name,court_lat,court_lon,court_access,starts_at,ends_at,time_zone,format,capacity,request_id,request_hash,created_at,updated_at)
+  VALUES (?,'host','public','Reminder fixture','court','Court',38,-77,'public',?,?,'UTC','doubles',4,?,'hash',?,?)`).run(id,startsAt,startsAt+3600000,id,createdAt,createdAt);
+ db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(id,'host',createdAt);
+ db.sqlite.prepare('INSERT INTO game_participants(game_id,player_id,joined_at) VALUES (?,?,?)').run(id,'sam',createdAt);
+}
+it('queues 24-hour and 3-hour game reminders once for current confirmed players at their due windows',async()=>{
+ const now=Date.now(),startsAt=now+25*3600000;await register();reminderGame('reminder-game',startsAt,now);
+ expect(await enqueueGameReminders(db,now)).toBe(0);
+ expect(await enqueueGameReminders(db,now+3600000)).toBe(2);
+ expect(await enqueueGameReminders(db,now+3600000)).toBe(0);
+ expect(db.sqlite.prepare("SELECT recipient_id,kind,source_id FROM notification_events WHERE source='game_reminders' ORDER BY recipient_id").all()).toMatchObject([
+  {recipient_id:'host',kind:'game_reminder_24h',source_id:`reminder-game:${startsAt}:game_reminder_24h`},
+  {recipient_id:'sam',kind:'game_reminder_24h',source_id:`reminder-game:${startsAt}:game_reminder_24h`},
+ ]);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM notification_deliveries d JOIN notification_events e ON e.id=d.event_id WHERE e.source='game_reminders'").get().n).toBe(1);
+ expect(await enqueueGameReminders(db,now+22*3600000)).toBe(2);
+ expect(await enqueueGameReminders(db,now+22*3600000)).toBe(0);
+ expect(db.sqlite.prepare("SELECT COUNT(*) n FROM notification_events WHERE source='game_reminders' AND kind='game_reminder_3h'").get().n).toBe(2);
+});
+it('omits missed or short-notice reminders and suppresses queued reminders after schedule or attendance changes',async()=>{
+ const now=Date.now();await register();
+ reminderGame('short-game',now+20*3600000,now);
+ reminderGame('missed-game',now+23*3600000,now-48*3600000);
+ expect(await enqueueGameReminders(db,now)).toBe(0);
+ expect(await enqueueGameReminders(db,now+17*3600000+20*60000)).toBe(2);
+ const eventRow=db.sqlite.prepare("SELECT e.*,q.id AS delivery_id,q.device_id,q.attempts,d.endpoint,d.p256dh,d.auth,d.key_id,d.session_id,d.transport FROM notification_events e JOIN notification_deliveries q ON q.event_id=e.id JOIN notification_devices d ON d.id=q.device_id WHERE e.source='game_reminders' AND e.entity_id='short-game' LIMIT 1").get() as any;
+ expect(await eventStillVisible(db,eventRow,Date.now())).toBe(true);
+ db.sqlite.prepare("UPDATE games SET starts_at=starts_at+3600000,ends_at=ends_at+3600000 WHERE id='short-game'").run();
+ expect(await eventStillVisible(db,eventRow,Date.now())).toBe(false);
+});
+it('does not send a queued game reminder after the recipient is no longer playing',async()=>{
+ const now=Date.now();await register();reminderGame('left-game',now+25*3600000,now-3600000);
+ await enqueueGameReminders(db,now+3600000);
+ db.sqlite.prepare("DELETE FROM game_participants WHERE game_id='left-game' AND player_id='sam'").run();
+ const reminder=db.sqlite.prepare("SELECT e.*,q.id AS delivery_id,q.device_id,q.attempts,d.endpoint,d.p256dh,d.auth,d.key_id,d.session_id,d.transport FROM notification_events e JOIN notification_deliveries q ON q.event_id=e.id JOIN notification_devices d ON d.id=q.device_id WHERE e.source='game_reminders' AND e.recipient_id='sam' LIMIT 1").get() as any;
+ expect(await eventStillVisible(db,reminder,Date.now())).toBe(false);
+});
 it('private-game membership removal prevents queued content delivery',async()=>{await register();gameNote('group');db.sqlite.exec("UPDATE group_memberships SET status='removed' WHERE player_id='sam';UPDATE group_notifications SET read_at=1");const send=vi.fn();await drainPush(db,env,send);expect(send).not.toHaveBeenCalled();});
 it('completed games suppress delayed updates',async()=>{await register();gameNote();db.sqlite.exec('UPDATE games SET starts_at=1');const send=vi.fn();await drainPush(db,env,send);expect(send).not.toHaveBeenCalled();});
 it('revoked unlisted access prevents queued delivery',async()=>{await register();gameNote('unlisted');const send=vi.fn();await drainPush(db,env,send);expect(send).not.toHaveBeenCalled();});

@@ -1,5 +1,11 @@
 # Secure group invitations - Phase 5B
 
+## Native continuation — November 22, 2026
+
+Current native implementation is `ios-app/ios-app/NativeGroupInvitations.swift`: Owner/Co-owner expiry/create/system-sharing/recent metadata/revocation, and explicit pasted-link preview/pending-membership request. It follows the existing server/site contracts below; no backend/migration/deployment changes in this continuation. Raw addresses remain ephemeral, exact configured environments are validated, and interrupted/uncertain operations are never automatically retried. Signed-out preview is allowed; sign-in requires pasting the link again. Universal/deep-link routing remains separate.
+
+Xcode build, all 571 local backend checks (including 15 added native-bearer invitation cases), backend TypeScript and native URL/role/expiry/nullable-decoding fixtures pass. Actual isolated invitation lifecycle and physical-device/accessibility acceptance remain pending. See the latest native worklist/handover for simulator evidence and next steps. The older rollout checkpoints below remain historical; this native slice did not alter remote resources.
+
 Local implementation only; hosted Preview36c696b2 currently contains the header-avatar
 update. New migration0013_group_invitations.sql applied LOCAL ONLY. Remote migration
 and invitation UI deployment require approval.

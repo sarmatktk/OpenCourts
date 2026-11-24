@@ -10,7 +10,7 @@ nonisolated struct CommunityGame: Decodable, Identifiable, Sendable {
         let lon: Double
         let access: String
     }
-    struct Organizer: Decodable, Sendable { let displayName: String }
+    struct Organizer: Decodable, Sendable { let id: String; let displayName: String }
     let id: String
     let title: String
     let court: Court
@@ -89,6 +89,12 @@ nonisolated struct CommunityGroup: Decodable, Identifiable, Sendable {
     let membershipStatus: String?
     let role: String?
     let status: String?
+
+    // Presentation only. The create endpoint rechecks current authorization.
+    var canSuggestGameHosting: Bool {
+        status == "active" && membershipStatus == "active" &&
+            ["owner", "coowner", "organizer"].contains(role ?? "")
+    }
 }
 
 nonisolated struct CommunityGamePage: Decodable, Sendable {
@@ -163,19 +169,51 @@ actor CommunityAPI {
         return try await get("groups/\(id)")
     }
     private func get<T: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
-        if await NativeCommunityAPI.shared.hasSession {
-            return try await NativeCommunityAPI.shared.request(path, query: query)
+        let hasSession = await NativeCommunityAPI.shared.hasSession
+        #if DEBUG
+        print("[Play Together] GET /api/\(path), authenticated=\(hasSession)")
+        #endif
+        if hasSession {
+            do {
+                return try await NativeCommunityAPI.shared.request(path, query: query)
+            } catch {
+                #if DEBUG
+                print("[Play Together] Authenticated request failed: \(String(reflecting: error))")
+                #endif
+                throw error
+            }
         }
         var components = URLComponents(url: baseURL.appending(path: "api/\(path)"), resolvingAgainstBaseURL: false)!
         components.queryItems = query.isEmpty ? nil : query
         var request = URLRequest(url: components.url!, cachePolicy: .reloadIgnoringLocalCacheData)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, response) = try await session.data(for: request)
+        let (receivedData, response): (Data, URLResponse)
+        do {
+            (receivedData, response) = try await session.data(for: request)
+        } catch {
+            #if DEBUG
+            print("[Play Together] Public request failed: \(String(reflecting: error))")
+            #endif
+            throw error
+        }
+        #if DEBUG
+        let data = ScreenshotMockContent.sanitized(receivedData)
+        #else
+        let data = receivedData
+        #endif
         try Task.checkCancellation()
         guard let response = response as? HTTPURLResponse else { throw CommunityError.invalidResponse }
+        #if DEBUG
+        print("[Play Together] Public request returned HTTP \(response.statusCode)")
+        #endif
         if [401, 403, 404, 410].contains(response.statusCode) { throw CommunityError.accessChanged }
         guard response.statusCode == 200 else { throw CommunityError.unavailable }
         do { return try JSONDecoder().decode(T.self, from: data) }
-        catch { throw CommunityError.invalidResponse }
+        catch {
+            #if DEBUG
+            print("[Play Together] Public response decoding failed: \(String(reflecting: error))")
+            #endif
+            throw CommunityError.invalidResponse
+        }
     }
 }

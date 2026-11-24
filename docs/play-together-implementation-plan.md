@@ -1,5 +1,11 @@
 # Play Together implementation plan - current state
 
+## Current group-game policy — November 21, 2026
+
+User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
+
+Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval UI remains batch 6 work; native request/leave and approved-member game navigation exist.
+
 Updated November 19, 2026. This current plan supersedes the outdated milestone snapshots
 previously collected here. Read PLAY_TOGETHER_HANDOFF.md for deployment and local-work status,
 PLAY_TOGETHER.md for approved product decisions, and the feature guides for implementation detail.
@@ -46,17 +52,17 @@ All first-release features are free. Group roles are independent of future paid 
 
 | Role | Permissions |
 | --- | --- |
-| Primary Owner | Full group control; sole Co-owner appointment/removal, ownership transfer and archival |
-| Co-owner | Group settings/members/Organizers and all group events; cannot change Owner or peer Co-owners |
-| Organizer | Create group games and manage own games, requests and guest places |
-| Member | Participate and request guest places; cannot create group games |
+| Primary Owner | Full group control; sole Co-owner appointment/removal, ownership transfer and archival; direct guest addition and guest-request decisions in all group games |
+| Co-owner | Group settings/members/Organizers and all group events; direct guest addition and guest-request decisions in all group games; cannot change Owner or peer Co-owners |
+| Organizer | Create group games; manage own games; direct guest addition and guest-request decisions in group games without broader edit/cancel/remove authority |
+| Member | Participate and request guest places; cannot create group games or directly add/approve guests |
 | Legacy Admin | Existing permissions preserved until explicitly changed by Owner; no automatic promotion |
 
 Server functions enforce current membership and permissions on every protected operation.
 Private means private content, not hidden discovery: every private group has a limited public
 preview with approved public fields only. Rosters, private descriptions and group games stay
 members-only. Forwarded URLs and invitations never bypass approval or current membership.
-Guests consume places but gain neither accounts, group membership nor private content access.
+For standalone games, only the game host can directly add guests or approve/reject guest requests. In group games, group Owners/Co-owners/Organizers can directly add their own guests and decide other members' guest requests; other players request guest places. Requests do not reserve capacity; a full-capacity failure leaves approval requests pending and adds no guests. Guests consume places but gain neither accounts, group membership, private content or chat access.
 Prevent duplicate memberships/participation and overbooking using existing shared game logic.
 
 ## Current phase 7 - release hardening and acceptance

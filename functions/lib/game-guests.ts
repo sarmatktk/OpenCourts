@@ -7,16 +7,17 @@ export async function guestAction(request:Request,action:string,c:Context,body:R
  const directSql=`EXISTS(SELECT 1 FROM games dg WHERE dg.id=? AND ((dg.visibility!='group' AND dg.organizer_id=?) OR (dg.visibility='group' AND EXISTS(SELECT 1 FROM tennis_groups dt JOIN group_memberships dm ON dm.group_id=dt.id WHERE dt.id=dg.group_id AND dt.status='active' AND dm.player_id=? AND dm.status='active' AND (dt.owner_id=dm.player_id OR COALESCE(dm.assigned_role,dm.role) IN ('coowner','organizer'))))))`;
  const directAuth=[id,actorId,actorId];
  const canAddGuestsDirectly=!!await db.prepare('SELECT 1 WHERE '+directSql).bind(...directAuth).first();
+ const canManageGuestRequests=manage||!!await db.prepare(`SELECT 1 FROM games g JOIN tennis_groups t ON t.id=g.group_id JOIN group_memberships m ON m.group_id=t.id WHERE g.id=? AND g.visibility='group' AND t.status='active' AND m.player_id=? AND m.status='active' AND (t.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role) IN ('coowner','organizer'))`).bind(id,actorId).first();
  if(action==='guests'&&request.method==='GET'){
  const own=await db.prepare('SELECT gp.guest_count AS confirmed,r.guest_count AS requested,r.status FROM game_participants gp LEFT JOIN game_guest_requests r ON r.game_id=gp.game_id AND r.player_id=gp.player_id WHERE gp.game_id=? AND gp.player_id=?').bind(id,actorId).first();
- const requests=manage?(await db.prepare("SELECT r.player_id AS playerId,p.display_name AS displayName,r.guest_count AS guestCount FROM game_guest_requests r JOIN players p ON p.id=r.player_id WHERE r.game_id=? AND r.status='pending' AND p.status='active' ORDER BY r.created_at,r.player_id").bind(id).all()).results:[];
+ const requests=canManageGuestRequests?(await db.prepare("SELECT r.player_id AS playerId,p.display_name AS displayName,r.guest_count AS guestCount,r.created_at AS requestedAt FROM game_guest_requests r JOIN players p ON p.id=r.player_id WHERE r.game_id=? AND r.status='pending' AND p.status='active' ORDER BY r.created_at,r.player_id").bind(id).all()).results:[];
  return json({own,requests,isHost:actorId===organizerId,canAddGuestsDirectly});
  }
  if(request.method!=='POST')throw new AuthError(405,'Method not allowed.');
  if(!c.open)throw new AuthError(409,'This game is no longer open.');
  const now=Date.now();
  const target=action==='approve-guests'||action==='reject-guests'?body.playerId:actorId;
- if(typeof target!=='string'||((action==='approve-guests'||action==='reject-guests')&&!manage))throw new AuthError(403,'Game management permission is required.');
+ if(typeof target!=='string'||((action==='approve-guests'||action==='reject-guests')&&!canManageGuestRequests))throw new AuthError(403,'Group owner, co-owner, organizer, or game host permission is required.');
  if(action==='request-guests'){
  const count=body.guestCount;if(!Number.isInteger(count)||Number(count)<1||Number(count)>3)throw new AuthError(400,'Choose between one and three guests.');
  if(canAddGuestsDirectly){
@@ -29,8 +30,10 @@ export async function guestAction(request:Request,action:string,c:Context,body:R
  }catch(e){if(/capacity|reserved/i.test(String(e)))throw new AuthError(409,'There are not enough available places for these guests.');throw e;}
  return json({ok:true,approved:true});
  }
- const result=await notificationRun(db,actorId,db.prepare(`INSERT INTO game_guest_requests(game_id,player_id,guest_count,status,created_at,updated_at) SELECT ?,?,?,'pending',?,? WHERE ${active} AND EXISTS(SELECT 1 FROM game_participants WHERE game_id=? AND player_id=? AND guest_count=0) AND ?<(SELECT COALESCE(event_capacity,capacity) FROM games WHERE id=?) ON CONFLICT(game_id,player_id) DO UPDATE SET guest_count=excluded.guest_count,status='pending',created_at=excluded.created_at,updated_at=excluded.updated_at WHERE game_guest_requests.status IN ('cancelled','rejected')`).bind(id,actorId,count,now,now,...auth,id,actorId,count,id));
- if(!result.meta.changes)throw new AuthError(409,'Join the game first, or cancel your existing guest request before changing it.');
+ // Pending requests do not reserve capacity, so let members request guests
+ // even when the game is full. Capacity is checked atomically when a host approves.
+ const result=await notificationRun(db,actorId,db.prepare(`INSERT INTO game_guest_requests(game_id,player_id,guest_count,status,created_at,updated_at) SELECT ?,?,?,'pending',?,? WHERE ${active} AND EXISTS(SELECT 1 FROM game_participants WHERE game_id=? AND player_id=? AND guest_count=0) ON CONFLICT(game_id,player_id) DO UPDATE SET guest_count=excluded.guest_count,status='pending',created_at=excluded.created_at,updated_at=excluded.updated_at WHERE game_guest_requests.status IN ('cancelled','rejected')`).bind(id,actorId,count,now,now,...auth,id,actorId));
+ if(!result.meta.changes)throw new AuthError(409,'Confirm your own place first, or cancel your existing guest request before changing it.');
  }else if(action==='cancel-guests'){
  await notificationBatch(db,actorId,[db.prepare(`UPDATE game_participants SET guest_count=0 WHERE game_id=? AND player_id=? AND ${active}`).bind(id,actorId,...auth),db.prepare(`UPDATE game_guest_requests SET status='cancelled',updated_at=? WHERE game_id=? AND player_id=? AND status IN ('pending','approved') AND ${active}`).bind(now,id,actorId,...auth)]);
  }else if(action==='approve-guests'){

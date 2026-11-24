@@ -211,14 +211,14 @@ function App() {
     const controller = new AbortController(); suggestionRequest.current = controller;
     const timer = window.setTimeout(() => {
       setSuggestionsLoading(true); setSuggestionsError('');
-      getPlaceSuggestions(search, controller.signal).then(results => {
+      getPlaceSuggestions(search, controller.signal, place.countryCode || internationalCountryCode(place.label) || 'us').then(results => {
         if (!controller.signal.aborted) { setSuggestions(results); setActiveSuggestion(-1); }
       }).catch(error => {
         if (error.name !== 'AbortError' && !controller.signal.aborted) { setSuggestions([]); setSuggestionsError('Suggestions are unavailable. Press Enter to search.'); }
       }).finally(() => { if (!controller.signal.aborted) setSuggestionsLoading(false); });
     }, 500);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query, suggestionsOpen]);
+  }, [query, suggestionsOpen, place.countryCode, place.label]);
 
   function selectCourt(court: Court) {
     setSelected(court);

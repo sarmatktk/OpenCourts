@@ -37,5 +37,5 @@ export async function myWaitlistedGames(db:AuthDatabase,actor:string){
 }
 export async function hostWaitlist(db:AuthDatabase,id:string){
  await refreshWaitlist(db,id);
- return json({players:(await db.prepare("SELECT w.player_id AS id,p.display_name AS displayName,w.status,w.offer_expires_at AS expiresAt FROM game_waitlist w JOIN players p ON p.id=w.player_id WHERE w.game_id=? AND w.status IN ('waiting','offered') ORDER BY CASE w.status WHEN 'offered' THEN 0 ELSE 1 END,w.created_at,w.player_id LIMIT 200").bind(id).all()).results});
+ return json({players:(await db.prepare("SELECT w.player_id AS id,p.display_name AS displayName,w.status,w.created_at AS requestedAt,w.offer_expires_at AS expiresAt FROM game_waitlist w JOIN players p ON p.id=w.player_id WHERE w.game_id=? AND w.status IN ('waiting','offered') ORDER BY CASE w.status WHEN 'offered' THEN 0 ELSE 1 END,w.created_at,w.player_id LIMIT 200").bind(id).all()).results});
 }
