@@ -1327,3 +1327,58 @@ Fixed four release-relevant regressions found during the audit: native game-invi
 Verification: `npm test` passed 733/733 across 34 files; `npm run build:dev` passed; Xcode BuildProject passed (`BuildProject-Log-20261124-150103.txt`). Screenshot fixture code is inside `#if DEBUG`; the shared scheme has no screenshot launch argument. Run is restored to Release and TestAction to Debug. This build is not a signed distribution archive.
 
 **Still not cleared for App Store submission:** target signing evaluates to Apple Development with automatic signing; no App Store distribution profile or signed archive has been verified, and the checked-in entitlement currently declares APNs development. Production backend native-auth/APNs flags and migrations are not deployed; Production remains unchanged. Privacy manifest versus App Store privacy answers, age/export answers, store metadata, final full-app screenshots, and TestFlight/device acceptance remain open. The latest backend handover records migration 0040 on isolated Preview, not Production. Keep this feature branch separate from `main` until those checks are complete.
+
+### Feature graphic refreshed with actual app screens — November 24, 2026
+
+- [x] Updated `AppStoreAssets/OpenCourts-iOS-feature-graphic.png` with the saved actual Courts/Map, Find Games and Groups screenshots; retained its 1920×823 dimensions and brand styling.
+- [ ] Review demonstration data visible in the source captures before using the graphic in store marketing.
+
+### Isolated Production native sign-in gate — November 24, 2026
+
+- [x] Add a separate non-secret `NATIVE_AUTH_PRODUCTION_ENABLED` code gate for native provider challenge/exchange and bearer account-session operations. Requires exact `https://opencourts.us`, `AUTH_ORIGIN` match, `CF_PAGES_BRANCH=main`, `PLAY_TOGETHER_ENVIRONMENT=production`, and a Production DB binding.
+- [x] Keep website cookie-based auth and community routes behind existing `PLAY_TOGETHER_ENABLED` and `PLAY_TOGETHER_PRODUCTION_ENABLED` gates; no existing variables, secrets, remote settings, provider credentials, database or deployments changed.
+- [x] Focused native-auth suite passed 15/15; backend TypeScript and `git diff --check` passed.
+- [ ] Deploy the isolated native auth code without changing website assets/routes.
+- [ ] Add only the new Production variable `NATIVE_AUTH_PRODUCTION_ENABLED=true`, preserving all current variables and secrets.
+- [ ] Apply only native provider schema migrations 0035 and 0038 via a reviewed selective procedure; do not run the standard D1 migration runner while migrations 0034 and 0036–0040 are pending, because that would include unrelated schema changes.
+- [ ] Verify production provider credentials/configuration and complete real Google and Apple native sign-in checks.
+
+Native sign-in code preparation is local only. Until the three external rollout items above complete, Production login remains unavailable. Full Play Together API functionality remains under its existing shared Production gates.
+
+**Rollout preflight — November 24, 2026:** read-only Cloudflare/Wrangler checks found current Production deployment `f182d62b` from `main` (`45a9bf8`); the iOS feature branch differs from `main` by 144 files. Production D1 is applied through `0033`, with `0034`–`0040` pending. Standard migration apply was not run because it would include unrelated website/community schema migrations. No Pages deployment path limited to the auth function and no selective migration-ledger procedure has been validated. Therefore no new Production variable was added and no existing variables, secrets, database rows/schema, deployment or website auth were changed. **Next:** prepare a reviewed minimal artifact from the exact Production source plus only the native-auth handler change; establish a safe additive schema procedure for `0035`/`0038`; then add only `NATIVE_AUTH_PRODUCTION_ENABLED=true` and perform provider/device acceptance. Do not publish the feature branch wholesale or run the standard migration apply for this task.
+
+### Native Production sign-in rollout completed — November 24, 2026
+
+- [x] Built from the active Production `main` source and deployed native-auth-only Pages candidate as Production deployment `51a0f14b-1c69-4db2-af8d-3e0ece6cc833` (`main`, source `45a9bf8`); no feature-branch website code/assets included.
+- [x] Added only `NATIVE_AUTH_PRODUCTION_ENABLED=true` as a new non-secret Production variable. Existing flags, variables and secrets were not changed.
+- [x] Applied only native-auth D1 migrations 0034, 0035 and 0038; the Production migration ledger records all three applied. No unrelated community/capacity migrations were run.
+- [x] Focused native-auth tests pass 15/15; backend type check, project TypeScript build and `CF_PAGES_BRANCH=main npm run build:pages` pass.
+- [x] Confirmed the live Pages deployment is Production on `main` and the unauthenticated `/api/auth/me` route responds. The website cookie-auth route and gates remain unchanged.
+- [ ] Owner/device acceptance: complete Google and Apple sign-in on a clean iOS Release build using the same provider identity as the website account; verify account profile and logout. Same verified provider issuer+subject maps to the same OpenCourts account; matching email alone does not merge provider identities. This requires valid existing provider credentials; their secret values were not inspected or changed.
+- [ ] Keep App Store gates separate: signed distribution archive with production APS entitlement, privacy/store metadata, final screenshots, and TestFlight/device acceptance.
+
+The earlier notes that Production auth was unchanged/local-only are historical and superseded by this completed rollout. Production website authentication settings and existing secrets remain untouched.
+
+### iOS app icon unread badge and closed-app APNs — November 24, 2026
+
+- [x] Mirror the Inbox unread count to the app icon after successful refreshes and read actions; clear it on sign-out/account change and serialize updates.
+- [x] Expose badge permission in Notification Settings with a link to iPhone Settings.
+- [x] Include the visibility-filtered unread count from the newest 100 Inbox items in APNs `aps.badge` (0–100; zero clears); reuse the Inbox assembly and allow alert delivery if count calculation fails.
+- [x] Deploy native-push Pages routing as `e85c53b4-52cf-40d6-8029-4bfe296a25c4` (`main`, source `45a9bf8`) and isolated APNs Worker `opencourts-apns-production`, normal version `34c3a3b3-4d25-41bc-a527-f179daa8eda4`.
+- [x] Apply only Production migration `0037_native_push_registration.sql`; verify its ledger entry, `native_push_devices`, and revocation trigger. Leave unrelated migrations unapplied.
+- [x] Configure the APNs Worker private-key secret and key/team ID variables. Temporary preflight successfully imported the key and signed a JWT, then was removed.
+- [x] Preserve existing `opencourts-push-production` Web Push, VAPID credentials, website auth settings, and existing Production secrets.
+
+**Current state:** closed-app APNs badges are not live. Production Pages `NATIVE_PUSH_PRODUCTION_ENABLED` is absent/default-off. APNs Worker `NATIVE_PUSH_PRODUCTION_ENABLED`, `NATIVE_PUSH_PRODUCTION_READY`, and `APNS_SENDER_ENABLED` are false. The signing preflight did not contact Apple APNs, and no Production notification has been sent. An unauthenticated 401 did not verify authenticated registration. Pending migrations `0036`, `0039`, and `0040` remain unapplied.
+
+#### Remaining operator sequence
+
+- [ ] Verify the exact App Store/TestFlight archive has distribution `aps-environment=production` and topic `us.opencourts.ios`; install on a physical iPhone, allow Notifications and Badges, sign in, and opt in.
+- [ ] For registration-only acceptance, set only Production Pages `NATIVE_PUSH_PRODUCTION_ENABLED=true`; keep all three APNs Worker gates false. Verify authenticated app registration and `/api/push/native/settings` returns `available=true`, `deliveryAvailable=false`, with the current device registered.
+- [ ] Review the APNs Worker's D1 query/schema dependencies against Production `main`, including its waitlist refresh. Do not assume pending `0036`, `0039`, or `0040` are required; apply only individually reviewed dependencies through an isolated migration directory.
+- [ ] Validate Apple key/team acceptance with a controlled, explicitly authorized TestFlight device/provider request. A JWT signing preflight is insufficient. Review pending eligible APNs delivery rows before enabling the scheduled sender because it can dispatch all eligible queued rows.
+- [ ] After checks pass, deliberately set Pages `NATIVE_PUSH_PRODUCTION_ENABLED=true` and Worker `NATIVE_PUSH_PRODUCTION_ENABLED=true`, `NATIVE_PUSH_PRODUCTION_READY=true`, `APNS_SENDER_ENABLED=true`. Keep the private key only on the isolated APNs Worker.
+- [ ] Verify alert and exact unread badge while backgrounded and force-closed, read/clear behavior, session revocation, APNs response codes, and delivery records on a physical TestFlight device.
+- [ ] Roll back by disabling Worker `APNS_SENDER_ENABLED` and `NATIVE_PUSH_PRODUCTION_READY` first; turn off the Pages registration gate too if registration must stop. Leave browser Web Push/VAPID and website auth untouched.
+
+No gate, migration, or secret was changed by this documentation update.
