@@ -54,26 +54,13 @@ for (const card of cards) {
   // Keep the existing city and weather cards intact.
 }
 
-// Social launch card: turn real store artwork into three polished device panels.
-for (const card of stores) {
-  const svg = Buffer.from(`<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#071c15"/><stop offset="1" stop-color="#174b3b"/></linearGradient><radialGradient id="glow"><stop stop-color="#d8ee72" stop-opacity=".2"/><stop offset="1" stop-color="#d8ee72" stop-opacity="0"/></radialGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#00120c" flood-opacity=".55"/></filter></defs><rect width="1200" height="630" fill="url(#bg)"/><circle cx="908" cy="310" r="390" fill="url(#glow)"/><path d="M0 548 Q330 495 620 565 T1200 525V630H0Z" fill="#0b2c21" opacity=".7"/><circle cx="91" cy="83" r="22" fill="none" stroke="#d8ee72" stroke-width="2"/><path d="M79 68q12 8 12 15t-12 15m24-30q-12 8-12 15t12 15" fill="none" stroke="#d8ee72" stroke-width="2"/><text x="128" y="91" fill="#f5f5ed" font-family="Arial,sans-serif" font-size="28" font-weight="700">opencourts</text><rect x="79" y="143" width="260" height="34" rx="17" fill="#d8ee72"/><text x="96" y="165" fill="#10281d" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">${card.badge}</text><text x="76" y="269" fill="#fffdf3" font-family="Georgia,serif" font-size="58">${card.title}</text><text x="80" y="316" fill="#dce9dd" font-family="Arial,sans-serif" font-size="23">${card.subtitle}</text><rect x="80" y="365" width="145" height="47" rx="23" fill="#143e31" stroke="#9cb899" stroke-opacity=".6"/><circle cx="98" cy="389" r="4" fill="#d8ee72"/><text x="111" y="395" fill="#f3f4eb" font-family="Arial,sans-serif" font-size="15" font-weight="600">Find courts</text><rect x="237" y="365" width="180" height="47" rx="23" fill="#143e31" stroke="#9cb899" stroke-opacity=".6"/><circle cx="255" cy="389" r="4" fill="#d8ee72"/><text x="268" y="395" fill="#f3f4eb" font-family="Arial,sans-serif" font-size="15" font-weight="600">Tennis weather</text><rect x="429" y="365" width="170" height="47" rx="23" fill="#143e31" stroke="#9cb899" stroke-opacity=".6"/><circle cx="447" cy="389" r="4" fill="#d8ee72"/><text x="460" y="395" fill="#f3f4eb" font-family="Arial,sans-serif" font-size="15" font-weight="600">Play Together</text><path d="M80 523h500" stroke="#dce9dd" stroke-opacity=".3"/><text x="80" y="560" fill="#edf1e2" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="2">OPENCOURTS.US</text><g filter="url(#shadow)"><rect x="715" y="92" width="204" height="420" rx="28" fill="#07130f" stroke="#d9e5d3" stroke-opacity=".75" stroke-width="2"/><rect x="945" y="132" width="204" height="420" rx="28" fill="#07130f" stroke="#d9e5d3" stroke-opacity=".75" stroke-width="2"/></g></svg>`);
-  const composites = [{ input: svg }];
-  const placements = [[725,104,184,396],[955,144,184,396]];
-  for (let i = 0; i < card.shots.length; i++) {
-    const [left,top,width,height] = placements[i];
-    const image = await sharp(card.shots[i]).resize(width,height,{fit:'contain',background:'#07130f'}).png().toBuffer();
-    composites.push({input:image,left,top});
-  }
-  await sharp({create:{width:1200,height:630,channels:3,background:'#09251b'}}).composite(composites).png({compressionLevel:9}).toFile(resolve(root,'public',card.file));
-}
-
 // Add the same compact store-badge lockup to every image used by page metadata.
 for (const file of socialFiles) {
   const path = resolve(root, 'public', file);
-  const input = file === 'social-preview-v2.png' ? path : resolve(root, 'design/social-originals', file);
+  const input = resolve(root, 'design/social-originals', file);
   const metadata = await sharp(input).metadata();
   const output = resolve(previewDir, file);
-  const overlays = [{input:storeBadges,left:file === 'social-preview-v2.png' ? 80 : 852,top:file === 'social-preview-v2.png' ? 448 : 553}];
+  const overlays = [{input:storeBadges,left:file === 'social-preview-v2.png' ? 818 : 852,top:file === 'social-preview-v2.png' ? 48 : 553}];
   if (playTogetherFiles.includes(file)) overlays.push({input:playTogetherBadge,left:1200-175-42,top:630-35-88});
   await sharp(input).composite(overlays).png({compressionLevel:9}).toFile(output);
   const { copyFileSync } = await import('node:fs');
