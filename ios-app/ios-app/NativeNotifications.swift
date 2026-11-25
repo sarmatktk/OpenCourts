@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 nonisolated struct NativeNotificationInbox: Decodable, Sendable {
     let notifications: [NativeInboxNotification]
@@ -60,24 +61,32 @@ final class NativeNotificationSummary {
     private(set) var unreadCount: Int?
     private(set) var actorID: String?
     private var generation = UUID()
+    private var pendingBadgeCount: Int?
+    private var badgeUpdateTask: Task<Void, Never>?
 
-    func clear() {
+    func clear(resetBadge: Bool = false) {
         generation = UUID()
         actorID = nil
         unreadCount = nil
+        if resetBadge { updateAppIconBadge(0) }
     }
 
     func apply(_ notifications: [NativeInboxNotification], actor: String) {
         generation = UUID()
         actorID = actor
         unreadCount = notifications.filter(\.isUnread).count
+        updateAppIconBadge(unreadCount ?? 0)
     }
 
     func refresh(account: NativeAccountStore) async {
-        guard let actor = account.player?.id else { clear(); return }
+        guard let actor = account.player?.id else { clear(resetBadge: true); return }
         let ticket = UUID()
         generation = ticket
-        if actorID != actor { actorID = actor; unreadCount = nil }
+        if actorID != actor {
+            actorID = actor
+            unreadCount = nil
+            updateAppIconBadge(0)
+        }
         do {
             let response: NativeNotificationInbox = try await NativeCommunityAPI.shared.request("games/notifications")
             guard generation == ticket, account.player?.id == actor, !Task.isCancelled else { return }
@@ -85,6 +94,23 @@ final class NativeNotificationSummary {
         } catch {
             guard generation == ticket, account.player?.id == actor, !Task.isCancelled else { return }
             unreadCount = nil
+        }
+    }
+
+    private func updateAppIconBadge(_ count: Int) {
+        pendingBadgeCount = max(0, count)
+        guard badgeUpdateTask == nil else { return }
+        badgeUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while let nextCount = self.pendingBadgeCount {
+                self.pendingBadgeCount = nil
+                do {
+                    try await UNUserNotificationCenter.current().setBadgeCount(nextCount)
+                } catch {
+                    // Badge permission is controlled by iOS notification settings.
+                }
+            }
+            self.badgeUpdateTask = nil
         }
     }
 }

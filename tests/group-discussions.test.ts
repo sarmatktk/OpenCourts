@@ -1,4 +1,4 @@
-import {beforeEach,afterEach,it,expect} from 'vitest';
+import {beforeEach,afterEach,it,expect,vi} from 'vitest';
 import {createRequire} from 'node:module';
 import {readFileSync,readdirSync} from 'node:fs';
 import {hashToken,type AuthEnv,type AuthDatabase,type AuthStatement} from '../functions/lib/auth';
@@ -15,11 +15,11 @@ class DB implements AuthDatabase{
  async batch(ss:AuthStatement[]){this.sqlite.exec('BEGIN');try{const r=[];for(const s of ss)r.push(await s.run());this.sqlite.exec('COMMIT');return r;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
 const origin='http://127.0.0.1:8788',group=crypto.randomUUID();let db:DB,env:AuthEnv;const tokens:Record<string,string>={};
-beforeEach(async()=>{db=new DB();env={COURTS_DB:db,AUTH_ORIGIN:origin,PLAY_TOGETHER_ENABLED:'true'};const now=Date.now();for(const who of ['owner','coowner','organizer','member','second','outsider','removed','pending']){tokens[who]='synthetic-discussion-session-'+who+'-long-enough';db.sqlite.prepare('INSERT INTO players(id,display_name,created_at,updated_at) VALUES(?,?,?,?)').run(who,'Sample '+who,now,now);db.sqlite.prepare('INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at) VALUES(?,?,?,?,?,?)').run(who,who,await hashToken(tokens[who]),'csrf',now,now+86400000);}
+beforeEach(async()=>{db=new DB();env={COURTS_DB:db,AUTH_ORIGIN:origin,PLAY_TOGETHER_ENABLED:'true',OPENAI_API_KEY:'test-key'};const originalFetch=globalThis.fetch;vi.stubGlobal('fetch',async(input:RequestInfo|URL,init?:RequestInit)=>new URL(typeof input==='string'?input:input instanceof URL?input:input.url).hostname==='api.openai.com'?Response.json({results:[{flagged:false}]}):originalFetch(input,init));const now=Date.now();for(const who of ['owner','coowner','organizer','member','second','outsider','removed','pending']){tokens[who]='synthetic-discussion-session-'+who+'-long-enough';db.sqlite.prepare('INSERT INTO players(id,display_name,created_at,updated_at) VALUES(?,?,?,?)').run(who,'Sample '+who,now,now);db.sqlite.prepare('INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at) VALUES(?,?,?,?,?,?)').run(who,who,await hashToken(tokens[who]),'csrf',now,now+86400000);}
 db.sqlite.prepare("INSERT INTO tennis_groups(id,owner_id,visibility,name,general_location,request_id,created_at,updated_at) VALUES(?,'owner','public','Tennis friends','Fairfax',?,?,?)").run(group,group,now,now);
 for(const who of ['owner','coowner','organizer','member','second','removed','pending'])db.sqlite.prepare('INSERT INTO group_memberships(group_id,player_id,role,assigned_role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(group,who,'member',['coowner','organizer'].includes(who)?who:'member',['removed','pending'].includes(who)?who:'active',now,now);
 });
-afterEach(()=>db.sqlite.close());
+afterEach(()=>{db.sqlite.close();vi.restoreAllMocks();vi.unstubAllGlobals();});
 function req(path:string,who='member',method='GET',body?:unknown,csrf='csrf'){return new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(who?{Cookie:'oc_session='+tokens[who],'X-CSRF-Token':csrf}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});}
 async function call(path='',who='member',method='GET',body?:unknown,csrf='csrf'){const r=await handleDiscussions(req('discussions/'+group+path,who,method,body,csrf),env);if(r.status===503&&db.lastError)throw Error(db.lastError);return r;}
 async function create(who='owner'){const r=await call('',who,'POST',{title:'Weekend tennis',body:'Who is up for doubles?',clientId:crypto.randomUUID()});expect(r.status).toBe(201);return (await r.json() as {id:string}).id;}
@@ -33,6 +33,14 @@ it('validates text, CSRF, idempotency and bounded posting rates',async()=>{
  expect((await call('','member','POST',{title:' ',body:'text',clientId:crypto.randomUUID()})).status).toBe(400);
  const payload={title:'A hitting partner?',body:'<script>alert(1)</script>',clientId:crypto.randomUUID()};const a=await(await call('','member','POST',payload)).json();expect(await(await call('','member','POST',payload)).json()).toEqual(a);
  for(let i=0;i<4;i++)await create('member');expect((await call('','member','POST',{...payload,clientId:crypto.randomUUID()})).status).toBe(429);
+});
+it('moderates discussion titles, comments and edited content before saving',async()=>{
+ const postPayload={title:'Weekend tennis',body:'Who wants to play doubles?',clientId:crypto.randomUUID()};vi.stubGlobal('fetch',async()=>Response.json({results:[{flagged:true}]}));expect((await call('','member','POST',{...postPayload,body:'Abusive post text'})).status).toBe(422);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_posts').get().n).toBe(0);
+ vi.stubGlobal('fetch',async()=>Response.json({results:[{flagged:false}]}));const created=await call('','member','POST',postPayload);expect(created.status).toBe(201);const id=(await created.json() as {id:string}).id;
+ vi.stubGlobal('fetch',async()=>Response.json({results:[{flagged:true}]}));
+ expect((await call('/'+id+'/comment','second','POST',{body:'Clearly abusive reply',clientId:crypto.randomUUID()})).status).toBe(422);
+ expect((await call('/'+id+'/edit','member','POST',{title:'Changed',body:'Abusive edited text',version:1})).status).toBe(422);
+ expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_comments').get().n).toBe(0);expect(db.sqlite.prepare('SELECT body,version FROM group_discussion_posts WHERE id=?').get(id)).toMatchObject({body:'Who wants to play doubles?',version:1});
 });
 it('supports idempotent likes on posts and comments without notification spam',async()=>{
  const id=await create(),c=await comment(id);for(const commentId of ['',c]){for(let i=0;i<2;i++)expect((await call('/'+id+'/like','second','POST',{commentId,liked:true})).status).toBe(200);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_likes WHERE comment_id=?').get(commentId).n).toBe(1);await call('/'+id+'/like','second','POST',{commentId,liked:false});expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM group_discussion_likes WHERE comment_id=?').get(commentId).n).toBe(0);}

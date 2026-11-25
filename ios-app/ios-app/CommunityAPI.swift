@@ -10,7 +10,9 @@ nonisolated struct CommunityGame: Decodable, Identifiable, Sendable {
         let lon: Double
         let access: String
     }
-    struct Organizer: Decodable, Sendable { let id: String; let displayName: String }
+    // Public discovery responses intentionally omit the organizer's private player ID.
+    // Authenticated feed responses may include it for permission-checked avatars.
+    struct Organizer: Decodable, Sendable { let id: String?; let displayName: String }
     let id: String
     let title: String
     let court: Court

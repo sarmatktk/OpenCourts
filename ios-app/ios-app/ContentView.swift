@@ -160,7 +160,9 @@ struct ContentView: View {
         .task { await account.refresh(); presentPendingPush() }
         .task(id: "\(account.player?.id ?? "signed-out")-\(scenePhase)-\(playTogetherPresented)") {
             guard scenePhase == .active, !playTogetherPresented, account.player != nil else {
-                if scenePhase != .active || account.player == nil { notificationSummary.clear() }
+                if scenePhase != .active || account.player == nil {
+                    notificationSummary.clear(resetBadge: account.player == nil)
+                }
                 return
             }
             await notificationSummary.refresh(account: account)

@@ -231,7 +231,7 @@ export async function handleGames(request:Request,env:GamesEnv,lookup= courtElem
     const series=await gameSeries(request,db,origin,path);if(series)return series;
     if(path==='feed'&&request.method==='GET')return await feed(request,db,origin);
     const shared=await gameSharing(request,db,origin,path);if(shared)return shared;
-    const chat=await gameChat(request,db,origin,path);if(chat)return chat;
+    const chat=await gameChat(request,env,db,origin,path);if(chat)return chat;
     const managed=await participation(request,env,db,origin,path);if(managed)return managed;
     if(!path&&request.method==='GET')return await listGames(url,db,(await session(request,db,origin))?.id??null);
     if(!path&&request.method==='POST')return await createGame(request,db,env,origin);

@@ -1,5 +1,18 @@
 # Website to native iOS feature checklist
 
+## Backend content safety — November 24, 2026
+
+- [x] Local backend gate: individual game, series, and group chat submissions are screened before persistence/push creation; duplicate successful client IDs skip repeat screening.
+- [x] Local backend gate: group discussion post creation, comments and edits are screened before writes and their database notification triggers.
+- [x] Existing report, block and moderator queue paths are preserved. Friendly rejection and retryable unavailable responses are returned to the current iOS client.
+- [x] Local D1 quota accounting and cleanup added in migration `0041_content_moderation.sql`; provider requests/reservations are concurrency-safe within the application database.
+- [x] Focused automated tests pass for tennis conversation, disguised profanity, AI-rejected messages not saved/not pushed, fallback, both providers failing, concurrent daily-budget cap, and group discussion posts/comments/edits.
+- [ ] Deployment gate: selectively apply migration 0041; add `OPENAI_API_KEY` as a Cloudflare Pages secret; bind Workers AI as `AI`; verify provider access, configured limits, and account-wide AI spending protection. No remote config, migration, or deployment has been performed.
+- [ ] Privacy/App Review gate: update/review privacy disclosures for moderation provider processing and audit remaining freeform UGC (profiles, game descriptions/notes, group descriptions) before claiming complete Guideline 1.2 coverage.
+- [ ] Live acceptance: run provider failure/rate-limit/budget scenarios in isolated Preview with approved test accounts, verify no message/push on reject, and confirm appeal/report/block/dashboard behavior.
+
+Backend-only moderation does not by itself require a new App Store Connect binary upload. A binary is needed only if client UI, privacy manifest, or other iOS code changes are made. Production deployment remains separately gated on owner approval.
+
 ## Current continuation — November 23, 2026
 
 **Capacity and guest rules (owner clarification):** increasing capacity on a standalone public or unlisted game never approves pending join requests; each remains pending until host approval. If capacity is reduced below attendance, latest confirmed joiners move to pending host approval and are notified. For group games, reducing capacity moves latest joiners to the back of the waitlist; if a place opens, earlier existing waitlist requests get it first. Increasing group-game capacity confirms eligible active-member waitlist entries in original request-time order; legacy pending game-join requests are not auto-confirmed. Displaced group members receive an update when waitlisted and another if later confirmed. Reserved offers are protected. For group games, only group Owners, Co-owners and Organizers can add their own guests without approval when places are available; any of those roles can approve/reject other members’ guest requests. For standalone games, only the host can directly add guests or decide guest requests. Full capacity adds no guests and leaves approval requests pending. Guest-decision permission does not grant broader game management. Help/Terms/Privacy now document the distinctions and pending-capacity behavior. Role-scoped API is on feature Preview deployment f6939c04; production is unchanged. Native badge/alerts build locally; physical-device alert/focus acceptance remains open.

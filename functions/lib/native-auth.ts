@@ -1,4 +1,4 @@
-import {AuthError,checkCsrf,checkOrigin,hashToken,json,productionCommunityEnabled,readJson,session,type AuthDatabase,type AuthEnv} from './auth';
+import {AuthError,checkCsrf,checkOrigin,hashToken,json,readJson,session,type AuthDatabase,type AuthEnv} from './auth';
 import {verifyNativeProviderToken} from './native-provider-verification';
 import {redeemNativeAppleCode} from './native-apple-exchange';
 
@@ -9,7 +9,7 @@ export function nativeAuthEnabled(env:AuthEnv,origin:string){
  const u=new URL(origin);
  const development=env.NATIVE_AUTH_DEVELOPMENT_ENABLED==='true'&&env.PLAY_TOGETHER_ENVIRONMENT!=='production'&&env.CF_PAGES_BRANCH!=='main'&&
   ((u.protocol==='http:'&&['localhost','127.0.0.1'].includes(u.hostname))||origin==='https://feature-play-together.opencourts.pages.dev');
- const production=origin==='https://opencourts.us'&&env.NATIVE_AUTH_PRODUCTION_ENABLED==='true'&&productionCommunityEnabled(env);
+ const production=origin==='https://opencourts.us'&&env.NATIVE_AUTH_PRODUCTION_ENABLED==='true'&&env.AUTH_ORIGIN===origin&&env.CF_PAGES_BRANCH==='main'&&env.PLAY_TOGETHER_ENVIRONMENT==='production';
  return development||production;
 }
 function cookieName(origin:string){return `${origin.startsWith('https:')?'__Host-':''}oc_native`;}
@@ -58,7 +58,7 @@ export async function handleNativeAuth(request:Request,env:AuthEnv,db:AuthDataba
   checkOrigin(request,origin);const body=await readJson(request);
   if(body.provider!=='google'&&body.provider!=='apple')throw new AuthError(400,'Choose a sign-in method.');
   const linking=body.link===true;
-  const actor=linking?await session(request,db,origin):null;
+  const actor=linking?await session(request,db,origin,env):null;
   if(linking){
    if(!actor)throw new AuthError(401,'Sign in again before connecting another sign-in method.');
    checkCsrf(request,actor);
@@ -100,7 +100,7 @@ export async function handleNativeAuth(request:Request,env:AuthEnv,db:AuthDataba
   if(Boolean(pending.link_player_id)!==Boolean(pending.link_session_hash))
    throw new AuthError(503,'Account service is unavailable. Please try again.');
   if(pending.link_player_id&&pending.link_session_hash){
-   const actor=await session(request,db,origin);
+   const actor=await session(request,db,origin,env);
    if(!actor||actor.id!==pending.link_player_id||actor.token_hash!==pending.link_session_hash)
     throw new AuthError(401,'Your session changed. Sign in again before connecting another method.');
    checkCsrf(request,actor);
@@ -177,7 +177,7 @@ export async function handleNativeAuth(request:Request,env:AuthEnv,db:AuthDataba
   return authorizationPage(provider);
  }
  if(path==='native/authorize'&&request.method==='POST'){
-  checkOrigin(request,origin);const actor=await session(request,db,origin);
+  checkOrigin(request,origin);const actor=await session(request,db,origin,env);
   if(!actor)throw new AuthError(401,'Sign in to continue.');checkCsrf(request,actor);
   const pending=await grant(request,db,origin);if(!pending||pending.code_hash)throw new AuthError(409,'Sign-in expired or already authorized.');
   const code=random(),result=await db.prepare(`UPDATE native_auth_grants SET code_hash=?,source_session_id=?,expires_at=MIN(expires_at,?)

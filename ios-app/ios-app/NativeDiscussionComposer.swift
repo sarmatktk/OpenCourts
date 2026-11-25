@@ -445,6 +445,17 @@ struct NativeDiscussionComposer: View {
             if inline { finished() } else { dismiss() }
         } catch {
             guard ticket == generation, phase == .active, account.player?.id == target.actorID else { return }
+            let failure = error as NSError
+            if failure.domain == "OpenCourts", failure.code == 422 {
+                // Moderation rejects the submission before it is saved. Release the
+                // uncertain retry state and return the original text to the editor.
+                title = pending.title ?? ""
+                text = pending.body
+                attempt = nil
+                access = true
+                feedback = error.localizedDescription
+                return
+            }
             access = false; destination = nil; feedback = error.localizedDescription
         }
     }

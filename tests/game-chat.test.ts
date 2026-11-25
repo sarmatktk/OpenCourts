@@ -4,6 +4,7 @@ import {readdirSync,readFileSync} from 'node:fs';
 import {handleAuth,hashToken,type AuthDatabase,type AuthStatement,type AuthEnv} from '../functions/lib/auth';
 import {handlePlayers} from '../functions/lib/players';
 import {handleGames} from '../functions/lib/games';
+import {containsBlockedContent} from '../functions/lib/content-moderation';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class DB implements AuthDatabase{
  sqlite=new DatabaseSync(':memory:');
@@ -12,8 +13,8 @@ class DB implements AuthDatabase{
  async batch(statements:AuthStatement[]){this.sqlite.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());this.sqlite.exec('COMMIT');return results;}catch(e){this.sqlite.exec('ROLLBACK');throw e;}}
 }
 const origin='http://127.0.0.1:8788';let db:DB,env:AuthEnv&{MODERATOR_PLAYER_IDS?:string};const tokens:Record<string,string>={};
-beforeEach(async()=>{db=new DB();env={COURTS_DB:db,AUTH_ORIGIN:origin,PLAY_TOGETHER_ENABLED:'true'};for(const id of ['host','other','target','hidden']){const token='synthetic-session-token-for-'+id+'-with-enough-entropy';tokens[id]=token;db.sqlite.prepare('INSERT INTO players(id,display_name,discoverable,created_at,updated_at) VALUES (?,?,?, ?,?)').run(id,'QA '+id,id==='hidden'?0:1,Date.now(),Date.now());db.sqlite.prepare('INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at) VALUES (?,?,?,?,?,?)').run(id,id,await hashToken(token),'csrf',Date.now(),Date.now()+30*86400000);}});
-afterEach(()=>{db.sqlite.close();vi.restoreAllMocks();});
+beforeEach(async()=>{db=new DB();env={COURTS_DB:db,AUTH_ORIGIN:origin,PLAY_TOGETHER_ENABLED:'true',OPENAI_API_KEY:'test-key'};const originalFetch=globalThis.fetch;vi.stubGlobal('fetch',async(input:RequestInfo|URL,init?:RequestInit)=>new URL(typeof input==='string'?input:input instanceof URL?input:input.url).hostname==='api.openai.com'?Response.json({results:[{flagged:false}]}):originalFetch(input,init));for(const id of ['host','other','target','hidden']){const token='synthetic-session-token-for-'+id+'-with-enough-entropy';tokens[id]=token;db.sqlite.prepare('INSERT INTO players(id,display_name,discoverable,created_at,updated_at) VALUES (?,?,?, ?,?)').run(id,'QA '+id,id==='hidden'?0:1,Date.now(),Date.now());db.sqlite.prepare('INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,created_at,expires_at) VALUES (?,?,?,?,?,?)').run(id,id,await hashToken(token),'csrf',Date.now(),Date.now()+30*86400000);}});
+afterEach(()=>{db.sqlite.close();vi.restoreAllMocks();vi.unstubAllGlobals();});
 function request(path:string,who='host',method='GET',body?:unknown,csrf='csrf'){
  return new Request(origin+'/api/'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(who?{Cookie:'oc_session='+tokens[who],'X-CSRF-Token':csrf}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});
 }
@@ -38,6 +39,20 @@ it('enforces group membership, blocks, cancellation, and the follow-up window',a
 it('validates messages, deduplicates retries, and limits rapid sending',async()=>{
  const id=game(),client=crypto.randomUUID();expect((await send(id,'host','',client)).status).toBe(400);expect((await send(id,'host','x'.repeat(2001))).status).toBe(400);expect((await send(id,'host','Hello',client)).status).toBe(201);expect((await send(id,'host','Hello',client)).status).toBe(200);expect((await send(id,'host','Changed',client)).status).toBe(409);
  for(let i=1;i<10;i++)expect((await send(id)).status).toBe(201);expect((await send(id)).status).toBe(429);expect(db.sqlite.prepare("SELECT COUNT(*) n FROM game_chat_messages WHERE kind='message'").get().n).toBe(10);
+});
+it('blocks disguised profanity before persistence while allowing ordinary tennis conversation',async()=>{
+ const id=game();const originalFetch=globalThis.fetch;let calls=0;vi.stubGlobal('fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{if(new URL(typeof input==='string'?input:input instanceof URL?input:input.url).hostname==='api.openai.com'){calls++;return Response.json({results:[{flagged:false}]});}return originalFetch(input,init);});
+ expect(containsBlockedContent('I will kill you')).toBe(true);expect(containsBlockedContent('n1gg3r')).toBe(true);expect(containsBlockedContent('That was fuxkinf awful')).toBe(true);expect(containsBlockedContent('Tennis balls, love-15, good serve, ace!')).toBe(false);
+ expect((await send(id,'host','F.u.c.k this match')).status).toBe(422);expect((await send(id,'host','I love this court; great ace and serve, no fault. Doubles Saturday?')).status).toBe(201);expect(calls).toBe(1);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM game_chat_messages WHERE kind='message'").get().n).toBe(1);
+});
+it('uses Workers AI only when OpenAI is unavailable and fails closed if both are unavailable',async()=>{
+ const first=game(),second=game();const aiCalls:string[]=[];env.AI={run:async(model)=>{aiCalls.push(model);return {response:'SAFE'};}};vi.stubGlobal('fetch',async()=>new Response('rate limited',{status:429}));
+ expect((await send(first,'host','Can anyone play doubles Saturday?')).status).toBe(201);expect(aiCalls).toEqual(['@cf/meta/llama-guard-3-8b']);
+ env.AI={run:async()=>{throw new Error('Workers AI unavailable');}};expect((await send(second,'host','Meet at court three at six.')).status).toBe(503);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM game_chat_messages WHERE kind='message'").get().n).toBe(1);
+});
+it('does not save or publish AI-flagged content and enforces concurrent daily reservations',async()=>{
+ const flagged=game();vi.stubGlobal('fetch',async()=>Response.json({results:[{flagged:true}]}));expect((await send(flagged,'host','Threatening text')).status).toBe(422);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM game_chat_messages WHERE kind='message'").get().n).toBe(0);expect(db.sqlite.prepare('SELECT COUNT(*) AS n FROM notification_events').get().n).toBe(0);
+ db.sqlite.prepare("DELETE FROM content_moderation_usage WHERE scope LIKE 'openai:%'").run();env.OPENAI_MODERATION_DAILY_LIMIT='1';vi.stubGlobal('fetch',async()=>Response.json({results:[{flagged:false}]}));const ids=[game(),game()];const results=await Promise.all(ids.map(id=>send(id,'host','Friendly tennis plan')));expect(results.map(r=>r.status).sort()).toEqual([201,503]);expect(db.sqlite.prepare("SELECT COUNT(*) AS n FROM game_chat_messages WHERE kind='message'").get().n).toBe(1);
 });
 it('keeps own sends out of unread, clamps read cursors, and respects message-author blocks',async()=>{
  const id=game();join(id);await send(id,'target');let data=await(await chat(id)).json();expect(data.unread).toBe(1);expect((await(await chat(id,'target')).json()).unread).toBe(0);await chat(id,'host','POST',{throughSeq:Number.MAX_SAFE_INTEGER},'/read');expect((await(await chat(id)).json()).unread).toBe(0);await send(id,'target','Second');expect((await(await chat(id)).json()).unread).toBe(1);

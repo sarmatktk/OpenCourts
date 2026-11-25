@@ -31,6 +31,10 @@ export interface AuthEnv {
   AUTH_RATE_LIMIT_SECRET?: string;
   NATIVE_AUTH_DEVELOPMENT_ENABLED?: string;
   NATIVE_AUTH_PRODUCTION_ENABLED?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_MODERATION_DAILY_LIMIT?: string;
+  WORKERS_AI_MODERATION_DAILY_LIMIT?: string;
+  AI?: { run(model:string,input:Record<string,unknown>):Promise<unknown> };
 }
 type Provider = 'google' | 'apple';
 type Player = { id: string; display_name: string; bio: string; general_location: string; skill_level: string; discoverable: number; status: string };
@@ -86,6 +90,9 @@ function setCookie(response: Response, origin: string, kind: string, value: stri
 export function productionCommunityEnabled(env: AuthEnv) {
   return env.AUTH_ORIGIN === 'https://opencourts.us' && env.CF_PAGES_BRANCH === 'main' && env.PLAY_TOGETHER_ENABLED === 'true' && env.PLAY_TOGETHER_ENVIRONMENT === 'production' && env.PLAY_TOGETHER_PRODUCTION_ENABLED === 'true';
 }
+function productionNativeAuthEnabled(env: AuthEnv, origin: string) {
+  return origin === 'https://opencourts.us' && env.AUTH_ORIGIN === origin && env.CF_PAGES_BRANCH === 'main' && env.PLAY_TOGETHER_ENVIRONMENT === 'production' && env.NATIVE_AUTH_PRODUCTION_ENABLED === 'true';
+}
 export function assertEnvironment(request: Request, env: AuthEnv): { db: AuthDatabase; origin: string } {
   if (env.PLAY_TOGETHER_ENABLED !== 'true' || !env.COURTS_DB || !env.AUTH_ORIGIN) fail(404, 'Not found.');
   const origin = new URL(request.url).origin;
@@ -123,12 +130,15 @@ async function providerAuth(provider: Provider, env: AuthEnv, appleClientId?: st
   } catch { throw new AppleSigningError('apple-key-sign'); }
   return oauth.ClientSecretPost(secret);
 }
-export async function session(request: Request, db: AuthDatabase, origin: string): Promise<Session | null> {
+export async function session(request: Request, db: AuthDatabase, origin: string, env?: AuthEnv): Promise<Session | null> {
   const authorization=request.headers.get('authorization');
   const native=authorization!==null;
-  // Native bearer sessions are accepted only on development origins. Web session
-  // tokens are never accepted as bearer credentials or native tokens as cookies.
-  if(native&&!(['localhost','127.0.0.1'].includes(new URL(origin).hostname)||origin==='https://feature-play-together.opencourts.pages.dev'))return null;
+  // Native bearer sessions are accepted only on development origins or when the
+  // dedicated Production native-auth gate is enabled. Web tokens are never bearer
+  // credentials, and native tokens are never accepted as cookies.
+  const nativeDevelopment=['localhost','127.0.0.1'].includes(new URL(origin).hostname)||origin==='https://feature-play-together.opencourts.pages.dev';
+  const nativeProduction=origin==='https://opencourts.us'&&env?.NATIVE_AUTH_PRODUCTION_ENABLED==='true'&&env.AUTH_ORIGIN===origin&&env.CF_PAGES_BRANCH==='main'&&env.PLAY_TOGETHER_ENVIRONMENT==='production';
+  if(native&&!nativeDevelopment&&!nativeProduction)return null;
   const token = native ? (/^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(authorization!)?.[1]??'') : readCookie(request, cookieName(origin));
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) { if(native)fail(401,'Please sign in again.');return null; }
   const found=await db.prepare(`SELECT p.*, s.id AS session_id, s.token_hash, s.csrf_token, s.created_at AS session_created_at
@@ -313,12 +323,24 @@ async function callback(request: Request, env: AuthEnv, db: AuthDatabase, origin
 }
 export async function handleAuth(request: Request, env: AuthEnv): Promise<Response> {
   try {
-    const { db, origin } = assertEnvironment(request, env);
     const path = new URL(request.url).pathname.replace(/^\/api\/auth\/?/, '').replace(/\/$/, '');
+    const method=request.method;
+    const authorization=request.headers.get('authorization');
+    const nativeAccountRequest=authorization!==null&&(
+      (path==='me'&&['GET','PATCH','DELETE'].includes(method))||
+      (['logout','logout-all'].includes(path)&&method==='POST')
+    );
+    let db:AuthDatabase,origin:string;
+    if(path.startsWith('native/')||nativeAccountRequest){
+      const requestOrigin=new URL(request.url).origin;
+      if(productionNativeAuthEnabled(env,requestOrigin)&&env.COURTS_DB){
+        db=env.COURTS_DB;origin=requestOrigin;
+      }else ({db,origin}=assertEnvironment(request,env));
+    }else ({db,origin}=assertEnvironment(request,env));
     if(path.startsWith('native/'))return await handleNativeAuth(request,env,db,origin,path);
     const match = /^(google|apple)\/(start|callback)$/.exec(path);
     if (match?.[2] === 'callback') return await callback(request, env, db, origin, match[1] as Provider);
-    const current = await session(request, db, origin);
+    const current = await session(request, db, origin, env);
     if (path === 'me' && request.method === 'GET') {
       const protectedStart = origin.startsWith('http:') || Boolean(env.AUTH_RATE_LIMIT_SECRET);
       const available = { google: protectedStart && providerReady('google', env), apple: protectedStart && providerReady('apple', env) && origin.startsWith('https:') };

@@ -1887,3 +1887,13 @@ No secrets/settings, remote databases, production, main or Play uploads touched.
 - Audit reduced from 10 flagged packages to one: MapLibre GL 5.24.1 remains flagged by the advisory version range. Its official release includes the sanitizer backport; keep this discrepancy visible, retain the sanitizer regression and review any later advisories. Do not claim npm audit is clean or suppress the finding.
 - Evidence: https://github.com/maplibre/maplibre-gl-js/releases/tag/v5.24.1 and https://github.com/advisories/GHSA-jrc7-96c5-q579 .
 - This earlier remediation pass started the full regression; the subsequent clean 231/231 run and Preview publication are recorded above. No production or secret changes, Git push or store upload.
+## Find Games public-list decoding regression — November 24, 2026
+
+- [x] Reproduced the generic load error on iPhone 18 Pro simulator.
+- [x] Confirmed Preview public games endpoint returns HTTP 200 and omits `organizer.id` by design.
+- [x] Made organizer ID optional in the native DTO and provided initials-avatar fallback.
+- [x] Xcode BuildProject passed (`BuildProject-Log-20261124-230544.txt`).
+- [x] Reinstalled the fixed build; Find Games loaded “Tuesday Test” and “Friday Night Test” without the error.
+- [x] Confirmed authenticated feed and Find Games requests completed without decode/network errors.
+
+No API/backend or production changes. The fix is in iOS source and must be included in a new binary before App Store submission.

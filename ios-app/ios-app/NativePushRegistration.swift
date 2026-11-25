@@ -206,6 +206,8 @@ final class NativePushCoordinator {
     private(set) var capability: NativePushCapability?
     private(set) var permission = "Checking permission…"
     private(set) var permissionDenied = false
+    private(set) var badgePermission = "Checking…"
+    private(set) var badgesDisabled = false
     private(set) var registeredID: String?
     private(set) var busy = false
     private(set) var checking = false
@@ -293,6 +295,13 @@ final class NativePushCoordinator {
 
     private func updatePermission(_ settings: UNNotificationSettings) {
         permissionDenied = settings.authorizationStatus == .denied
+        badgesDisabled = settings.badgeSetting != .enabled
+        switch settings.badgeSetting {
+        case .enabled: badgePermission = "On"
+        case .disabled: badgePermission = "Off"
+        case .notSupported: badgePermission = "Unavailable"
+        @unknown default: badgePermission = "Unknown"
+        }
         switch settings.authorizationStatus {
         case .authorized: permission = "Allowed"
         case .provisional: permission = "Quiet delivery"
@@ -579,7 +588,7 @@ struct NativeNotificationOptInNudge: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 16) {
-                        if push.permissionDenied {
+                        if push.permissionDenied || push.badgesDisabled {
                             Button("Open iPhone Settings") {
                                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                             }
@@ -643,6 +652,7 @@ struct NativePushDeviceView: View {
         Form {
             Section {
                 LabeledContent("Notification permission", value: push.permission)
+                LabeledContent("App icon badge", value: push.badgePermission)
                 if push.registeredID != nil {
                     Label("Registration saved", systemImage: "checkmark.circle")
                 }
@@ -650,7 +660,7 @@ struct NativePushDeviceView: View {
                     Text("Push delivery to this iPhone app is not available yet. Your in-app inbox continues to work.")
                         .foregroundStyle(.secondary)
                 }
-                if push.permissionDenied {
+                if push.permissionDenied || push.badgesDisabled {
                     Button("Open iPhone Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                     }

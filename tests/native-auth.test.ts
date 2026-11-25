@@ -19,6 +19,13 @@ async function begin(){const r=await handleAuth(req('native/authorize?'+new URLS
 async function authorize(){const cookie=await begin();const r=await handleAuth(req('native/authorize','POST',{}, {Cookie:cookie+'; oc_session='+webToken,'X-CSRF-Token':csrf}),env);expect(r.status).toBe(200);const url=new URL((await r.json()).callbackURL);expect(url.protocol).toBe('opencourts-ios:');expect(url.searchParams.get('state')).toBe(state);return url.searchParams.get('code')!;}
 describe('development native identity exchange',()=>{
  it('is disabled by default and always disabled on production',async()=>{delete env.NATIVE_AUTH_DEVELOPMENT_ENABLED;expect((await handleAuth(req('native/authorize'),env)).status).toBe(404);Object.assign(env,{NATIVE_AUTH_DEVELOPMENT_ENABLED:'true',AUTH_ORIGIN:'https://opencourts.us',CF_PAGES_BRANCH:'main',PLAY_TOGETHER_ENVIRONMENT:'production',PLAY_TOGETHER_PRODUCTION_ENABLED:'true'});expect((await handleAuth(new Request('https://opencourts.us/api/auth/native/authorize'),env)).status).toBe(404);});
+ it('allows only native Production auth behind its own gate while website auth stays gated',async()=>{
+  Object.assign(env,{AUTH_ORIGIN:'https://opencourts.us',CF_PAGES_BRANCH:'main',PLAY_TOGETHER_ENVIRONMENT:'production',NATIVE_AUTH_PRODUCTION_ENABLED:'true'});
+  const nativeRequest=new Request('https://opencourts.us/api/auth/native/provider/challenge',{method:'POST',headers:{Origin:'https://opencourts.us','Content-Type':'application/json'},body:JSON.stringify({provider:'google',adultConfirmed:true})});
+  expect((await handleAuth(nativeRequest,env)).status).toBe(200);
+  const websiteRequest=new Request('https://opencourts.us/api/auth/me',{headers:{Origin:'https://opencourts.us'}});
+  expect((await handleAuth(websiteRequest,env)).status).toBe(404);
+ });
  it('issues bounded provider challenges only after age confirmation and rejects invalid assertions',async()=>{
   expect((await handleAuth(req('native/provider/challenge','POST',{provider:'google'}),env)).status).toBe(400);
   expect((await handleAuth(req('native/provider/challenge','POST',{provider:'unknown',adultConfirmed:true}),env)).status).toBe(400);

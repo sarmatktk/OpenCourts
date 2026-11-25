@@ -1013,9 +1013,14 @@ private struct CommunityGameHostLabel: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            NativePlayerAvatar(playerID: game.organizer.id, displayName: game.organizer.displayName,
-                               gameID: game.id, size: 20, refreshID: refreshID)
-                .accessibilityHidden(true)
+            if let organizerID = game.organizer.id {
+                NativePlayerAvatar(playerID: organizerID, displayName: game.organizer.displayName,
+                                   gameID: game.id, size: 20, refreshID: refreshID)
+                    .accessibilityHidden(true)
+            } else {
+                NativeAccountAvatarBadge(image: nil, displayName: game.organizer.displayName, size: 20)
+                    .accessibilityHidden(true)
+            }
             Text(title)
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)

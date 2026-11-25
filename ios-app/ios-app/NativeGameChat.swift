@@ -541,6 +541,15 @@ struct NativeGameChatView: View {
             }
         } catch {
             guard ticket == generation, account.player?.id == actor, scenePhase == .active else { return }
+            let failure = error as NSError
+            if failure.domain == "OpenCourts", failure.code == 422, let attempt {
+                // A moderation rejection confirms the server did not save the message.
+                // Release the retry lock and keep its text available for editing.
+                draft = attempt.body
+                self.attempt = nil
+                sendError = error.localizedDescription
+                return
+            }
             sendError = error.localizedDescription
             // Hide old messages after an uncertain write/access failure; never replay automatically.
             page = nil; messages = []; historyFloor = nil; hasOlder = false

@@ -1,5 +1,6 @@
 import {seriesChatAccessSql,maintainSeriesChat,chatSchemaReady} from './series-chat';
 import {AuthError,checkOrigin,checkCsrf,json,readJson,requireSession,session,type AuthDatabase} from './auth';
+import {moderateUserContent} from './content-moderation';
 const DAY=86400000;
 // Aliases/expressions are constants supplied by source code, never user input.
 export function chatAccessSql(g:string,p:string,now:string){return `(${seriesChatAccessSql(g,p,now)} OR (${g}.series_id IS NULL AND (
@@ -26,7 +27,7 @@ export async function cleanupChat(db:AuthDatabase,now=Date.now()){
  if(await chatSchemaReady(db))await maintainSeriesChat(db,now);
  await db.batch([db.prepare('DELETE FROM game_chat_rooms WHERE game_id IN (SELECT game_id FROM game_chat_rooms WHERE legal_hold=0 AND expires_at<=? ORDER BY expires_at LIMIT 100)').bind(now),db.prepare("DELETE FROM game_chat_reports WHERE id IN (SELECT id FROM game_chat_reports WHERE legal_hold=0 AND status='resolved' AND resolved_at<=? ORDER BY resolved_at LIMIT 100)").bind(now-90*DAY),db.prepare("INSERT INTO notification_worker_state(name,value) VALUES ('chat_cleanup_last_at',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value").bind(String(now))]);
 }
-export async function gameChat(request:Request,db:AuthDatabase,origin:string,path:string):Promise<Response|null>{
+export async function gameChat(request:Request,env:Parameters<typeof moderateUserContent>[1],db:AuthDatabase,origin:string,path:string):Promise<Response|null>{
  const match=path.match(/^([0-9a-f-]{36})\/chat(?:\/(read|mute|report))?$/i);if(!match)return null;
  const actor=requireSession(await session(request,db,origin)),[,routeId,action='']=match,now=Date.now();
  if(!await chatSchemaReady(db))throw new AuthError(503,'Chat is being updated. Please try again shortly.');
@@ -73,6 +74,9 @@ export async function gameChat(request:Request,db:AuthDatabase,origin:string,pat
  if(!canSend)throw new AuthError(409,'Chat is read-only. A display name is required to send messages.');
  if(!text(body.body,2000)||typeof body.clientId!=='string'||!/^[0-9a-f-]{36}$/i.test(body.clientId))throw new AuthError(400,'Enter a message of up to 2000 characters.');
  const previous=await db.prepare('SELECT id,seq,body FROM game_chat_messages WHERE game_id=? AND author_id=? AND client_id=?').bind(id,actor.id,body.clientId).first<{id:string;seq:number;body:string}>();if(previous){if(previous.body!==String(body.body).trim())throw new AuthError(409,'This message request was already used.');return json({id:previous.id,seq:previous.seq},200);}
+ const counts=await db.prepare('SELECT SUM(CASE WHEN created_at>? THEN 1 ELSE 0 END) AS minuteCount,SUM(CASE WHEN created_at>? THEN 1 ELSE 0 END) AS hourCount FROM game_chat_messages WHERE author_id=? AND kind=\'message\'').bind(now-60000,now-3600000,actor.id).first<{minuteCount:number|null;hourCount:number|null}>();
+ if((counts?.minuteCount??0)>=10||(counts?.hourCount??0)>=100)throw new AuthError(429,'Messages are being sent too quickly. Wait a moment and try again.');
+ await moderateUserContent(db,env,actor.id,[String(body.body).trim()],now);
  const recipients=game.series_id?`EXISTS(SELECT 1 FROM group_memberships recipient WHERE recipient.group_id=g.group_id AND recipient.player_id=p.id AND recipient.status='active')`:`p.id IN(SELECT g.organizer_id UNION SELECT cp.player_id FROM game_participants cp WHERE cp.game_id=g.id UNION SELECT caa.player_id FROM game_chat_capacity_access caa WHERE caa.game_id=g.id UNION SELECT ci.recipient_id FROM player_game_invitations ci WHERE ci.game_id=g.id UNION SELECT ca.player_id FROM game_invitation_access ca JOIN game_invitation_links cl ON cl.id=ca.link_id WHERE cl.game_id=g.id)`;
  const messageId=crypto.randomUUID();
  await db.batch([

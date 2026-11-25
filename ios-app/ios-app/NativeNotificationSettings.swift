@@ -105,13 +105,10 @@ struct NativeNotificationSettingsView: View {
         Form {
             Section("This iPhone") {
                 LabeledContent("Notification permission", value: push.permission)
+                LabeledContent("App icon badge", value: push.badgePermission)
                 if push.registeredID != nil {
                     Label("This iPhone is registered", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(Brand.accent)
-                } else if push.permissionDenied {
-                    Button("Open iPhone Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                    }
                 } else if push.capability?.deliveryAvailable == true {
                     Button("Enable notifications on this iPhone") {
                         Task { await push.enable() }
@@ -123,6 +120,11 @@ struct NativeNotificationSettingsView: View {
                 } else {
                     Text("Checking iPhone notification availability…")
                         .font(.footnote).foregroundStyle(.secondary)
+                }
+                if push.permissionDenied || push.badgesDisabled {
+                    Button("Open iPhone Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
                 }
                 if push.registeredID != nil {
                     Button("Turn off on this iPhone", role: .destructive) {

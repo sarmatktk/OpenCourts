@@ -5,6 +5,7 @@ import {eventStillVisible,type Delivery} from './push-delivery';
 import {cleanupNativePushDevices,nativePushRecipientEnabled,nativePushSchemaReady} from './native-push';
 import {chatSchemaReady} from './series-chat';
 import {refreshWaitlist} from './game-waitlist';
+import {notificationInbox} from './notification-inbox';
 
 type NativeDelivery=Delivery&{native_environment:string;native_topic:string};
 async function eligible(db:AuthDatabase,d:NativeDelivery,now:number,environment:string,topic:string){
@@ -42,7 +43,15 @@ export async function drainAPNs(db:AuthDatabase,env:PushEnv,injected?:APNsClient
    const target={type:d.entity_type,id:d.entity_id,...(d.discussionPostId?{postId:d.discussionPostId}:{})};
    const authorizeTarget=async()=>await authorize()&&target.id===d.entity_id&&target.postId===d.discussionPostId;
    // A recurring-chat retarget during final checks must not send the older route.
-   const outcome=await client.send({deviceToken:d.endpoint,registrationID:d.device_id,deliveryID:d.id,eventID:d.event_id,kind:d.kind,expiresAt:d.expires_at,target},authorizeTarget);
+   let badgeCount:number|undefined;
+   try{
+    const inbox=await notificationInbox(db,d.recipient_id);
+    badgeCount=inbox.filter(value=>!!value&&typeof value==='object'&&'readAt' in value&&
+     (value as {readAt?:unknown}).readAt==null&&(!('archived' in value)||(value as {archived?:unknown}).archived!==true)).length;
+   }catch{
+    // A badge count failure must not suppress an otherwise authorized alert.
+   }
+   const outcome=await client.send({deviceToken:d.endpoint,registrationID:d.device_id,deliveryID:d.id,eventID:d.event_id,kind:d.kind,expiresAt:d.expires_at,target,badgeCount},authorizeTarget);
    const code=/^(provider_\d{3}|delivery_error|expired_or_invalid|invalid_payload|authorization_changed)$/.test(outcome.code??'')?outcome.code!:'delivery_error';
    if(outcome.status==='accepted')await finish('sent');
    else if(outcome.status==='invalid_token'){

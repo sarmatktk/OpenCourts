@@ -20,7 +20,7 @@ export const apnsMessages:Readonly<Record<string,string>>=Object.freeze({
  game_reminder_3h:'Reminder: Your game starts in about 3 hours.',
  waitlist_offer:'A waitlist spot is available. Open OpenCourts to review your offer.',
 });
-export type APNsJob={deviceToken:string;registrationID:string;deliveryID:string;eventID:string;kind:string;expiresAt:number;target:{type:string;id:string;postId?:string}};
+export type APNsJob={deviceToken:string;registrationID:string;deliveryID:string;eventID:string;kind:string;expiresAt:number;target:{type:string;id:string;postId?:string};badgeCount?:number};
 export type APNsOutcome={status:'accepted'|'skipped'|'invalid_token'|'retry'|'failed';code?:string;retryAfterMs?:number;invalidatedAt?:number;stopBatch?:boolean};
 export type APNsClient={prepare:()=>Promise<void>;send:(job:APNsJob,authorize:()=>Promise<boolean>)=>Promise<APNsOutcome>};
 type Config={teamID:string;keyID:string;privateKey:string;topic:string;environment?:string};
@@ -41,7 +41,8 @@ export async function apnsPayload(job:APNsJob){
   ...(job.target.type==='group'&&uuid.test(job.target.postId??'')?{postId:job.target.postId}:{}),
  }:undefined;
  const tag='oc-'+(await digest(job.eventID)).slice(0,40);
- return {aps:{alert:{title:'OpenCourts',body:known?apnsMessages[job.kind]:'You have an OpenCourts update.'},sound:'default'},version:1,kind,tag,
+ const badgeCount=Number.isSafeInteger(job.badgeCount)&&job.badgeCount!>=0?Math.min(100,job.badgeCount!):undefined;
+ return {aps:{alert:{title:'OpenCourts',body:known?apnsMessages[job.kind]:'You have an OpenCourts update.'},sound:'default',...(badgeCount===undefined?{}:{badge:badgeCount})},version:1,kind,tag,
   ...(uuid.test(job.registrationID)?{registrationId:job.registrationID}:{}),...(target?{target}:{})};
 }
 

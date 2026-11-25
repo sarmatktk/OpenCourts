@@ -621,3 +621,46 @@ This supersedes earlier local-only notices. Next: user/physical-device review.
 - [ ] Physical-phone test of all six dock targets and the invitation picker in both themes.
 
 Local checks: 268 units / 107 browsers / build passed. No hosted migration or deployment yet.
+## Content moderation Preview rollout gate — November 24, 2026
+
+- [x] Owner selected Preview-first rollout; Production remains untouched.
+- [x] Confirmed Preview is `feature/play-together` and uses isolated D1 `opencourts-dev` (`cae4849c-3e99-4945-9d70-bef7b48707ce`). Before migration, its ledger showed only 0041 pending.
+- [x] Confirmed Preview Pages secret `OPENAI_API_KEY` is set (value not read) and Workers AI binding `AI` is present.
+- [x] Applied only migration `0041_content_moderation.sql` to `opencourts-dev`; no broad migration batch was run.
+- [x] Deployed a moderation-only detached candidate from source commit `8084120` as Pages deployment `ca26ddb0` to `feature/play-together`: https://feature-play-together.opencourts.pages.dev. This superseded `a747fd77`; unrelated changes in the primary working tree were excluded. The later policy-page Preview deployment `54ab899e-4d31-471a-a440-33a94372d556` includes the same moderation candidate plus the updated Privacy/Terms pages.
+- [x] Follow-up from owner screenshots: Preview stylesheet now gives `role="alert"` chat errors a red foreground, border, and tinted background in light and dark themes. Added an exact dictionary match for the evasion spelling `fuxkinf` shown in a message that had already been accepted; new instances should be rejected.
+- [x] Native iOS source now treats HTTP 422 moderation rejection as a definite non-save: clears the retry card, preserves the text for editing, and keeps the red rejection feedback. Xcode BuildProject passed (`BuildProject-Log-20261124-234900.txt`); this client change is local and requires a new app build to verify/release.
+- [x] Preview read-only smoke checks: `/api/auth/me` and `/api/games` both returned HTTP 200.
+- [x] Isolated focused moderation/chat/discussion suites passed 104/104 and `npm run build:dev` passed. Provider responses were mocked; no external AI request was made.
+- [ ] Verify authenticated send/reject flows, live OpenAI primary, Workers AI fallback, quota exhaustion and fail-closed behavior in Preview across web, Android and iOS. Current smoke checks do not cover these flows.
+- [x] Updated `public/privacy.html` and `public/terms.html` for automated screening of game/series chat and group discussions; disclosed OpenAI primary and Cloudflare Workers AI fallback, text-only moderation requests, provider retention caveats, rejection behavior and false positives. Updated sitemap dates and policy-page browser assertions. The disclosure does not claim approved OpenAI zero-retention controls.
+- [x] Directly verified Preview `/privacy` and `/terms` return HTTP 200 and contain the updated moderation disclosure.
+- [ ] Verify the policy URL/version and App Privacy answers in App Store Connect account for moderation-provider processing.
+- [ ] Decide whether other freeform profile/game/group fields need moderation; this implementation covers chat and group discussions only.
+- [ ] Provide App Review a dedicated test account or reliable access steps with sample game/chat content in App Store Connect Review Information. Do not share the owner's personal Google or Apple credentials.
+- [x] Obtain explicit approval before Production changes. Owner approved the moderation Production rollout on November 25; only the dedicated 0041 migration and Pages moderation deployment were performed.
+
+At the time this Preview checklist was first written, Production was untouched. The November 25 Production rollout below supersedes that status. Backend moderation and website styling do not require a new App Store Connect binary; the native iOS retry-state fix does require a new binary before released iOS users receive it. No iOS archive or upload was made.
+
+Policy verification: isolated candidate `npm run build:dev` passed. `npx playwright test tests/information-pages.spec.ts` could not launch Chromium in the macOS sandbox (MachPortRendezvous permission denied). After deployment, direct checks returned HTTP 200 for `/privacy` and `/terms` and confirmed the updated disclosures. Use a browser for visual/link review.
+
+
+## Native discussion moderation UI follow-up — November 25, 2026
+
+- [x] HTTP 422 in the native discussion composer is treated as definitive rejection: the retry lock is removed, the submitted title/body are restored for editing, and the friendly server rejection is shown in red. Non-422 errors retain uncertain-outcome recovery.
+- [x] Xcode BuildProject passed (`BuildProject-Log-20261125-082444.txt`).
+- [ ] Install a fresh build and verify rejected post/reply text is editable, red feedback is visible, and neither item was saved. This native change requires a new iOS binary before App Store release.
+
+## Content moderation Production rollout — November 25, 2026
+
+- [x] Owner approved Production rollout after Preview fixes were reviewed.
+- [x] Verified Production `OPENAI_API_KEY` exists as an encrypted Pages secret; its value was not read or changed. Existing secrets and website authentication settings were left unchanged. Production configuration includes the `AI` Workers AI binding.
+- [x] Applied only `0041_content_moderation.sql` to Production D1 `opencourts-courts`. The full migration ledger still lists unrelated `0036_members_only_group_games.sql`, `0039_game_capacity_notifications.sql`, and `0040_capacity_chat_access.sql` as pending; none were applied.
+- [x] Built and deployed the moderation-only Production Pages artifact to branch `main`, deployment URL `https://bf955783.opencourts.pages.dev` (serving `https://opencourts.us`). `/privacy` and `/terms` both returned HTTP 200 and included the moderation disclosure.
+- [x] Moderation implementation checks on the Production-source candidate: game-chat/discussion suites 77/77, moderation suite 8/8; `npm run build:dev` and `npm run build:release` passed. Provider calls were mocked in automated tests; no live test message or live provider call was sent during this rollout.
+- [ ] Perform controlled authenticated Production checks for normal chat, rejection before save/notification, OpenAI primary, Workers AI fallback, quota exhaustion, and fail-closed behavior. Cover web, Android and iOS.
+- [ ] Confirm App Store Connect App Privacy answers reflect moderation-provider processing, and provide App Review a dedicated account/access instructions plus seeded chat content.
+- [ ] Upload a new iOS binary to deliver the local HTTP 422 retry-state fix to App Store users; the moderation backend itself is server-side and did not require that binary.
+- [ ] Review whether other freeform UGC fields need moderation; this release covers game/series chat and group discussion posts, comments and edits only.
+
+APNs remains a separate rollout: Production registration/sender gates are still off, no APNs delivery was enabled by this deployment, and no notification was sent. Pending unrelated D1 migrations remain untouched.
