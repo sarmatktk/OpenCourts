@@ -8,6 +8,21 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const previewDir = resolve(tmpdir(), 'opencourts-landing-social');
 mkdirSync(previewDir, { recursive: true });
 const source = resolve(root, 'public', 'social-preview.png');
+const socialFiles = [
+  'social-preview-v2.png', 'social-play-weather.png', 'social-after-rain.png',
+  'social-fairfax-courts.png', 'social-miami-courts.png', 'social-los-angeles-courts.png',
+  'social-dallas-courts.png', 'social-atlanta-courts.png'
+];
+const playTogetherFiles = [];
+const storeBadges = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="306" height="47" viewBox="0 0 306 47"><g><rect x="0.5" y="0.5" width="148" height="46" rx="7" fill="#050505" stroke="#fff" stroke-opacity=".9"/><path fill="#00d7ff" d="M13 9l16 14-16 15a2 2 0 0 1-1-2V11a2 2 0 0 1 1-2z"/><path fill="#00f076" d="M13 9l19 11 4 3-7 1L13 9z"/><path fill="#ffdf00" d="m29 24 7-1 4 4-1 1-10 6-7-7 7-3z"/><path fill="#ff3b57" d="m13 38 16-14 7 7-21 12a2 2 0 0 1-2-1z"/><text x="45" y="18" fill="#fff" font-family="Arial,sans-serif" font-size="8">GET IT ON</text><text x="45" y="34" fill="#fff" font-family="Arial,sans-serif" font-size="16" font-weight="600">Google Play</text><rect x="157.5" y="0.5" width="148" height="46" rx="7" fill="#050505" stroke="#fff" stroke-opacity=".9"/><path fill="#fff" d="M177 13c-2 0-4 2-4 5 0 4 4 11 7 11 1 0 2-1 4-1s3 1 4 1c2 0 3-2 4-4-3-1-4-5 0-7-1-2-3-3-5-3-2 0-3 1-4 1-2 0-3-1-6-1zm7-2c1-2 3-3 5-3 0 2-1 4-4 5"/><text x="198" y="18" fill="#fff" font-family="Arial,sans-serif" font-size="8">Download on the</text><text x="198" y="34" fill="#fff" font-family="Arial,sans-serif" font-size="16" font-weight="600">App Store</text></g></svg>`);
+const playTogetherBadge = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="175" height="35" viewBox="0 0 175 35"><rect x=".5" y=".5" width="174" height="34" rx="17" fill="#d8ee72"/><circle cx="18" cy="17.5" r="8" fill="#123d32"/><circle cx="15" cy="15" r="2" fill="#d8ee72"/><circle cx="21" cy="15" r="2" fill="#d8ee72"/><path d="M12 21q3-5 6 0 3-5 6 0" fill="none" stroke="#d8ee72" stroke-width="1.5" stroke-linecap="round"/><text x="34" y="22" fill="#10281d" font-family="Arial,sans-serif" font-size="14" font-weight="700">PLAY TOGETHER</text></svg>`);
+const stores = [
+  { file: 'social-preview-v2.png', title: 'Find your court.', subtitle: 'Courts, games and groups in one place.', badge: 'NOW ON iOS AND ANDROID', shots: [
+    resolve(root, 'design/social-originals/app-0.png'),
+    resolve(root, 'design/social-originals/app-1.png'),
+    resolve(root, 'design/social-originals/app-2.png')
+  ] }
+];
 const cards = [
   { key: 'play-weather', file: 'social-play-weather.png', kicker: '7-DAY TENNIS WEATHER', lines: ['Find a better', 'time to play.'], sub: 'Compare the best daylight windows.', symbol: 'sun', tags: [['Rain chance', '#88d2ee'], ['Wind', '#c6e69a'], ['Temperature', '#ffd091']] },
   { key: 'after-rain', file: 'social-after-rain.png', kicker: 'RECENT RAIN NEAR COURTS', lines: ['After the rain,', 'where to play?'], sub: 'Compare radar estimates near courts.', symbol: 'rain', tags: [['1h rain', '#88d2ee'], ['3h rain', '#88d2ee'], ['6h rain', '#88d2ee']] },
@@ -37,5 +52,32 @@ for (const card of cards) {
   for (const variant of ['a', 'b']) {
     await sharp(source).composite([{ input: overlay(card, variant) }]).png({ compressionLevel: 9 }).toFile(resolve(previewDir, `${card.key}-${variant}.png`));
   }
-  await sharp(source).composite([{ input: overlay(card, 'a') }]).png({ compressionLevel: 9 }).toFile(resolve(root, 'public', card.file));
+  // Keep the existing city and weather cards intact.
+}
+
+// Social launch card: turn real store artwork into three polished device panels.
+for (const card of stores) {
+  const svg = Buffer.from(`<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#071c15"/><stop offset="1" stop-color="#174b3b"/></linearGradient><radialGradient id="glow"><stop stop-color="#d8ee72" stop-opacity=".2"/><stop offset="1" stop-color="#d8ee72" stop-opacity="0"/></radialGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="16" stdDeviation="14" flood-color="#00120c" flood-opacity=".55"/></filter></defs><rect width="1200" height="630" fill="url(#bg)"/><circle cx="908" cy="310" r="390" fill="url(#glow)"/><path d="M0 548 Q330 495 620 565 T1200 525V630H0Z" fill="#0b2c21" opacity=".7"/><circle cx="91" cy="83" r="22" fill="none" stroke="#d8ee72" stroke-width="2"/><path d="M79 68q12 8 12 15t-12 15m24-30q-12 8-12 15t12 15" fill="none" stroke="#d8ee72" stroke-width="2"/><text x="128" y="91" fill="#f5f5ed" font-family="Arial,sans-serif" font-size="28" font-weight="700">opencourts</text><rect x="79" y="143" width="260" height="34" rx="17" fill="#d8ee72"/><text x="96" y="165" fill="#10281d" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">${card.badge}</text><text x="76" y="269" fill="#fffdf3" font-family="Georgia,serif" font-size="58">${card.title}</text><text x="80" y="316" fill="#dce9dd" font-family="Arial,sans-serif" font-size="23">${card.subtitle}</text><rect x="79" y="365" width="250" height="47" rx="23" fill="#143e31" stroke="#9cb899" stroke-opacity=".6"/><text x="101" y="395" fill="#f3f4eb" font-family="Arial,sans-serif" font-size="15" font-weight="600">Find courts</text><circle cx="88" cy="389" r="5" fill="#d8ee72"/><rect x="342" y="365" width="240" height="47" rx="23" fill="#143e31" stroke="#9cb899" stroke-opacity=".6"/><circle cx="362" cy="389" r="5" fill="#d8ee72"/><text x="376" y="395" fill="#f3f4eb" font-family="Arial,sans-serif" font-size="15" font-weight="600">Play together</text><path d="M80 523h500" stroke="#dce9dd" stroke-opacity=".3"/><text x="80" y="560" fill="#edf1e2" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="2">OPENCOURTS.US</text><text x="1110" y="560" text-anchor="end" fill="#d8ee72" font-family="Arial,sans-serif" font-size="14" font-weight="700">FIND YOUR COURT  &#8594;</text><g filter="url(#shadow)"><rect x="680" y="93" width="204" height="420" rx="28" fill="#07130f" stroke="#d9e5d3" stroke-opacity=".75" stroke-width="2"/><rect x="690" y="105" width="184" height="396" rx="19" fill="#fff"/><rect x="838" y="133" width="204" height="420" rx="28" fill="#07130f" stroke="#d9e5d3" stroke-opacity=".75" stroke-width="2"/><rect x="848" y="145" width="184" height="396" rx="19" fill="#fff"/><rect x="995" y="91" width="137" height="420" rx="25" fill="#07130f" stroke="#d9e5d3" stroke-opacity=".75" stroke-width="2"/><rect x="1004" y="103" width="119" height="396" rx="17" fill="#fff"/></g></svg>`);
+  const composites = [{ input: svg }];
+  const placements = [[690,105,184,396],[848,145,184,396],[1004,103,119,396]];
+  for (let i = 0; i < card.shots.length; i++) {
+    const [left,top,width,height] = placements[i];
+    const image = await sharp(card.shots[i]).resize(width,height,{fit:'cover',position:'attention'}).png().toBuffer();
+    composites.push({input:image,left,top});
+  }
+  await sharp({create:{width:1200,height:630,channels:3,background:'#09251b'}}).composite(composites).png({compressionLevel:9}).toFile(resolve(root,'public',card.file));
+}
+
+// Add the same compact store-badge lockup to every image used by page metadata.
+for (const file of socialFiles) {
+  const path = resolve(root, 'public', file);
+  const input = file === 'social-preview-v2.png' ? path : resolve(root, 'design/social-originals', file);
+  const metadata = await sharp(input).metadata();
+  const output = resolve(previewDir, file);
+  const overlays = [{input:storeBadges,left:file === 'social-preview-v2.png' ? 80 : 852,top:file === 'social-preview-v2.png' ? 448 : 553}];
+  if (playTogetherFiles.includes(file)) overlays.push({input:playTogetherBadge,left:1200-175-42,top:630-35-88});
+  await sharp(input).composite(overlays).png({compressionLevel:9}).toFile(output);
+  const { copyFileSync } = await import('node:fs');
+  copyFileSync(output, path);
+  if (metadata.width !== 1200 || metadata.height !== 630) throw new Error(`${file} is not 1200x630`);
 }
