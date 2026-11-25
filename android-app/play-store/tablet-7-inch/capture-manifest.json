@@ -1,0 +1,70 @@
+{
+  "capturedAt": "2026-11-20T21:14:45.787Z",
+  "profile": "tablet-7-inch",
+  "source": "Live production interface; public court/weather data live, community API responses intercepted locally with sample data; no real account session",
+  "screens": [
+    {
+      "file": "01-court-discovery.png",
+      "route": "/",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": false,
+      "applicationCssModified": false
+    },
+    {
+      "file": "02-court-map.png",
+      "route": "/",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": false,
+      "applicationCssModified": false
+    },
+    {
+      "file": "03-weather.png",
+      "route": "/#conditions",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": false,
+      "applicationCssModified": false
+    },
+    {
+      "file": "04-find-games.png",
+      "route": "/play-together?find=1",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "05-game-details.png",
+      "route": "/play-together/game?id=10000000-0000-4000-8000-000000000001",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "06-tennis-groups.png",
+      "route": "/play-together/groups",
+      "theme": "light",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "07-game-chat.png",
+      "route": "/play-together/game?id=10000000-0000-4000-8000-000000000001#chat",
+      "theme": "dark",
+      "width": 1200,
+      "height": 1920,
+      "syntheticData": true,
+      "applicationCssModified": false
+    }
+  ]
+}

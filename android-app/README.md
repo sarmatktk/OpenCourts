@@ -17,7 +17,7 @@ This is a separate Android app project. It opens the hosted OpenCourts website a
    The launcher now shows an OpenCourts splash while the Trusted Web Activity starts. Chrome still powers the app, and some Chrome versions can briefly show browser UI or a "running in Chrome" notice during a cold launch. That browser notice is controlled by Chrome, not by the website.
 3. Test court search, map/list switching, location permission, weather, directions, external links, and the Android Back button on a device. Also check that the site's home-screen installation prompt stays hidden inside the Play-installed app.
 
-This updates the existing Google Play app, package `us.opencourts.app`. Preserve its package, upload-key and Play App Signing setup. The current release source uses version code 3 / 1.1.0 and opens https://opencourts.us; the separate `.dev` debug package opens Preview.
+This updates the existing Google Play app, package `us.opencourts.app`. Preserve its package, upload-key and Play App Signing setup. The current release source uses version code 3 / 2.0.0 and opens https://opencourts.us; the separate `.dev` debug package opens Preview.
 
 ## Verify the website and prepare a Play release
 

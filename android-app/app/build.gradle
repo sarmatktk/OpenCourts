@@ -12,7 +12,7 @@ android {
         minSdk 24
         targetSdk 36
         versionCode 3
-        versionName '1.1.0'
+        versionName '2.0.0'
         manifestPlaceholders = [webHost: 'opencourts.us']
         resValue 'string', 'twa_start_url', 'https://opencourts.us/'
         resValue 'string', 'twa_asset_statements', '[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://opencourts.us\"}}]'

@@ -1,3 +1,11 @@
+## Android release version updated - November 20, 2026
+
+Owner requested version name **2.0.0**. Android source now uses versionCode 3 /
+versionName 2.0.0; debug displays 2.0.0-dev. Package, signing identity and destinations
+are unchanged. Earlier 1.1.0 references below describe previous source/artifacts.
+Rebuild the signed bundle before uploading; no bundle or Google Play upload was
+performed for this version-label change.
+
 ## Production notification receipt/tap confirmed and test removed - November 20, 2026
 
 Owner replied done after being asked to verify the requested notification arrived

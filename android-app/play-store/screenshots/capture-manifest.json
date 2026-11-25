@@ -1,0 +1,42 @@
+{
+  "capturedAt": "2026-11-20T21:07:35.465Z",
+  "source": "Live production application; all API responses intercepted locally with sample data",
+  "screens": [
+    {
+      "file": "01-find-games.png",
+      "route": "/play-together?find=1",
+      "theme": "light",
+      "width": 1080,
+      "height": 2160,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "02-game-details.png",
+      "route": "/play-together/game?id=10000000-0000-4000-8000-000000000001",
+      "theme": "light",
+      "width": 1080,
+      "height": 2160,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "03-tennis-groups.png",
+      "route": "/play-together/groups",
+      "theme": "light",
+      "width": 1080,
+      "height": 2160,
+      "syntheticData": true,
+      "applicationCssModified": false
+    },
+    {
+      "file": "04-game-chat.png",
+      "route": "/play-together/game?id=10000000-0000-4000-8000-000000000001#chat",
+      "theme": "dark",
+      "width": 1080,
+      "height": 2160,
+      "syntheticData": true,
+      "applicationCssModified": false
+    }
+  ]
+}
