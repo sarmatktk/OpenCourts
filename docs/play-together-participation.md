@@ -11,6 +11,11 @@ Any earlier “local only” statement in this record is historical, not current
 deployment guidance.
 All first-release features remain free.
 
+Historical checkpoint from the original Phase 3 record: “Local implementation
+only. Remote migration 0004 and Preview rollout require approval. Production
+remains untouched.” That described the original implementation stage, not the
+current deployment state summarized above.
+
 This is the original Phase 3 participation record. Current guest-role policy and
 rollout status are superseded by the November 23 update in `play-together-guests.md`:
 group Owner/Co-owner/Organizer versus standalone host-only guest decisions.

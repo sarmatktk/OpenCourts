@@ -22,6 +22,16 @@ current source; multi-account/device acceptance remains a client release check.
 The old local-only rollout warning has been removed from this current summary;
 dated rollout entries below remain as history.
 
+### Historical implementation snapshot — November 21, 2026
+
+At that checkpoint, membership checks in details, discovery/feed, participation,
+chat, invitations, inbox and push delivery were described as local work. The
+then-pending migration `0036_members_only_group_games.sql` restored the database
+participant guard and added Organizers to membership-request notifications.
+Native membership approval UI existed locally, while the matching server
+rollout and multi-account acceptance were still open. This snapshot is retained
+for provenance; the current rollout state is the summary above.
+
 ## Historical role clarification — November 21, 2026
 
 The following records the then-proposed role model. Its rollout status is
