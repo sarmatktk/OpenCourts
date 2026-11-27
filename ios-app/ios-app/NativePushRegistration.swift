@@ -701,4 +701,5 @@ struct NativePushDeviceView: View {
             await push.refreshStatus()
         }
     }
+
 }

@@ -839,6 +839,19 @@ nonisolated struct NativeDiscoveredPlayer: Decodable, Identifiable, Sendable {
     let generalLocation: String?
     let skillLevel: String?
     let bio: String?
+    let activityStatus: String?
+
+    var activityLabel: String? {
+        switch activityStatus {
+        case "recent": "Active recently"
+        case "today": "Active today"
+        case "yesterday": "Active yesterday"
+        case "week": "Active this week"
+        case "older": "Last active over a week ago"
+        case "unknown": "Activity not recorded yet"
+        default: nil
+        }
+    }
 }
 nonisolated private struct NativePlayerPage: Decodable, Sendable {
     let players: [NativeDiscoveredPlayer]
@@ -945,7 +958,7 @@ struct NativePlayersView: View {
                 }
                 .buttonStyle(AppPrimaryButtonStyle())
                 .tint(Brand.actionFill)
-                Text("Only players who opt in appear. Location matches a general area, not precise distance.")
+                Text("Only players who opt in appear. Approximate recent activity is shown to help you choose who to invite. Location matches a general area, not precise distance.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
             ForEach(store.items) { player in
@@ -970,6 +983,13 @@ struct NativePlayersView: View {
                             }
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            if let activity = player.activityLabel {
+                                Text(activity)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .accessibilityLabel("Recent activity: \(activity)")
+                            }
                             if let bio = player.bio, !bio.isEmpty {
                                 Text(bio)
                                     .font(.caption)
@@ -982,27 +1002,30 @@ struct NativePlayersView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint("Opens player profile")
-                    Button {
-                        invite = player
-                    } label: {
-                        Text("Invite")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Brand.accent)
-                            .padding(.horizontal, 10)
-                            .frame(minHeight: 44)
-                            .background(Brand.accent.opacity(0.1), in: Capsule())
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Menu {
+                            Button("Block player", role: .destructive) { block = player }
+                            Button("Report player") { report = player }
+                        } label: {
+                            AppToolbarIcon(title: "More options", icon: "ellipsis")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("More options for \(player.displayName)")
+
+                        Button {
+                            invite = player
+                        } label: {
+                            Text("Invite")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Brand.accent)
+                                .padding(.horizontal, 10)
+                                .frame(minHeight: 44)
+                                .background(Brand.accent.opacity(0.1), in: Capsule())
+                        }
+                        .buttonStyle(.borderless)
+                        .fixedSize(horizontal: true, vertical: false)
                     }
-                    .buttonStyle(.borderless)
-                    .fixedSize(horizontal: true, vertical: false)
-                    Menu {
-                        Button("Block player", role: .destructive) { block = player }
-                        Button("Report player") { report = player }
-                    } label: {
-                        AppToolbarIcon(title: "More options", icon: "ellipsis")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("More options for \(player.displayName)")
                 }
                 .padding(.vertical, 0)
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))

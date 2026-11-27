@@ -46,6 +46,7 @@ struct NativeGroupEditor: View {
     let groupID: String?
     let completed: (String) -> Void
     @Environment(NativeAccountStore.self) private var account
+    @Environment(OpenCourtsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var draft = NativeGroupMetadataDraft()
@@ -212,6 +213,7 @@ struct NativeGroupEditor: View {
                 let _: NativeCommunityAPI.Empty = try await NativeCommunityAPI.shared.request(
                     "groups/\(groupID)/edit", method: "POST", body: body)
                 guard generation == token, account.player?.id == actor, phase == .active else { return }
+                store.recordValueUse()
                 completed(groupID); dismiss()
             } else {
                 // Keep one immutable body and request ID across uncertain responses.
@@ -222,6 +224,7 @@ struct NativeGroupEditor: View {
                     "groups", method: "POST", body: pendingBody)
                 guard generation == token, account.player?.id == actor, phase == .active else { return }
                 guard UUID(uuidString: response.id) != nil else { throw CommunityError.invalidResponse }
+                store.recordValueUse()
                 completed(response.id); dismiss()
             }
         } catch {

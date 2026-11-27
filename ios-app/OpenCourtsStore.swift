@@ -32,7 +32,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private let cacheKey = "opencourts.cached-data"
     private let courtCacheLifetime: TimeInterval = 3 * 24 * 60 * 60
-    private let valueUsesKey = "opencourts.review-value-uses"
+    private let valueUsesKey = "opencourts.review-value-uses.v2"
     private let reviewPromptedVersionKey = "opencourts.review-prompted-version"
     private var suggestionRequestID = 0
     private var loadRequestID = 0
@@ -63,7 +63,7 @@ final class OpenCourtsStore: NSObject, CLLocationManagerDelegate {
     var shouldRequestReview: Bool {
         let uses = UserDefaults.standard.integer(forKey: valueUsesKey)
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
-        return uses >= 2 && UserDefaults.standard.string(forKey: reviewPromptedVersionKey) != version
+        return uses >= 5 && UserDefaults.standard.string(forKey: reviewPromptedVersionKey) != version
     }
 
     func recordValueUse() {

@@ -140,12 +140,19 @@ export async function session(request: Request, db: AuthDatabase, origin: string
   const nativeProduction=origin==='https://opencourts.us'&&env?.NATIVE_AUTH_PRODUCTION_ENABLED==='true'&&env.AUTH_ORIGIN===origin&&env.CF_PAGES_BRANCH==='main'&&env.PLAY_TOGETHER_ENVIRONMENT==='production';
   if(native&&!nativeDevelopment&&!nativeProduction)return null;
   const token = native ? (/^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(authorization!)?.[1]??'') : readCookie(request, cookieName(origin));
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) { if(native)fail(401,'Please sign in again.');return null; }
+  const validTokenFormat=/^[A-Za-z0-9_-]{32,128}$/.test(token);
+  const nativeMeLookup=native&&request.method==='GET'&&new URL(request.url).pathname==='/api/auth/me';
+  if (!validTokenFormat) {
+    if(nativeMeLookup)console.info('Native /me session check',{tokenFormatValid:false,sessionFound:false});
+    if(native)fail(401,'Please sign in again.');return null;
+  }
   const found=await db.prepare(`SELECT p.*, s.id AS session_id, s.token_hash, s.csrf_token, s.created_at AS session_created_at
     FROM auth_sessions s JOIN players p ON p.id=s.player_id
     WHERE s.token_hash=? AND s.expires_at>? AND s.revoked_at IS NULL AND p.status='active' AND s.client_type=?`)
     .bind(await hashToken(token), Date.now(),native?'ios':'web').first<Session>();
+  if(nativeMeLookup)console.info('Native /me session check',{tokenFormatValid:true,sessionFound:Boolean(found)});
   if(native&&!found)fail(401,'Please sign in again.');
+  if(found){const now=Date.now();await db.prepare('UPDATE players SET last_active_at=? WHERE id=? AND (last_active_at IS NULL OR last_active_at<?)').bind(now,found.id,now-5*60_000).run();}
   return found;
 }
 export function requireSession(value: Session | null): Session { return value ?? fail(401, 'Please sign in again.'); }
@@ -345,6 +352,9 @@ export async function handleAuth(request: Request, env: AuthEnv): Promise<Respon
       const protectedStart = origin.startsWith('http:') || Boolean(env.AUTH_RATE_LIMIT_SECRET);
       const available = { google: protectedStart && providerReady('google', env), apple: protectedStart && providerReady('apple', env) && origin.startsWith('https:') };
       const connected = current ? (await db.prepare('SELECT provider,email FROM auth_identities WHERE player_id=?').bind(current.id).all<{ provider: string;email:string|null }>()).results : [];
+      if(origin==='https://opencourts.us'&&env.CF_PAGES_BRANCH==='main'&&current){
+        console.info('[Production auth] profile identity check',{client:authorization?.startsWith('Bearer ')?'native':'web',playerTag:(await hashToken(current.id)).slice(0,12),displayNamePresent:Boolean(current.display_name.trim()),connectedProviders:connected.map(row=>row.provider)});
+      }
       return json({ player: current ? profile(current) : null, csrfToken: current?.csrf_token ?? null, providers: available, connectedProviders: connected.map(row=>row.provider), connectedAccounts: connected.map(({provider,email})=>({provider,email})) });
     }
     checkOrigin(request, origin);

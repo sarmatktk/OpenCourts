@@ -83,7 +83,7 @@ async function courtElements(url:URL,env:GamesEnv):Promise<unknown[]>{
   return elements.map(value=>{const e=value as {type:string;id:string|number;tags?:Record<string,string>};const label=labels.get('osm-'+e.type+'-'+e.id);return label?{...e,tags:{...e.tags,name:label}}:e;});
 }
 async function selectCourts(request:Request,db:AuthDatabase,env:GamesEnv,origin:string,lookup:typeof courtElements){
-  const player=requireSession(await session(request,db,origin));
+  const player=requireSession(await session(request,db,origin,env));
   const url=new URL(request.url),center=point(url.searchParams);
   if(!center)return fail('Search for a city or use your location first.');
   const country=url.searchParams.get('country');
@@ -127,8 +127,8 @@ async function getGame(db:AuthDatabase,id:string,playerId:string|null=null){
   if(playerId&&await db.prepare(`SELECT 1 FROM game_join_requests d WHERE d.game_id=? AND d.player_id=? AND d.status='rejected' AND NOT EXISTS(SELECT 1 FROM player_game_invitations i WHERE i.game_id=d.game_id AND i.recipient_id=d.player_id AND i.sender_id=? AND i.created_at>d.updated_at)`).bind(id,playerId,row.organizer_id).first())throw new AuthError(404,'Game not found.');
   return {...gameDto(row,true),isHost:row.organizer_id===playerId};
 }
-async function feed(request:Request,db:AuthDatabase,origin:string){
- const actor={id:(await session(request,db,origin))?.id??null};const url=new URL(request.url),filter=url.searchParams.get('filter')??'all',groupId=url.searchParams.get('groupId');if(!['all','mine','groups'].includes(filter))return fail('Invalid feed filter.');
+async function feed(request:Request,db:AuthDatabase,origin:string,env:GamesEnv){
+ const actor={id:(await session(request,db,origin,env))?.id??null};const url=new URL(request.url),filter=url.searchParams.get('filter')??'all',groupId=url.searchParams.get('groupId');if(!['all','mine','groups'].includes(filter))return fail('Invalid feed filter.');
  if(!actor.id&&filter!=='all')throw new AuthError(401,'Sign in to see your games and groups.');
  if(groupId&&!(await groupGameAccess(db,groupId,actor.id)).canView)throw new AuthError(404,'Group not found.');
  const after=cursor(url.searchParams.get('cursor'));
@@ -171,7 +171,7 @@ async function listGames(url:URL,db:AuthDatabase,actorId:string|null=null){
   return json({games:shown.map(row=>({...gameDto(row),...(center?{distanceMiles:Math.round(milesBetween(center,{lat:row.court_lat,lon:row.court_lon})*10)/10}:{})})),nextCursor:hasMore?btoa(JSON.stringify(last)):null});
 }
 async function createGame(request:Request,db:AuthDatabase,env:GamesEnv,origin:string){
-  checkOrigin(request,origin);const player=requireSession(await session(request,db,origin));checkCsrf(request,player);
+  checkOrigin(request,origin);const player=requireSession(await session(request,db,origin,env));checkCsrf(request,player);
   if(!player.display_name.trim())throw new AuthError(403,'Complete your player display name in Account before creating a game.');
   const body=await readJson(request,8192);
   if(Object.keys(body).some(k=>!['title','courtToken','manualCourt','startLocal','timeZone','durationMinutes','format','capacity','courtCount','repeatWeeks','skillPreference','notes','requestId','acknowledgeNoReservation','confirmAccess','joinPolicy','groupId','visibility'].includes(k)))return fail('Unexpected game field.');
@@ -218,7 +218,7 @@ async function createGame(request:Request,db:AuthDatabase,env:GamesEnv,origin:st
   }
   const inserted=await db.prepare('SELECT id FROM games WHERE id=?').bind(id).first();
   if(!inserted){
-    const active=await session(request,db,origin);
+    const active=await session(request,db,origin,env);
     if(!active)throw new AuthError(401,'Your session expired. Sign in again.');
     throw new AuthError(429,'Too many game submissions. Please wait a minute before creating another game.');
   }
@@ -228,20 +228,25 @@ export async function handleGames(request:Request,env:GamesEnv,lookup= courtElem
   try{
     const {db,origin}=assertEnvironment(request,env),url=new URL(request.url);
     const path=url.pathname.replace(/^\/api\/games\/?/,'').replace(/\/$/,'');
-    const series=await gameSeries(request,db,origin,path);if(series)return series;
-    if(path==='feed'&&request.method==='GET')return await feed(request,db,origin);
-    const shared=await gameSharing(request,db,origin,path);if(shared)return shared;
+    const series=await gameSeries(request,env,db,origin,path);if(series)return series;
+    if(path==='feed'&&request.method==='GET')return await feed(request,db,origin,env);
+    const shared=await gameSharing(request,env,db,origin,path);if(shared)return shared;
     const chat=await gameChat(request,env,db,origin,path);if(chat)return chat;
     const managed=await participation(request,env,db,origin,path);if(managed)return managed;
-    if(!path&&request.method==='GET')return await listGames(url,db,(await session(request,db,origin))?.id??null);
+    if(!path&&request.method==='GET')return await listGames(url,db,(await session(request,db,origin,env))?.id??null);
     if(!path&&request.method==='POST')return await createGame(request,db,env,origin);
     if(path==='courts'&&request.method==='GET')return await selectCourts(request,db,env,origin,lookup);
-    if(UUID.test(path)&&request.method==='GET')return json({game:await getGame(db,path,(await session(request,db,origin))?.id??null)});
+    if(UUID.test(path)&&request.method==='GET')return json({game:await getGame(db,path,(await session(request,db,origin,env))?.id??null)});
     return json({error:'Not found.'},404);
   }catch(error){
-    if(new URL(request.url).hostname==='feature-play-together.opencourts.pages.dev'){
-      const path=new URL(request.url).pathname.replace(/^\/api\/games\/?/,'')||'list';
-      console.error(`[Play Together] ${request.method} /api/games/${path} failed:`,error instanceof Error?`${error.name}: ${error.message}`:String(error));
+    const host=new URL(request.url).hostname;
+    if(host==='feature-play-together.opencourts.pages.dev'||host==='opencourts.us'){
+      const path=new URL(request.url).pathname.replace(/^\/api\/games\/?/,'').replace(/\/$/,'');
+      const chatRoute=/^[0-9a-f-]{36}\/chat$/i.test(path)?'chat_send':
+       /^[0-9a-f-]{36}\/chat\/(read|mute|report)$/i.test(path)?'chat_action':
+       path==='notifications'?'notifications':'games';
+      const reason=error instanceof AuthError?`auth_${error.status}`:error instanceof Error?error.name:'unknown';
+      console.error('[Play Together] request failed',{method:request.method,route:chatRoute,reason});
     }
     return json({error:error instanceof AuthError?error.message:'Game service is unavailable. Please try again.'},error instanceof AuthError?error.status:503);
   }

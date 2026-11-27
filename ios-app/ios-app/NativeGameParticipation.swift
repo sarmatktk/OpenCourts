@@ -107,6 +107,7 @@ struct NativeGameParticipationView: View {
     let presentHostAction: (NativeGameHostAction) -> Void
     let presentDecision: (NativeGameDecision) -> Void
     @Environment(NativeAccountStore.self) private var account
+    @Environment(OpenCourtsStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var participation: NativeGameParticipation?
     @State private var players: [ParticipationPlayer] = []
@@ -524,7 +525,9 @@ struct NativeGameParticipationView: View {
             let _: NativeCommunityAPI.Empty = try await NativeCommunityAPI.shared.request("games/\(game.id)/\(route)", method: "POST", body: data)
             guard generation == token, account.player?.id == actorID, scenePhase == .active else { return false }
             await load()
-            return account.player?.id == actorID && scenePhase == .active
+            let succeeded = account.player?.id == actorID && scenePhase == .active
+            if succeeded { store.recordValueUse() }
+            return succeeded
         } catch {
             guard generation == token, account.player?.id == actorID, scenePhase == .active else { return false }
             let capacityError = error.localizedDescription.localizedCaseInsensitiveContains("not enough")

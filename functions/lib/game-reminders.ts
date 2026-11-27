@@ -28,6 +28,15 @@ export async function enqueueGameReminders(db:AuthDatabase,now=Date.now()){
     reminder.kind,
    ).run();
   queued+=result.meta.changes;
+  await db.prepare(`INSERT OR IGNORE INTO game_reminder_notifications
+   (id,game_id,recipient_id,starts_at,kind,created_at)
+   SELECT lower(hex(randomblob(16))),g.id,gp.player_id,g.starts_at,?,?
+   FROM games g JOIN game_participants gp ON gp.game_id=g.id JOIN players p ON p.id=gp.player_id
+   WHERE g.status='scheduled' AND p.status='active' AND g.starts_at>?
+    AND g.starts_at<=(?+?) AND g.starts_at>(?+?-?) AND g.created_at<(g.starts_at-?)
+   ORDER BY g.starts_at,g.id,gp.player_id LIMIT 500`).bind(
+    reminder.kind,now,now,now,reminder.lead,now,reminder.lead,30*MINUTE,reminder.lead,
+   ).run();
  }
  return queued;
 }

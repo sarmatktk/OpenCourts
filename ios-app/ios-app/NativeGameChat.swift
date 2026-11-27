@@ -208,6 +208,7 @@ nonisolated private struct NativeChatPreferenceAck: Decodable {
 struct NativeGameChatView: View {
     let gameID: String
     @Environment(NativeAccountStore.self) private var account
+    @Environment(OpenCourtsStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.communityChatOpen) private var communityChatOpen
     @Environment(\.dismiss) private var dismiss
@@ -533,6 +534,7 @@ struct NativeGameChatView: View {
                 "games/\(gameID)/chat", method: "POST", body: pending.data)
             guard !acknowledgement.id.isEmpty, acknowledgement.seq > 0 else { throw CommunityError.invalidResponse }
             guard ticket == generation, account.player?.id == actor, scenePhase == .active else { return }
+            store.recordValueUse()
             attempt = nil; draft = ""; sendError = nil
             sending = false
             await load()

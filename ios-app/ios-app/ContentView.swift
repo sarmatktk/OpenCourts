@@ -117,6 +117,7 @@ struct ContentView: View {
                     }
                 }
         }
+        .environment(store)
         .environment(account)
         .environment(notificationSummary)
         .tint(Brand.accent)
@@ -132,6 +133,7 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.35), value: hasCompletedInitialLoad)
         .fullScreenCover(isPresented: $playTogetherPresented, onDismiss: presentPendingPush) {
             PlayTogetherView(place: store.place, account: account, onReturnToMap: returnToMap)
+                .environment(store)
                 .environment(notificationSummary)
                 .tint(Brand.accent)
         }
@@ -154,6 +156,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .environment(store)
             .tint(Brand.accent)
             .overlay { NativeSessionUnlockOverlay(account: account) }
         }
@@ -238,11 +241,6 @@ struct ContentView: View {
             guard !hasCompletedInitialLoad else { return }
             await store.load()
             hasCompletedInitialLoad = true
-        }
-        .onChange(of: destination) { _, newDestination in
-            if newDestination == .dryCourts || newDestination == .weather {
-                store.recordValueUse()
-            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active, hasCompletedInitialLoad, !store.isLoading else { return }
@@ -2133,7 +2131,7 @@ private struct RainPlannerSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(isInternational ? "Nearby courts share the area forecast and are listed by distance." : "Radar estimates are compared across nearby public courts.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -2165,7 +2163,8 @@ private struct RainPlannerSection: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .padding(20)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
 
@@ -2178,22 +2177,22 @@ private struct DryCourtCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 13) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
                 ZStack {
                     Circle()
-                        .stroke(Brand.accent.opacity(0.17), lineWidth: 7)
+                        .stroke(Brand.accent.opacity(0.17), lineWidth: 5)
                     Circle()
                         .trim(from: 0, to: Double(rain.score) / 100)
-                        .stroke(Brand.accent, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                        .stroke(Brand.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     Text("\(rain.score)")
-                        .font(.title3.weight(.bold))
+                        .font(.headline.weight(.bold))
                         .foregroundStyle(colorScheme == .dark ? Brand.lime : Brand.green)
                 }
-                .frame(width: 68, height: 68)
+                .frame(width: 54, height: 54)
 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 7) {
                         Label(
                             rank == 1 ? "BEST OPTION" : "TOP PICK \(rank)",
@@ -2216,7 +2215,7 @@ private struct DryCourtCard: View {
                 Spacer(minLength: 4)
 
                 Image(systemName: rain.score >= 70 ? "sun.max.fill" : "cloud.sun.fill")
-                    .font(.title2)
+                    .font(.headline)
                     .foregroundStyle(rain.score >= 70 ? .orange : Brand.accent)
             }
 
@@ -2248,13 +2247,13 @@ private struct DryCourtCard: View {
                 }
             }
         }
-        .padding(17)
+        .padding(12)
         .background(Brand.background, in: RoundedRectangle(cornerRadius: 20))
         .overlay {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(rank == 1 ? Brand.accent.opacity(0.55) : Color.secondary.opacity(0.18), lineWidth: rank == 1 ? 1.2 : 0.7)
         }
-        .shadow(color: .black.opacity(rank == 1 ? 0.10 : 0.05), radius: 12, y: 5)
+        .shadow(color: .black.opacity(rank == 1 ? 0.10 : 0.05), radius: 8, y: 3)
     }
 
     @ViewBuilder
@@ -2275,8 +2274,8 @@ private struct DryCourtCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
                 .foregroundStyle(Brand.green)
-                .padding(.horizontal, 13)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
                 .background(Brand.lime, in: Capsule())
         }
         .buttonStyle(.plain)
@@ -2298,7 +2297,7 @@ private struct RainfallTimeline: View {
     let rain: RainAssessment
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             RainAmountPill(period: "1H", amount: rain.rain1h)
             RainAmountPill(period: "3H", amount: rain.rain3h)
             RainAmountPill(period: "6H", amount: rain.rain6h)
@@ -2311,7 +2310,7 @@ private struct RainAmountPill: View {
     let amount: Double?
 
     var body: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 2) {
             Label {
                 Text(period)
             } icon: {
@@ -2320,11 +2319,11 @@ private struct RainAmountPill: View {
             }
             .font(.caption2.weight(.bold))
             Text(amount.map { "\($0.formatted(.number.precision(.fractionLength(3)))) in" } ?? "—")
-                .font(.caption.weight(.semibold))
+                .font(.caption2.weight(.semibold))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(Brand.surface, in: RoundedRectangle(cornerRadius: 11))
+        .padding(.vertical, 5)
+        .background(Brand.surface, in: RoundedRectangle(cornerRadius: 9))
     }
 }
 

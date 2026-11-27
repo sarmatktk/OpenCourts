@@ -29,7 +29,7 @@ export async function cleanupChat(db:AuthDatabase,now=Date.now()){
 }
 export async function gameChat(request:Request,env:Parameters<typeof moderateUserContent>[1],db:AuthDatabase,origin:string,path:string):Promise<Response|null>{
  const match=path.match(/^([0-9a-f-]{36})\/chat(?:\/(read|mute|report))?$/i);if(!match)return null;
- const actor=requireSession(await session(request,db,origin)),[,routeId,action='']=match,now=Date.now();
+ const actor=requireSession(await session(request,db,origin,env)),[,routeId,action='']=match,now=Date.now();
  if(!await chatSchemaReady(db))throw new AuthError(503,'Chat is being updated. Please try again shortly.');
  const route=await db.prepare("SELECT CASE WHEN visibility='group' AND series_id IS NOT NULL THEN 'series:'||series_id ELSE id END AS roomId FROM games WHERE id=?").bind(routeId).first<{roomId:string}>();if(!route)throw new AuthError(404,'Game not found.');const id=route.roomId;
  if(request.method!=='GET'){checkOrigin(request,origin);checkCsrf(request,actor);}

@@ -1,13 +1,13 @@
 import {notificationBatch} from './notification-action';
-import {AuthError,checkOrigin,checkCsrf,requireSession,session,json,readJson,hashToken,type AuthDatabase} from './auth';
+import {AuthError,checkOrigin,checkCsrf,requireSession,session,json,readJson,hashToken,type AuthDatabase,type AuthEnv} from './auth';
 import {unlistedAccessSql} from './game-sharing';
 import {groupGameAccess,groupEventViewSql} from './group-game-access';
 import {gameStart} from './game-time';
 type Row={id:string;series_id:string|null;series_week:number|null;title:string;organizer_id:string;visibility:string;group_id:string|null;starts_at:number;ends_at:number;time_zone:string;status:string;version:number;series_exception:number;capacity:number;event_capacity:number|null};
 function wall(epoch:number,zone:string){const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(epoch).map(v=>[v.type,v.value]));return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;}
 async function manages(db:AuthDatabase,g:Row,actor:string){return g.visibility==='group'?(await groupGameAccess(db,g.group_id!,actor,g.organizer_id)).canManage:g.organizer_id===actor;}
-export async function gameSeries(request:Request,db:AuthDatabase,origin:string,path:string){
- const match=path.match(/^([0-9a-f-]{36})\/series(?:\/(preview|apply))?$/i);if(!match)return null;const actor=requireSession(await session(request,db,origin)),id=match[1],action=match[2];
+export async function gameSeries(request:Request,env:AuthEnv,db:AuthDatabase,origin:string,path:string){
+ const match=path.match(/^([0-9a-f-]{36})\/series(?:\/(preview|apply))?$/i);if(!match)return null;const actor=requireSession(await session(request,db,origin,env)),id=match[1],action=match[2];
  const anchor=await db.prepare('SELECT * FROM games WHERE id=?').bind(id).first<Row>();if(!anchor||!await manages(db,anchor,actor.id))throw new AuthError(404,'Game management unavailable.');
  const rows=anchor.series_id?(await db.prepare('SELECT * FROM games WHERE series_id=? ORDER BY series_week,id').bind(anchor.series_id).all<Row>()).results:[anchor];
  if(request.method==='GET'&&!action){const games=[];for(const g of rows)if(await manages(db,g,actor.id))games.push({playerCount:(await db.prepare('SELECT COALESCE(SUM(1+guest_count),0) AS n FROM game_participants WHERE game_id=?').bind(g.id).first<{n:number}>())?.n??0,capacity:g.event_capacity??g.capacity,id:g.id,title:g.title,startsAt:new Date(g.starts_at).toISOString(),endsAt:new Date(g.ends_at).toISOString(),startLocal:wall(g.starts_at,g.time_zone),timeZone:g.time_zone,status:g.status,version:g.version,exception:!!g.series_exception,week:g.series_week,editable:g.status==='scheduled'&&g.starts_at>Date.now()});return json({games,seriesId:anchor.series_id});}

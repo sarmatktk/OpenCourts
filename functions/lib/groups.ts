@@ -11,7 +11,7 @@ function metadata(body:Record<string,unknown>){if(Object.keys(body).some(k=>!['n
 function preview(g:Group){return {id:g.id,name:g.name,publicDescription:g.public_description,generalLocation:g.general_location,visibility:g.visibility};}
 async function getGroup(db:AuthDatabase,id:string){return db.prepare('SELECT * FROM tennis_groups WHERE id=?').bind(id).first<Group>();}
 export async function handleGroups(request:Request,env:AuthEnv):Promise<Response>{try{
- const {db,origin}=assertEnvironment(request,env);const url=new URL(request.url);const path=url.pathname.replace(/^\/api\/groups\/?/,'').replace(/\/$/,'');const actor=await session(request,db,origin);
+ const {db,origin}=assertEnvironment(request,env);const url=new URL(request.url);const path=url.pathname.replace(/^\/api\/groups\/?/,'').replace(/\/$/,'');const actor=await session(request,db,origin,env);
  const invited=await groupInvites(request,env,db,origin,path);if(invited)return invited;
  if(request.method!=='GET'){checkOrigin(request,origin);checkCsrf(request,requireSession(actor));}
  if(!path&&request.method==='GET'){

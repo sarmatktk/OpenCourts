@@ -44,16 +44,39 @@ actor OpenCourtsAPI {
         } else if let preferredCountryCode, preferredCountryCode.count == 2 {
             queryItems.append(("preferred_country", preferredCountryCode.lowercased()))
         }
-        let response: SuggestionsResponse = try await get(
-            path: "/api/suggest",
-            query: queryItems,
-            cachePolicy: .reloadIgnoringLocalCacheData
-        )
-        return response.suggestions ?? []
+        let suggestions: [PlaceSuggestion]
+        do {
+            let response: SuggestionsResponse = try await get(
+                path: "/api/suggest",
+                query: queryItems,
+                cachePolicy: .reloadIgnoringLocalCacheData
+            )
+            suggestions = response.suggestions ?? []
+        } catch {
+            // Autocomplete can be temporarily unavailable while geocoding still
+            // works. Keep native location entry usable through that outage.
+            return [try await geocodedSuggestion(for: query, preferredCountryCode: preferredCountryCode)]
+        }
+        guard suggestions.isEmpty else { return suggestions }
+
+        // Autocomplete can omit a valid location even when geocoding resolves it.
+        return [try await geocodedSuggestion(for: query, preferredCountryCode: preferredCountryCode)]
     }
 
-    func findPlace(_ query: String) async throws -> Place {
-        let countryCode = internationalCountryCode(for: query)
+    private func geocodedSuggestion(for query: String, preferredCountryCode: String?) async throws -> PlaceSuggestion {
+        let place = try await findPlace(query, preferredCountryCode: preferredCountryCode)
+        return PlaceSuggestion(
+            title: place.label,
+            detail: query.range(of: #"^\d{5}(?:-\d{4})?$"#, options: .regularExpression) != nil ? "ZIP code" : "Location match",
+            label: place.label,
+            lat: place.lat,
+            lon: place.lon,
+            countryCode: place.countryCode
+        )
+    }
+
+    func findPlace(_ query: String, preferredCountryCode: String? = nil) async throws -> Place {
+        let countryCode = internationalCountryCode(for: query) ?? preferredCountryCode
         var queryItems: [(String, String)] = [("q", query), ("v", "8")]
         if let countryCode {
             queryItems.append(("scope", "global"))

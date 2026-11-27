@@ -1,3 +1,44 @@
+## Production game reminders deployed — November 27, 2026
+
+The isolated production push Worker `opencourts-push-production` now runs
+version `ea748b88-4647-42a4-9ffe-0076a6d40812` on its existing one-minute cron.
+It queues the 24-hour and 3-hour reminders and validates reminder visibility
+before Web Push delivery. The isolated APNs sender is version
+`ffde22d4-5ee0-44f8-b811-8bb1a29c091f`; it delivers the same queued events to
+registered iPhones. The event fanout uses the existing `notification_events`
+trigger, so eligible Web Push registrations (website/Android TWA) and iOS APNs
+registrations receive the same reminder event through their existing channels.
+
+No Pages deployment or schema migration was made, and no test game or synthetic
+notification was created. The minute scheduler may now queue reminders for
+eligible existing games. Existing VAPID/APNs secret bindings were preserved; no secret
+values were read or changed. Production version metadata confirms the Workers
+retain their existing sender gates, Production database/bucket bindings, and
+secret names. The reminder scheduler only includes active confirmed participants
+when the game was created before the relevant lead-time, with its 30-minute
+catch-up window and stale-event delivery checks. End-to-end receipt of a real
+24-hour or 3-hour reminder on each platform remains unverified; device delivery
+requires that platform's existing opt-in, permission and active registration.
+
+## Reminder inbox entries prepared locally — November 27, 2026
+
+Prepared an additive inbox path for scheduled game reminders. It stores one
+readable inbox row per confirmed game participant per reminder lead-time, so
+the 24-hour and 3-hour reminders appear as separate entries linking to the game.
+The existing push event and delivery path is unchanged. The dedicated table is
+defined in migration `0042_game_reminder_inbox.sql`; the shared Inbox API and
+read handler include these rows, and web/iOS inbox renderers show the reminder
+copy. All confirmed participants are included regardless of push preference;
+push delivery still follows the existing opt-in, permission, and registration
+checks.
+
+This change is local only and is not deployed. Production rollout requires
+applying migration 0042 before deploying the scheduler Worker, then deploying
+the Inbox API/web bundle and refreshing both Production push Worker versions so
+APNs badge counts use the same inbox. A new iOS binary is required for native
+reminder-specific wording. No Production database, deployment, or secret was
+changed for this inbox follow-up.
+
 ## Owner-authorized iPhone sandbox test — November 23, 2026
 
 After the owner confirmed iPhone notification permission/registration, a fresh
@@ -13,8 +54,9 @@ It does not verify scheduled reminder copy or game-detail routing. The diagnosti
 displayed “You have an OpenCourts update.” Local APNs and Web Push reminder
 templates now explicitly say “Reminder: Your game starts in about 24 hours” or
 “...3 hours.” Reminder events carry a game target and should open game details.
-This copy change has not been deployed or exercised with a real game reminder; no
-second push was sent.
+At this November 23 checkpoint, the copy change had not been deployed or exercised
+with a real game reminder; no second push was sent. Production deployment status
+is recorded at the top of this document.
 
 ## Game start reminders — November 23, 2026
 
@@ -35,8 +77,9 @@ push-enabled and Games preferences, active registered device/session and current
 delivery transport. The worker enqueues before draining existing web/APNs queues;
 no new schema is required. APNs client/sender capability and actual phone
 delivery still depend on the existing native push readiness gates. This code
-change was not deployed and does not establish Preview/production or real-device
-delivery acceptance.
+change had not been deployed as of November 23. The November 27 Production
+deployment is recorded at the top of this document; real reminder receipt remains
+unverified.
 
 ## Production notification receipt/tap confirmed and test removed - November 20, 2026
 
@@ -615,3 +658,9 @@ The prompt is eligible only when native sandbox push delivery is available and t
 
 Current code/build status and pending simulator/physical acceptance are recorded in `ios-app/IOS_APP_HANDOVER.md` and `ios-app/IOS_IMPLEMENTATION_WORKLIST.md`.
 The prompt also appears for active game waitlists and in the host’s group membership request manager, where push can alert the host to later requests. Game/series chat and group discussions also offer the nudge for future messages and discussion activity. Keep one account-level dismissal across all prompt contexts.
+
+### Production reminder inbox rollout — November 27, 2026
+
+Applied Production migration 0042 for separate 24-hour/3-hour reminder inbox records and 0043 for player activity recency. The D1 ledger is clear. The scheduler/API/web/APNs code to write and display reminder inbox items and player activity labels is prepared in an isolated Production-baseline candidate; Pages and Worker deployments are pending. Existing push schedules and eligibility remain unchanged. Preserve the live Production `PUSH_ENABLED=true` setting when refreshing the reminder Worker; do not deploy the disabled example config. No secrets were read or changed.
+
+**Deployment completed:** Production Pages/API/site `388d237a-baf1-4b0b-9d1d-01d60d790141`; reminder scheduler `cff7613f-0e31-4e55-837b-07c47635f612`; APNs badge sender `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. The Workers retained their existing minute cron and used `--keep-vars`, preserving the active `PUSH_ENABLED=true`, native APNs gates, and all secret values. No secret value was read or changed. User-authenticated inbox/label display and real reminder delivery remain pending owner confirmation; do not create a synthetic Production game or reminder.

@@ -19,7 +19,7 @@ const postSelect=`SELECT p.id,p.title,p.body,p.author_id AS authorId,COALESCE(a.
  COALESCE((SELECT muted FROM group_discussion_subscriptions s WHERE s.post_id=p.id AND s.player_id=?),1) AS muted
  FROM group_discussion_posts p JOIN players a ON a.id=p.author_id`;
 export async function handleDiscussions(request:Request,env:AuthEnv):Promise<Response>{try{
- const {db,origin}=assertEnvironment(request,env),actor=requireSession(await session(request,db,origin));
+ const {db,origin}=assertEnvironment(request,env),actor=requireSession(await session(request,db,origin,env));
  if(!await discussionReady(db))return request.method==='GET'?json({available:false,posts:[]}):fail(503,'Discussions are not available yet.');
  const url=new URL(request.url),parts=url.pathname.replace(/^\/api\/discussions\/?/,'').split('/').filter(Boolean),groupId=parts[0],postId=parts[1],action=parts[2]??'';
  if(!groupId||!uuid.test(groupId)||parts.length>3)return fail(404,'Discussion unavailable.');

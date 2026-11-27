@@ -30,6 +30,8 @@ nonisolated struct NativeInboxNotification: Decodable, Identifiable, Sendable {
         case "discussion_reply": "replied to a group discussion"
         case "chat_message": "has new messages"
         case "schedule_changed": "changed the schedule"
+        case "game_reminder_24h": "Your game starts in about 24 hours."
+        case "game_reminder_3h": "Your game starts in about 3 hours."
         case "waitlist_offer": "a place opened in your group game"
         case "waitlisted": "moved you out of a confirmed place"
         case "confirmed": "confirmed your place in the game"

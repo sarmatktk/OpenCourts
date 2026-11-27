@@ -281,6 +281,7 @@ actor NativeCommunityAPI {
     let biometricName: String
     let biometricAvailable: Bool
     private var unlockTask: Task<Bool, Never>?
+    private var refreshGeneration = 0
     private(set) var providerAuthorizationInProgress = false
     private(set) var pendingAppleChallenge: NativeProviderChallenge?
     private var lockAfterProviderAuthorization = false
@@ -296,7 +297,10 @@ actor NativeCommunityAPI {
         }
     }
 
-    func refresh() async {
+    func refresh(allowDuringProviderAuthorization: Bool = false) async {
+        guard allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
+        refreshGeneration += 1
+        let generation = refreshGeneration
         do {
             if biometricUnlockEnabled {
                 if await NativeCommunityAPI.shared.hasStoredSession() {
@@ -307,11 +311,22 @@ actor NativeCommunityAPI {
                 }
             }
             try await NativeCommunityAPI.shared.restore()
-            guard await NativeCommunityAPI.shared.hasSession else { player = nil; connectedProviders = []; return }
+            guard generation == refreshGeneration,
+                  allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
+            let hasSession = await NativeCommunityAPI.shared.hasSession
+            guard generation == refreshGeneration,
+                  allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
+            guard hasSession else { player = nil; connectedProviders = []; return }
             let account: NativeAccountResponse = try await NativeCommunityAPI.shared.request("auth/me")
+            guard generation == refreshGeneration,
+                  allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
             if account.player == nil { await NativeCommunityAPI.shared.invalidate() }
+            guard generation == refreshGeneration,
+                  allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
             player = account.player; connectedProviders = account.connectedProviders; error = nil
         } catch {
+            guard generation == refreshGeneration,
+                  allowDuringProviderAuthorization || !providerAuthorizationInProgress else { return }
             if error is CancellationError || (error as? URLError)?.code == .cancelled {
                 return
             }
@@ -351,10 +366,12 @@ actor NativeCommunityAPI {
     }
 
     func beginProviderAuthorization() {
+        refreshGeneration += 1
         providerAuthorizationInProgress = true
     }
 
     func beginAppleAuthorization(challenge: NativeProviderChallenge?) {
+        refreshGeneration += 1
         pendingAppleChallenge = challenge
         providerAuthorizationInProgress = true
     }
@@ -682,6 +699,7 @@ struct NativeAccountView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
+                    guard !account.providerAuthorizationInProgress else { return }
                     await account.refresh()
                     guard !account.providerAuthorizationInProgress else { return }
                     appleChallengeRefreshID = UUID()
@@ -771,7 +789,7 @@ struct NativeAccountView: View {
                 throw NativeAccountError.appleAuthorizationCodeMissing
             }
             try await NativeCommunityAPI.shared.exchangeProvider(challengeId: challenge.challengeId, idToken: token, authorizationCode: code, linking: linking)
-            await account.refresh()
+            await account.refresh(allowDuringProviderAuthorization: true)
             if linking { providerMessage = "Apple connected to this OpenCourts account." }
         } catch let authorizationError as ASAuthorizationError {
             let message = authorizationError.code == .canceled
@@ -828,7 +846,7 @@ struct NativeAccountView: View {
             )
             guard let token = result.user.idToken?.tokenString else { throw NativeAccountError.callback }
             try await NativeCommunityAPI.shared.exchangeProvider(challengeId: challenge.challengeId, idToken: token, linking: linking)
-            await account.refresh()
+            await account.refresh(allowDuringProviderAuthorization: true)
             if linking { providerMessage = "Google connected to this OpenCourts account." }
         } catch { account.error = error.localizedDescription }
     }
@@ -913,7 +931,7 @@ private struct NativeProfileEditor: View {
                     ForEach(["unspecified", "beginner", "intermediate", "advanced"], id: \.self) { Text($0.capitalized).tag($0) }
                 }
                 Toggle("Appear in Players discovery", isOn: $player.discoverable)
-                Text("Your provider email stays private. Photo sharing is a separate optional choice.")
+                Text("When discoverable, signed-in players can see approximate activity recency to help decide whether to invite you. Your provider email stays private. Photo sharing is a separate optional choice.")
                     .font(.footnote).foregroundStyle(.secondary)
                 if let error { Text(error).foregroundStyle(.red) }
             }

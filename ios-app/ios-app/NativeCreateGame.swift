@@ -68,6 +68,7 @@ struct NativeCreateGameView: View {
     let account: NativeAccountStore
     let created: () -> Void
     let groupID: String?
+    @Environment(OpenCourtsStore.self) private var store
 
     init(place: Place, account: NativeAccountStore, groupID: String? = nil, created: @escaping () -> Void) {
         self.place = place
@@ -618,6 +619,7 @@ struct NativeCreateGameView: View {
             pendingBody = nil
             pendingPlayerID = nil
             createdGame = result.game
+            store.recordValueUse()
             created()
         } catch {
             let nsError = error as NSError

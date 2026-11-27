@@ -25,7 +25,7 @@ function keyBytes(value:unknown,length:number){
 }
 export async function handlePush(request:Request,env:PushEnv):Promise<Response>{
  try{
- const {db,origin}=assertEnvironment(request,env),actor=requireSession(await session(request,db,origin));
+ const {db,origin}=assertEnvironment(request,env),actor=requireSession(await session(request,db,origin,env));
  const path=new URL(request.url).pathname.replace(/^\/api\/push\/?/,'').replace(/\/$/,'');
  if(path.startsWith('native/'))return await handleNativePush(request,env,path.slice(7),db,origin,actor);
  const enabled=pushTester(env,actor.id)&&keyBytes(env.PUSH_VAPID_PUBLIC_KEY,65);

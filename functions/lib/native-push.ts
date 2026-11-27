@@ -30,6 +30,25 @@ export function nativePushDeliveryAvailable(env:PushEnv,playerId:string){
  return env.NATIVE_PUSH_SANDBOX_READY==='true'&&nativePushTester(env,playerId);
 }
 
+function nativePushUnavailableReason(env:PushEnv,origin:string,schemaReady:boolean):string|null{
+ if(origin!==env.AUTH_ORIGIN)return 'origin_mismatch';
+ if(origin==='https://opencourts.us'){
+  if(env.CF_PAGES_BRANCH!=='main'||env.PLAY_TOGETHER_ENVIRONMENT!=='production'||
+     env.PLAY_TOGETHER_ENABLED!=='true'||env.PLAY_TOGETHER_PRODUCTION_ENABLED!=='true')return 'production_environment_disabled';
+  if(env.NATIVE_PUSH_PRODUCTION_ENABLED!=='true')return 'registration_disabled';
+  if(env.APNS_ENVIRONMENT!=='production'||env.APNS_TOPIC!=='us.opencourts.ios')return 'apns_environment_mismatch';
+ }else if(!nativePushRegistrationEnabled(env,origin))return 'registration_disabled';
+ if(!schemaReady)return 'schema_unavailable';
+ return null;
+}
+function nativePushDeliveryUnavailableReason(env:PushEnv,playerId:string,registrationReason:string|null):string|null{
+ if(registrationReason)return 'registration_unavailable';
+ if(env.APNS_ENVIRONMENT==='production')return env.NATIVE_PUSH_PRODUCTION_READY==='true'?null:'sender_not_ready';
+ if(env.NATIVE_PUSH_SANDBOX_READY!=='true')return 'sender_not_ready';
+ if(!nativePushTester(env,playerId))return 'tester_not_enabled';
+ return null;
+}
+
 export function nativePushRecipientEnabled(env:PushEnv,playerId:string){
  return env.APNS_ENVIRONMENT==='production'
   ? nativePushDeliveryAvailable(env,playerId)
@@ -50,13 +69,15 @@ const liveSession=`EXISTS(SELECT 1 FROM auth_sessions s JOIN players p ON p.id=s
 
 export async function handleNativePush(request:Request,env:PushEnv,path:string,db:AuthDatabase,origin:string,actor:Session){
  if(!request.headers.get('Authorization')?.startsWith('Bearer '))throw new AuthError(401,'Native sign-in is required.');
- const available=nativePushRegistrationEnabled(env,origin)&&await nativePushSchemaReady(db);
+ const schemaReady=await nativePushSchemaReady(db),unavailableReason=nativePushUnavailableReason(env,origin,schemaReady);
+ const available=unavailableReason===null,deliveryUnavailableReason=nativePushDeliveryUnavailableReason(env,actor.id,unavailableReason);
  if(path==='settings'&&request.method==='GET'){
-  if(!available)return json({available:false,deliveryAvailable:false});
+  console.info('[Native push] settings capability',{available,deliveryAvailable:deliveryUnavailableReason===null,unavailableReason,deliveryUnavailableReason});
+  if(!available)return json({available:false,deliveryAvailable:false,unavailableReason,deliveryUnavailableReason});
   const preferences=await db.prepare('SELECT push_enabled AS enabled,games,groups FROM notification_preferences WHERE player_id=?').bind(actor.id).first();
   const devices=(await db.prepare(`SELECT d.id,d.transport,d.session_id AS sessionId,d.created_at AS createdAt,d.updated_at AS updatedAt FROM notification_devices d JOIN native_push_devices n ON n.device_id=d.id JOIN auth_sessions s ON s.id=d.session_id WHERE d.player_id=? AND d.revoked_at IS NULL AND s.revoked_at IS NULL AND s.expires_at>? ORDER BY d.updated_at DESC,d.id LIMIT 10`).bind(actor.id,Date.now()).all<{id:string;transport:string;sessionId:string;createdAt:number;updatedAt:number}>()).results.map(({sessionId,...d})=>({...d,currentSession:sessionId===actor.session_id}));
   // Registration infrastructure is distinct from sender readiness and delivery acceptance.
-  return json({available:true,deliveryAvailable:nativePushDeliveryAvailable(env,actor.id),environment:env.APNS_ENVIRONMENT,playerId:actor.id,preferences:preferences??{enabled:0,games:1,groups:1},devices});
+  return json({available:true,deliveryAvailable:deliveryUnavailableReason===null,unavailableReason:null,deliveryUnavailableReason,environment:env.APNS_ENVIRONMENT,playerId:actor.id,preferences:preferences??{enabled:0,games:1,groups:1},devices});
  }
  if(!available)throw new AuthError(404,'Native push registration is not available.');
  checkOrigin(request,origin);checkCsrf(request,actor);

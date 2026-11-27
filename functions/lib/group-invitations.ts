@@ -2,7 +2,7 @@ import {AuthError,checkOrigin,checkCsrf,requireSession,session,readJson,hashToke
 const fail=(status:number,message:string):never=>{throw new AuthError(status,message);};
 export async function groupInvites(request:Request,env:AuthEnv,db:AuthDatabase,origin:string,path:string):Promise<Response|null>{
  const publicAction=path==='invitation-preview'||path==='invitation-accept';const match=path.match(/^([0-9a-f-]{36})\/(invitations|revoke-invitation)$/i);if(!publicAction&&!match)return null;
- const actor=await session(request,db,origin);if(request.method!=='GET'){checkOrigin(request,origin);if(path!=='invitation-preview')checkCsrf(request,requireSession(actor));}
+ const actor=await session(request,db,origin,env);if(request.method!=='GET'){checkOrigin(request,origin);if(path!=='invitation-preview')checkCsrf(request,requireSession(actor));}
  const now=Date.now();
  const valid=`i.revoked_at IS NULL AND (i.expires_at IS NULL OR i.expires_at>?) AND g.status='active' AND EXISTS(SELECT 1 FROM group_memberships m JOIN players p ON p.id=m.player_id WHERE m.group_id=g.id AND m.player_id=i.creator_id AND m.status='active' AND p.status='active' AND (g.owner_id=m.player_id OR COALESCE(m.assigned_role,m.role)='coowner'))`;
  if(publicAction){if(request.method!=='POST')return fail(405,'Method not allowed.');const body=await readJson(request);if(typeof body.token!=='string'||!/^[a-f0-9]{64}$/.test(body.token))return fail(404,'Invitation unavailable.');const hash=await hashToken(body.token);

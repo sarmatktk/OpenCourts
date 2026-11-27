@@ -197,6 +197,7 @@ private struct CommunitySignInCard: View {
                     .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
+            .navigationLinkIndicatorVisibility(.hidden)
             .accessibilityLabel("Sign in or create account")
         }
         .padding(24)

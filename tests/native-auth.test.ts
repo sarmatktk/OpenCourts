@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import {handleAuth,hashToken,session,type AuthDatabase,type AuthEnv,type AuthStatement} from '../functions/lib/auth';
 import {nativeReturnPath,pkceChallenge} from '../functions/lib/native-auth';
+import {handleGames} from '../functions/lib/games';
 const {DatabaseSync}=createRequire(import.meta.url)('node:sqlite');
 class Database implements AuthDatabase {
  sqlite=new DatabaseSync(':memory:');
@@ -25,6 +26,14 @@ describe('development native identity exchange',()=>{
   expect((await handleAuth(nativeRequest,env)).status).toBe(200);
   const websiteRequest=new Request('https://opencourts.us/api/auth/me',{headers:{Origin:'https://opencourts.us'}});
   expect((await handleAuth(websiteRequest,env)).status).toBe(404);
+ });
+ it('accepts the Production native session on the authenticated game notification route',async()=>{
+  const production='https://opencourts.us',token='test-native-session-with-32-characters-minimum',now=Date.now();
+  Object.assign(env,{AUTH_ORIGIN:production,CF_PAGES_BRANCH:'main',PLAY_TOGETHER_ENVIRONMENT:'production',NATIVE_AUTH_PRODUCTION_ENABLED:'true',PLAY_TOGETHER_ENABLED:'true',PLAY_TOGETHER_PRODUCTION_ENABLED:'true'});
+  await db.prepare("INSERT INTO auth_sessions(id,player_id,token_hash,csrf_token,client_type,created_at,expires_at) VALUES (?,?,?,?, 'ios', ?, ?)").bind('native','player',await hashToken(token),csrf,now,now+3600000).run();
+  const request=new Request(production+'/api/games/notifications',{method:'POST',headers:{Origin:production,Authorization:'Bearer '+token,'X-CSRF-Token':csrf,'Content-Type':'application/json'},body:'{}'});
+  const response=await handleGames(request,env);
+  expect(response?.status).toBe(405);
  });
  it('issues bounded provider challenges only after age confirmation and rejects invalid assertions',async()=>{
   expect((await handleAuth(req('native/provider/challenge','POST',{provider:'google'}),env)).status).toBe(400);
