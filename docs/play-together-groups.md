@@ -1,12 +1,31 @@
 # Phase 4: public/private groups
 
+## Current implementation and rollout — November 27, 2026
+
+Use the [current Play Together handoff](PLAY_TOGETHER_HANDOFF.md) for active
+release state. Group membership approval, role checks, and members-only group
+game access are implemented in the current website/API and iOS source. Migration
+0036 was applied to Production; do not follow the historical rollout warning
+below as a current instruction. Historical entries describe their dated state.
+The current app's multi-account acceptance and post-release device confirmation
+remain separate from server deployment status.
+
 ## Current group-game policy — November 21, 2026
 
 User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
 
-Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval and management UI is now implemented locally; enabled decisions, multi-account acceptance and the matching server rollout remain pending. See the latest native handover/worklist for current evidence.
+The current server checks membership in details, discovery/feed, participation,
+chat, invitations, inbox and push delivery. Migration
+`0036_members_only_group_games.sql` is applied to Production and preserves
+historic attendance. Native membership approval and management UI are in the
+current source; multi-account/device acceptance remains a client release check.
+The old local-only rollout warning has been removed from this current summary;
+dated rollout entries below remain as history.
 
-## Current role clarification - read first
+## Historical role clarification — November 21, 2026
+
+The following records the then-proposed role model. Its rollout status is
+superseded by the current implementation and rollout summary above.
 
 Latest UI review Preview is a9127653. Implemented group schema still uses one Owner,
 legacy Admin and Member. User approved a NEW target model: Owner, Co-owner, Organizer,

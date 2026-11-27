@@ -4,23 +4,57 @@ Last updated: November 27, 2026
 
 This is the compact Production incident record for the next engineer. Keep it current as issues are investigated, fixed, deployed, and verified. Do not read or change secrets without explicit authorization. Production user messages, requests, notification state, membership, and account records must not be used for synthetic testing.
 
-**Game reminders deployed November 27:** Production `opencourts-push-production` version `ea748b88-4647-42a4-9ffe-0076a6d40812` now queues 24-hour and 3-hour reminders on its existing minute schedule. Events fan out to currently opted-in Web Push (website/Android TWA) and APNs (iOS) registrations. APNs sender version is `ffde22d4-5ee0-44f8-b811-8bb1a29c091f`. No Pages deployment, migration, secret change, synthetic game or synthetic notification was made; real reminder receipt remains unverified.
+## Current status — November 27, 2026
+
+- Production Pages/API/site is deployment `388d237a-baf1-4b0b-9d1d-01d60d790141`
+  on `main`, source label `5a7708c`. The latest one-minute reminder scheduler
+  is `cff7613f-0e31-4e55-837b-07c47635f612`; latest APNs/badge sender is
+  `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. The earlier reminder-only versions
+  `ea748b88` and `ffde22d4` were superseded by inbox/badge updates.
+- Migrations 0042 (separate reminder inbox entries) and 0043 (nullable player
+  activity timestamp) are applied in Production. They are also applied in
+  Preview's isolated `opencourts-dev` database. No existing game, player, or
+  notification rows were changed by those schema migrations.
+- 24-hour and 3-hour reminders are scheduled for eligible confirmed
+  participants. Web Push serves website/Android TWA and APNs serves iOS;
+  reminders also appear as separate in-app inbox records. The owner confirmed
+  a normal Production APNs notification reached the phone, but a naturally
+  eligible game reminder has not yet been confirmed on each platform.
+- Approximate player activity is deployed on the Production website and current
+  Preview. The native iOS source is in Git; the owner reports its new build is
+  in App Review (build number and exact source-to-archive mapping not recorded).
+- The owner reports chat and earlier Production app issues are working. APNs
+  receipt is confirmed. The last reported open iOS issue is intermittent crash
+  when opening a chat notification; a client fix is in source and needs
+  post-release device confirmation. Adam Patel's display-name error is marked
+  owner-reported resolved; no fresh Production join request was sent.
+- Current app-source baseline on Git branch `feature/play-together` is
+  `3f31ee7`; its Active Preview deployment is
+  `e7257af2-c59a-45ab-8b1c-d237e8207686`.
+  Production remains on `main`; the Preview push did not change Production.
+- Secret values were not read or changed by the agent during the latest
+  deploy/push. Do not use real Production accounts for synthetic testing.
+
+Entries below are a dated incident history. Statements in those entries that
+say a fix is pending, a migration is not deployed, or an older deployment is
+latest describe the state at that time and are superseded by this snapshot.
 
 ## Current Production issues
 
 ### P1 — Native chat send returns HTTP 503 (owner reports resolved)
 
-**Status:** The owner now reports all previous app issues are working. Chat was previously restored after the owner replaced the Production OpenAI key. The independently tested Workers AI fallback also had an unsupported `system` role; that request was corrected, the Production binding probe returned safe, and the temporary route was removed. Latest Pages deployment is `6819d3ff`. This issue is closed based on owner report and the successful provider probe; no new chat message was sent in this investigation.
+**Status: Resolved per owner report.** Replacing the Production OpenAI key restored chat sends. Separately, the Cloudflare Workers AI fallback request was corrected to match the model's supported message-role schema; an authenticated fixed-prompt probe returned `{"ok":true,"decision":"safe"}` and the temporary diagnostic route was removed. The owner reports chat works. Do not follow the historical retry instructions below or change secrets absent fresh evidence.
 
-**What is known:** Authentication and chat read are working, narrowing this to moderation on message send, not sign-in or chat SQL. OpenAI HTTP 401 means Production rejects the configured credential; its encrypted secret exists by name, but the value was not read or changed. Workers AI is bound in Production, but the fallback also throws; the old log category did not reveal its internal code. The correct Cloudflare model and input shape are documented for `@cf/meta/llama-guard-3-8b`. Production migration 0041 is applied. The owner replaced the Production OpenAI key; its value was not read. A new deployment is required to ensure the Pages runtime picks it up.
-
-**Fix/deployment:** The corrected `chatAccessSql` and first safe provider diagnostics shipped in `9bda4a45-1718-441f-8872-0e859035631c`. After the owner’s report and trace, added safe Cloudflare provider-code extraction and deployed as `d50e8ea3-538e-4ce9-93db-d1212c9b1d92` (Production, `main`, source `5a7708c`). This logs only safe error type/name, numeric HTTP/provider code, and numeric status fields, never provider message text, submitted chat, player identity, or credentials. The preceding diagnostic deployment `12da9c44` captured another owner retry but the fallback still surfaced only `request_failed`; the owner retried on `d50e8ea3` and the endpoint again returned 503, but my local sanitizer’s allowlist dropped the newly added metadata fields. No secret or user data was changed.
-
-**Next:** The owner retried after deployment `d50e8ea3`; chat still returned 503. Corrected the local sanitizer allowlist to retain the deployed safe metadata fields and restarted the Production tail. Inspect the next retry’s Workers AI reason (for example Cloudflare internal error code or HTTP status). Separately, the Production OpenAI credential must be validated by the credential owner and corrected through the authorized secret-management path if it is stale/invalid; do not reveal or alter it here. Once fallback or primary moderation succeeds, confirm the send succeeds once. No test message should be generated by the assistant.
+Historical provider traces and deployments are retained in the dated entries below. They are not the current issue state.
 
 ### P2 — Push enabled, but no lock-screen alert
 
-**Status: Resolved and owner-confirmed (November 27, 2026).** After the owner corrected the private key placement on the dedicated Production APNs Worker, the rebuilt sender accepted the retry and the owner confirmed receiving it on the phone. Latest Worker version is `aac56dc5-fcfe-42f3-892d-1ffe3f5cdc9a`; configured Production Key ID is `Q3593PGS2H`. Earlier `BadEnvironmentKeyIdInToken` and `InvalidProviderToken` results are historical and superseded by this confirmed delivery. No website Web Push, Android, or Preview settings were changed.
+**Status: Resolved and owner-confirmed (November 27, 2026).** After the owner corrected private-key placement on the dedicated Production APNs Worker, the owner received the retried notification. The APNs-only fix version was `aac56dc5`; the current APNs/badge Worker is `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. Configured Key ID is `Q3593PGS2H`. Earlier Apple rejection codes are historical and superseded by confirmed delivery. Website Web Push and Android settings were not changed by the APNs fix.
+
+The diagnostic details immediately below are historical and superseded by the
+owner-confirmed delivery at the top of this section. They explain how the
+configuration mismatch and key-placement issue were found; do not follow their
+old “next action” instructions.
 
 **What is known:** Production Pages native-push gates and sender Worker gates were enabled. Pages `7b2a4b4b`; APNs sender version `f30176b3-ce9e-4f53-860b-a43ea42a9dd4`. Production D1 has native push tables. `nativePushRegistrationEnabled` also requires exact Production origin/auth origin, production community flags, APNs environment `production`, topic `us.opencourts.ios`, and schema. `deliveryAvailable` additionally needs `NATIVE_PUSH_PRODUCTION_READY=true`. Gate values being enabled does not establish that TestFlight's authenticated `/api/push/native/settings` response is available or that the device registered. No APNs receipt is confirmed for this Production app.
 
@@ -50,6 +84,10 @@ The owner then reported seeing the previous ID in Production configuration. Inve
 
 **Status:** Owner clarifies two observed outcomes: sometimes tapping opens the app to Inbox; other times the app starts to open and crashes. This is separate from APNs delivery, which is confirmed resolved above. App launch/crash is iOS app delegate/lifecycle behavior. Landing in Inbox can be the app's safe fallback if target validation fails; that path consults backend authorization/session state after launch. Treat these as two potentially distinct client and routing failures until correlated.
 
+The initial delegate-focused assessment below was superseded by the supplied
+Build 8 crash reports and the SwiftUI environment-injection diagnosis further
+down. The source fix is known; release validation remains open.
+
 **Known iOS evidence:** The handover records a real-device SIGABRT in `NativePushAppDelegate.userNotificationCenter(_:didReceive:)` when UIKit completion ran off-main. The callback was changed to explicit completion-handler form and the tap payload/completion were moved to `MainActor`; earlier Preview game/group tap checks then succeeded. It is not yet established that the currently installed App Store/TestFlight binary includes that fix or that this is the current failure's cause.
 
 **Next:** Compare the installed App Store/TestFlight version/build with the source containing the MainActor delegate fix. For Inbox fallback, inspect the authorized-destination result for the exact notification kind under the active account/session (without logging tokens or identifiers). For a crash, inspect the latest device crash report and confirm the callback completion remains on `MainActor`. Do not alter APNs delivery configuration; maintain iOS-only scope.
@@ -68,6 +106,10 @@ Owner reports one sequence reached Inbox before crashing when the game/chat dest
 
 **Status:** The owner now reports all previous app issues are working, including this issue. Historical evidence and investigation details remain below; no fresh join request was made in this turn.
 
+The identity-mismatch analysis below is a plausible but unconfirmed explanation,
+not an established root cause. Do not modify profile names, link accounts, or
+merge identities based on that analysis.
+
 **What is known:** The join handler emits this error only when the player resolved from the request's authenticated session has an empty `display_name`. Historical read-only checks found Adam's intended player has a nonblank name and Google identity, the website request succeeded for that player, and at the time of query the player had web sessions but no active iOS session. This strongly indicates the app request is signed into a different OpenCourts player or environment, but the actor on a failed request was not persisted, so the exact mismatch is unknown. Never infer identity or merge accounts based on display name.
 
 **Next:** Correlate the same TestFlight session's `/api/auth/me` player identity with the join request using privacy-safe, short-lived diagnostics. Return/log only a one-way stable correlation hash and whether `display_name` is empty; never log bearer tokens, email, provider subject, or full player ID. Compare native session identity against the invited player, then repair the app's session/account selection or environment routing. Do not rename, merge, or relink accounts without the owner/account holder explicitly identifying the intended account.
@@ -85,14 +127,14 @@ Current cause remains a Production identity/session mismatch rather than a diffe
 | Production/Test schema drift for membership, capacity, and chat | Production lacked 0036/0039/0040. | Applied the three reviewed migrations; organizer trigger updates, capacity fields, and chat capacity-access table now exist. Membership decision device acceptance remains unverified. |
 | Error colors differed between Preview and Production | Bundled styles had diverged. | Live asset comparison confirmed matching light/dark error colors in Preview and Production. |
 | Address autocomplete intermittently failed in native app | Production Photon `/api/suggest` intermittently returned 503 while `/api/geocode` worked. | Added iOS-only geocoder fallback. This is source/build work; verify the user's installed TestFlight build includes it. Website/backend was not changed. |
-| APNs was disabled in Production | Readiness/sender gates were off. | Enabled Pages native-push gates and sender Worker gates. Actual authenticated settings response, device registration, and Production receipt are not yet verified; see P2. |
-| Production native push capability reported unavailable despite gates being enabled | Pages Production `vars` are environment-scoped and did not inherit root `APNS_ENVIRONMENT=sandbox`; Production override omitted APNs environment/topic. | Explicitly set `APNS_ENVIRONMENT=production` and `APNS_TOPIC=us.opencourts.ios` in Production deployment `9bda4a45`. Owner confirms notification enablement is fixed; actual device registration and delivery receipt remain unverified. |
+| APNs was disabled in Production | Readiness/sender gates were off. | Enabled Pages native-push gates and sender Worker gates; later owner-confirmed APNs receipt is recorded in P2. |
+| Production native push capability reported unavailable despite gates being enabled | Pages Production `vars` are environment-scoped and did not inherit root `APNS_ENVIRONMENT=sandbox`; Production override omitted APNs environment/topic. | Explicitly set `APNS_ENVIRONMENT=production` and `APNS_TOPIC=us.opencourts.ios`; later corrected the key placement on the dedicated sender. Owner confirms enablement and a real phone receipt. Website Web Push and Android remain unchanged. |
 
 ## Other follow-ups (not currently confirmed as separate open incidents)
 
 - Group approve/deny and in-app membership request list should be checked on the authenticated app session after the schema repair; previous backend traces did not verify a real decision.
 - App Store review-prompt timing was adjusted to wait for meaningful engagement, and the prompt is intended for Play Together too. Confirm the latest iOS build contains this behavior if it recurs.
-- Production address suggestion fallback requires a new iOS/TestFlight build if the current installed binary predates the source change.
+- The iOS `/api/geocode` fallback for ZIPs such as `22033` is in the current source branch. The owner reports a new iOS build is in App Review; verify the fallback on that build after release.
 - Chat error styling parity was verified live; no separate styling issue is open.
 
 ## Deployment and investigation rules

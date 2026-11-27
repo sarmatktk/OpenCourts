@@ -1,5 +1,15 @@
 # Play Together implementation plan - current state
 
+## Release snapshot — November 27, 2026
+
+This plan contains dated design and implementation notes. For current release
+and environment state, use the [Play Together handoff](PLAY_TOGETHER_HANDOFF.md)
+and [Production issue handover](PRODUCTION_ISSUE_HANDOVER.md). Production
+includes the current group-game access policy and migrations 0042/0043; feature
+Preview uses its isolated `opencourts-dev` database. Statements below that
+Production is untouched, native iOS is a future milestone, or a migration is
+pending are historical unless the current handoff lists them as open.
+
 ## Current group-game policy — November 21, 2026
 
 User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.

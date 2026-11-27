@@ -1,3 +1,4 @@
+
 ## Discussion updates live in production - November 21, 2026
 
 Owner-authorized release c713ec8 is live at opencourts.us, production deployment 1825fb76-4fc4-4e3c-910b-75098187c8e7. Discussions now has one viewer-visible count in its tab, compact layout, staff role labels on posts/replies, and existing three-dot reporting for other authors (own content has Edit/Delete). New staff posts alert other active members through the existing Groups/device push preferences. No additional notification setting. The unified photo-sharing choice for Players/games/groups remains live.
@@ -663,4 +664,29 @@ Policy verification: isolated candidate `npm run build:dev` passed. `npx playwri
 - [ ] Upload a new iOS binary to deliver the local HTTP 422 retry-state fix to App Store users; the moderation backend itself is server-side and did not require that binary.
 - [ ] Review whether other freeform UGC fields need moderation; this release covers game/series chat and group discussion posts, comments and edits only.
 
-APNs remains a separate rollout: Production registration/sender gates are still off, no APNs delivery was enabled by this deployment, and no notification was sent. Pending unrelated D1 migrations remain untouched.
+Historical note from this earlier moderation deployment, superseded by the
+current status at the top of this checklist: APNs gates were off at that time;
+no APNs delivery or unrelated D1 migration was included in that deployment.
+# Play Together release checklist
+
+# Play Together release checklist
+
+## Current release status — November 27, 2026
+
+- Preview branch `feature/play-together` is synced at `3f31ee7`; Active Pages
+  deployment `e7257af2-c59a-45ab-8b1c-d237e8207686`. Preview D1 `opencourts-dev`
+  has migrations 0042/0043 applied.
+- Production remains separate on `main`; current Pages deployment is
+  `388d237a-baf1-4b0b-9d1d-01d60d790141`. Reminder scheduler and APNs/badge
+  Workers are `cff7613f-0e31-4e55-837b-07c47635f612` and
+  `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`.
+- Reminder inbox and player activity server/web behavior is deployed. The
+  owner reports the latest native iOS build is in App Review; exact build number
+  is not recorded. Do not mark native acceptance complete until the released
+  build is checked on device.
+- Older checklist entries below are dated snapshots. Use this block and the
+  linked [Production issue handover](PRODUCTION_ISSUE_HANDOVER.md) for current
+  deployment status; historical “pending” notes are not current unless
+  reaffirmed here.
+
+---

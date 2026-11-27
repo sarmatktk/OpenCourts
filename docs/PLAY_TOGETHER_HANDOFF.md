@@ -1,10 +1,43 @@
+# Play Together development handoff
+
+## Current handoff status — November 27, 2026
+
+The current app-source baseline on Git branch `feature/play-together` is
+`3f31ee7`. Its current Active Pages deployment is
+`e7257af2-c59a-45ab-8b1c-d237e8207686`
+at `https://feature-play-together.opencourts.pages.dev`. Preview D1 is the
+isolated `opencourts-dev`; migrations 0042 and 0043 are applied there. The push
+updated Preview only. Production remains on `main`, with Pages deployment
+`388d237a-baf1-4b0b-9d1d-01d60d790141` and separate Production databases and
+Workers.
+
+The Production website and shared Play Together API include the 24-hour/3-hour
+game reminder inbox records and coarse player activity labels. Reminder
+delivery uses the existing Web Push path for the website/Android TWA and APNs
+for iOS; no separate reminder schedule is required per platform. Actual
+naturally eligible reminder receipt remains to be confirmed. The website shows
+activity recency; the iOS source supports it, with the owner reporting the new
+build is in App Review. Existing players have no historical activity timestamp
+until their next authenticated use.
+
+The native iOS app is live, and the owner reports a newer build in App Review.
+The current source contains the latest Players row layout, activity status
+wrapping, and reminder inbox copy, but the exact App Store archive/build mapping
+is not recorded. See the [iOS app handover](../ios-app/IOS_APP_HANDOVER.md) and
+[Production issue handover](PRODUCTION_ISSUE_HANDOVER.md) before further work.
+
+Older entries below are chronological records, not live deployment status.
+Statements there that work is local-only, migrations are pending, Preview is
+unchanged, or the native app does not exist describe earlier checkpoints and
+are superseded by this section.
+
 ## Player location pin - November 21, 2026
 
 ## Current group-game policy — November 21, 2026
 
 User clarification supersedes historical public-group event exceptions (including migration 0022 and the November 18 public-event rollout notes): **all group games are members-only, in both public and private groups**. Public visibility exposes the limited group preview, never its games. A player requests group membership first; an active Owner, Co-owner or Organizer approves the request; only then can that approved active member view/join group games, subject to capacity and existing lifecycle rules. Pending, rejected, removed and signed-out players have no group-game access. Game-host approval, invitations and shared URLs cannot substitute for membership approval. Standalone public/unlisted games retain their separate host-approval rules. Organizers approve/reject membership requests but do not gain group metadata, role-assignment, archive or other managers' game powers. Legacy Admin compatibility remains existing behavior.
 
-Local implementation: membership checks in details, discovery/feed, participation, chat, invitations, inbox and push delivery; migration `0036_members_only_group_games.sql` restores the database participant guard and includes Organizers in membership-request notifications. This migration and server changes have **not been applied remotely**. Previously deployed behavior remains until an approved server rollout. Review existing outsider attendance/requests for a separate explicit migration decision before rollout; this migration does not silently delete historic attendance. Native group membership approval UI remains batch 6 work; native request/leave and approved-member game navigation exist.
+Implementation covers details, discovery/feed, participation, chat, invitations, inbox and push delivery. Migration `0036_members_only_group_games.sql` was applied to Production with the reviewed schema changes; later Preview/Production status is recorded in the current snapshot and the Production issue handover. Historic outsider attendance was not silently deleted. Native group membership approval UI is implemented in the current source; owner-reported app acceptance is separate from the backend deployment record.
 
 Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.
 

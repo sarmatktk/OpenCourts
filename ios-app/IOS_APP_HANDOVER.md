@@ -1,22 +1,42 @@
 # OpenCourts iOS app: working handover
 
-## Current Production status — November 27, 2026
+## Current status — November 27, 2026
 
-**Game reminder deployment (November 27):** 24-hour and 3-hour reminders are
-enabled by the one-minute Production `opencourts-push-production` Worker
-(`ea748b88-4647-42a4-9ffe-0076a6d40812`). The existing isolated APNs sender is
-version `ffde22d4-5ee0-44f8-b811-8bb1a29c091f`. Reminder events fan out to
-eligible Web Push registrations (website/Android TWA) and native iOS APNs
-registrations. This backend change needs no iOS binary update. No schema or
-user data was changed directly, no secrets were read/changed, and no test
-notification or game was created. The minute scheduler may queue reminders for
-eligible existing games. A real reminder's delivery/receipt has not yet been verified;
-each device still needs its existing push opt-in, permission and active
-registration. See [notification architecture](../docs/NOTIFICATION_ARCHITECTURE.md).
+- The current app-source baseline is commit `3f31ee7` on
+  `feature/play-together`; Preview deployment
+  `e7257af2-c59a-45ab-8b1c-d237e8207686` is Active. Preview D1
+  `opencourts-dev` has migrations 0042 and 0043 applied.
+- Production remains separate on `main`: Pages deployment
+  `388d237a-baf1-4b0b-9d1d-01d60d790141`, reminder scheduler Worker
+  `cff7613f-0e31-4e55-837b-07c47635f612`, APNs/badge Worker
+  `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. Production migrations 0042/0043
+  are applied. Reminders fan out through existing eligible Web Push (website
+  and Android TWA) and APNs (iOS) registrations and create separate 24-hour
+  and 3-hour inbox entries. A real reminder's receipt has not yet been
+  confirmed; never create synthetic Production games or notifications.
+- The owner reports the latest native iOS build is in App Review; the build
+  number was not provided. Its source includes game reminder inbox copy,
+  player activity labels with wrapping, and the player-row action layout.
+  Verify those behaviors on the reviewed/released binary before closing
+  device acceptance. Existing App Store version remains live until release.
+- The owner has confirmed Production APNs notification receipt and that the
+  previously reported chat issue is working. A notification-tap crash was
+  diagnosed in Build 8 and a SwiftUI environment-injection fix is in source;
+  confirm it on the build in review after release. Do not change APNs/backend
+  for any remaining tap crash without new evidence.
+- Find Players activity labels are deployed on the website. The feature returns
+  coarse status only; existing players have no historical timestamp and gain
+  one after authenticated use. A missing status field is not evidence that an
+  exact activity time should be exposed.
+- Website and Android notification behavior is unchanged except for the
+  requested 24-hour/3-hour game reminders and activity-recency feature.
 
-The dedicated [Production issue handover](../docs/PRODUCTION_ISSUE_HANDOVER.md) is the concise current incident record. Latest Production Pages deployment is `d50e8ea3-538e-4ce9-93db-d1212c9b1d92` on `main`, based on source `5a7708c` plus documented backend overlays. Current open user-facing Production issues are (1) chat send returns 503 because moderation providers fail: OpenAI returned HTTP 401 and Workers AI fallback threw an error; allowlisted safe error metadata is now deployed as `d50e8ea3`; the owner retried on `d50e8ea3` and got the same 503; safe metadata identified Cloudflare `AiError`. Owner replaced Production OpenAI key, then the same verified artifact was redeployed as `6b5363b5` to activate it; verify with another retry; (2) Adam Patel's app join flow still says to complete his display name despite his populated Production profile and successful website request. Owner confirms notification enablement is fixed after the Production APNs environment/topic correction; APNs delivery was subsequently confirmed on the physical phone. Chat provider diagnostics are a subtask of issue 1, not a fourth issue. The earlier inbox 503 was fixed by applying migrations and current authenticated inbox GETs return 200. Unauthenticated probes after deployment returned Production `/api/auth/me` 200 and push/inbox endpoints 401 as expected. Existing APNs/OpenAI secret values were not read, changed, or rotated. No Production user message or D1 row was changed. Deployment `9bda4a45` is an emergency overlay, not a Git commit or push.
-
-**Native APNs status (November 27):** Production registration and sender gates are enabled. Latest isolated APNs Worker is `aac56dc5-fcfe-42f3-892d-1ffe3f5cdc9a`, using `APNS_KEY_ID=Q3593PGS2H`. The owner corrected the private-key location; the retried Production notification was accepted by APNs and received on the phone. Delivery is resolved. The owner now reports that tapping notifications sometimes opens the app and sometimes does not; this is a separate iOS app-delegate/navigation issue, not the APNs delivery path. The agent did not read or change the secret value. Preview and existing web/Android notification behavior were untouched; only the requested game reminders were added to their shared delivery path.
+See the [Production issue handover](../docs/PRODUCTION_ISSUE_HANDOVER.md),
+[feature parity checklist](../docs/IOS_FEATURE_PARITY_CHECKLIST.md), and
+[notification architecture](../docs/NOTIFICATION_ARCHITECTURE.md) for the
+current server contracts. The long dated entries below are the investigation
+history; older “local only,” “not deployed,” and pre-fix statuses are historical
+checkpoints superseded by this section and the latest dated deployment records.
 
 ### Lock-screen push failure confirmed — November 27, 2026
 

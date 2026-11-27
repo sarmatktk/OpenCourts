@@ -1,5 +1,15 @@
 # OpenCourts
 
+**Current release status — November 27, 2026:** The current app-source baseline
+on `feature/play-together` is `3f31ee7`; its Cloudflare Pages Preview is active
+at `https://feature-play-together.opencourts.pages.dev`. Production remains on
+the separate `main` branch. The native iOS app is live in the App Store, and
+the owner reports the next iOS build is in App Review. See the current
+[Play Together handoff](docs/PLAY_TOGETHER_HANDOFF.md),
+[Production issue handover](docs/PRODUCTION_ISSUE_HANDOVER.md), and
+[iOS app handover](ios-app/IOS_APP_HANDOVER.md) for deployment IDs and open
+acceptance checks.
+
 **Continuing Play Together with another agent? Start with the
 [development handoff and next steps](docs/PLAY_TOGETHER_HANDOFF.md).**
 
@@ -7,16 +17,21 @@ Current development Preview includes accounts, all three game audiences, groups/
 guest participation, sharing, opt-in discovery and safety reporting. See the
 [current handoff](docs/PLAY_TOGETHER_HANDOFF.md) and
 [remaining release checks](docs/PLAY_TOGETHER_RELEASE_CHECKLIST.md).
-Production remains unchanged.
+Production and Preview use separate deployment and database bindings; the current
+Production deployment and outstanding acceptance checks are recorded in the
+[Production issue handover](docs/PRODUCTION_ISSUE_HANDOVER.md).
+
+Known cross-platform failures, root causes, mitigations and remaining risks are
+indexed in the [known issues and risk register](docs/KNOWN_ISSUES_AND_FIXES.md).
 
 International provider, cache, coverage, and rollout details are documented in
 [International reliability](docs/international-reliability.md). US behavior is
 preserved separately from this international data path.
 
-OpenCourts is a map-first public tennis court finder. It combines OpenStreetMap court features, a MapLibre map, Photon place suggestions and OpenStreetMap Nominatim place search, and National Weather Service hourly forecasts. No account or API key is required for the included setup.
+OpenCourts is a map-first public tennis court finder. It combines OpenStreetMap court features, a MapLibre map, Photon place suggestions and OpenStreetMap Nominatim place search, and National Weather Service hourly forecasts. Browsing courts does not require an account or API key. Play Together accounts are required for games, groups, player discovery, and messaging.
 
 [Play Together product decisions, architecture, and progress](docs/PLAY_TOGETHER.md)
-are maintained as the central reference for the planned community features.
+are maintained as the central reference for the community features.
 
 ## Run locally
 
@@ -102,7 +117,7 @@ tests/               Unit tests and the Playwright search flow
 
 ## Notes
 
-OpenStreetMap features are community contributed. Access, lighting, availability, and amenities can change and should be confirmed locally. The app makes no reservation or availability guarantees and does not offer booking or accounts.
+OpenStreetMap features are community contributed. Access, lighting, availability, and amenities can change and should be confirmed locally. Games do not reserve courts, and the app makes no court availability or booking guarantees. Account-based Play Together features are available on the website, Android app, and native iOS app.
 
 Phase 2 public games: [implementation and testing guide](docs/play-together-games.md).
 
@@ -110,4 +125,4 @@ Phase 3 participation: [implementation and rollout guide](docs/play-together-par
 
 Phase 4 groups: [implementation, privacy and rollout guide](docs/play-together-groups.md).
 
-Android internal testing readiness and the current release gates: [docs/APP_TESTING_CHECKLIST.md](docs/APP_TESTING_CHECKLIST.md). There is no native iOS Play Together app in this release.
+Android testing readiness and release gates: [docs/APP_TESTING_CHECKLIST.md](docs/APP_TESTING_CHECKLIST.md). iOS release state and device acceptance: [ios-app/IOS_APP_HANDOVER.md](ios-app/IOS_APP_HANDOVER.md).

@@ -20,7 +20,7 @@ catch-up window and stale-event delivery checks. End-to-end receipt of a real
 24-hour or 3-hour reminder on each platform remains unverified; device delivery
 requires that platform's existing opt-in, permission and active registration.
 
-## Reminder inbox entries prepared locally — November 27, 2026
+## Reminder inbox entries — deployed November 27, 2026
 
 Prepared an additive inbox path for scheduled game reminders. It stores one
 readable inbox row per confirmed game participant per reminder lead-time, so
@@ -32,12 +32,12 @@ copy. All confirmed participants are included regardless of push preference;
 push delivery still follows the existing opt-in, permission, and registration
 checks.
 
-This change is local only and is not deployed. Production rollout requires
-applying migration 0042 before deploying the scheduler Worker, then deploying
-the Inbox API/web bundle and refreshing both Production push Worker versions so
-APNs badge counts use the same inbox. A new iOS binary is required for native
-reminder-specific wording. No Production database, deployment, or secret was
-changed for this inbox follow-up.
+Migration 0042 is applied in both Production and isolated Preview. Production
+Pages/API deployment is `388d237a-baf1-4b0b-9d1d-01d60d790141`; reminder
+scheduler Worker is `cff7613f-0e31-4e55-837b-07c47635f612`; APNs/badge Worker
+is `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. The Workers preserve the existing
+one-minute cron and settings. The owner reports the iOS build with native
+reminder copy is in App Review; real reminder receipt remains unverified.
 
 ## Owner-authorized iPhone sandbox test — November 23, 2026
 

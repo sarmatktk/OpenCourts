@@ -1,3 +1,15 @@
+# Website and Play Together testing history
+
+## Current release status — November 27, 2026
+
+This document keeps the dated website/Play Together verification history. For
+current deployment state and unresolved cross-platform acceptance, see the
+[Production issue handover](PRODUCTION_ISSUE_HANDOVER.md),
+[release checklist](PLAY_TOGETHER_RELEASE_CHECKLIST.md), and
+[known issue register](KNOWN_ISSUES_AND_FIXES.md). “Not deployed” and “pending”
+statements below describe their dated checkpoint unless reaffirmed by those
+current summaries.
+
 ## Player location pin - November 21, 2026
 
 Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.

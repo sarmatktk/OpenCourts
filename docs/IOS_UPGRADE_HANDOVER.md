@@ -1,5 +1,32 @@
 # Existing iOS app upgrade — November 21, 2026
 
+## Current handoff status — November 27, 2026
+
+The native iOS app is live in the App Store. The owner reports that a newer
+build is currently in App Review; its build number was not provided. The
+current iOS app-source baseline on `feature/play-together` is `3f31ee7`.
+Preview is Active at
+`https://feature-play-together.opencourts.pages.dev` (deployment
+`e7257af2-c59a-45ab-8b1c-d237e8207686`). Production remains on `main` and was
+not changed by the feature-branch push.
+
+Production website/API deployment `388d237a-baf1-4b0b-9d1d-01d60d790141`
+includes reminder inbox and player-activity behavior. Production reminder and
+APNs/badge Workers are `cff7613f-0e31-4e55-837b-07c47635f612` and
+`5ef2710b-2c8c-48a4-92cc-c198d0f35e67`; migrations 0042/0043 are applied in
+Production and Preview. The owner confirmed APNs receipt and reports the
+previous chat/app issues are working. A tap-to-chat crash was diagnosed in
+App Store Build 8 and an environment-injection fix is in the current source;
+device confirmation on the new build remains pending. Real 24-hour/3-hour
+reminder receipt and native activity-label rendering also remain release/device
+acceptance checks.
+
+Historical notes below record the state at their dates. Any earlier statement
+that native iOS is unavailable, the app is not ready to submit, reminders or
+activity are local-only, or migrations are pending is superseded by this
+snapshot unless a newer dated entry says otherwise. Do not treat submission as
+approval or release; App Review is still in progress per the owner.
+
 ## Backend content moderation — November 24, 2026
 
 Local backend slice adds centralized fail-closed moderation for game/series/group chat and group-discussion post/comment/edit submissions. Exact successful retries do not call AI again. The route checks normalized text against a narrow exact-term/phrase filter, then OpenAI `omni-moderation-latest`, using Cloudflare Workers AI `@cf/meta/llama-guard-3-8b` only when OpenAI is unavailable, rate-limited, unconfigured, or at the app cap. Blocked content receives a friendly 422; no provider or quota capacity results in retryable 503. Existing reporting, player blocks and moderator functionality remain intact.

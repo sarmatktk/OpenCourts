@@ -1,3 +1,20 @@
+# Play Together: product decisions, architecture and progress
+
+## Current status — November 27, 2026
+
+This document retains the product decisions and implementation history below.
+For live release state, use the [Play Together handoff](PLAY_TOGETHER_HANDOFF.md),
+[release checklist](PLAY_TOGETHER_RELEASE_CHECKLIST.md), and
+[Production issue handover](PRODUCTION_ISSUE_HANDOVER.md). Production and the
+feature Preview are separate environments. The Production website/API has the
+24-hour and 3-hour game reminder inbox path and approximate player activity
+labels deployed; real reminder delivery still needs natural, platform-specific
+confirmation. The owner reports the current native iOS build is in App Review.
+
+Entries below are dated implementation snapshots. A statement that something is
+local-only, pending rollout, or not implemented describes that historical point
+unless the current handoff confirms it remains open.
+
 ## November 24, 2026 - Capacity reduction Preview update
 
 Published the game-capacity edit handler to the feature Preview as deployment

@@ -1,7 +1,15 @@
 # Phase 3: participation, organizer controls and My Games
 
-Local implementation only. Remote migration 0004 and Preview rollout require approval.
-All first-release features are free; production remains untouched.
+## Current status — November 27, 2026
+
+This document began as the original Phase 3 implementation record. Participation,
+organizer controls, and My Games are implemented in the website/API. Production
+and Preview have separate databases and deployments; consult the
+[current handoff](PLAY_TOGETHER_HANDOFF.md) and
+[Production issue handover](PRODUCTION_ISSUE_HANDOVER.md) before any rollout.
+Any earlier “local only” statement in this record is historical, not current
+deployment guidance.
+All first-release features remain free.
 
 This is the original Phase 3 participation record. Current guest-role policy and
 rollout status are superseded by the November 23 update in `play-together-guests.md`:

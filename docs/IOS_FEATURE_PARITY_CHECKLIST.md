@@ -1,35 +1,53 @@
 # Website to native iOS feature checklist
 
+## Current cross-platform status — November 27, 2026
+
+Production website/API features and Preview are separate from native iOS binary
+delivery. Production group-game access policy and migrations 0042/0043 are
+deployed; scheduled game reminders use shared Web Push fanout for the website
+and Android TWA and APNs for iOS. Player activity labels are visible on the
+website. The owner reports the current native iOS build is in App Review; its
+exact build/source mapping is not recorded. The dated notes below are history;
+use this status and the [Production issue handover](PRODUCTION_ISSUE_HANDOVER.md)
+for current rollout state.
+
 ## Discoverable player activity recency — November 27, 2026
 
-- [ ] Local implementation adds throttled authenticated-use timestamps and
-  coarse activity labels to Find Players on web/Android TWA and native iOS:
+- [x] Implementation adds throttled authenticated-use timestamps and coarse
+  activity labels to Find Players on web/Android TWA and native iOS:
   Active recently, today, yesterday, this week, over a week ago, or not recorded.
-- [ ] Migration `0043_player_last_active.sql` is required. Exact timestamps are
+- [x] Migration `0043_player_last_active.sql` is applied in Production and
+  isolated Preview D1. Exact timestamps are
   not returned to other players; activity is shown only for discoverable
   profiles. The account visibility controls explain this disclosure.
-- [ ] Not deployed; Production rollout requires the additive migration and
-  isolated backend/web deployment, plus a new iOS binary.
+- [x] Production site/API deployment `388d237a-baf1-4b0b-9d1d-01d60d790141`
+  and current Preview include the backend/web behavior. Website display is
+  confirmed by the owner.
+- [ ] Native iOS source includes a separate wrapping activity line. Owner
+  reports the new build is in App Review; verify labels on device after release.
+  Existing players have no historical timestamp until authenticated API use.
 
 ## Game reminders and international Create Game search — November 27, 2026
 
 - [x] Production reminder scheduler deployed to `opencourts-push-production`
-  (`ea748b88-4647-42a4-9ffe-0076a6d40812`); it checks each minute for the
-  24-hour and 3-hour game lead times. Existing APNs sender version
-  `ffde22d4-5ee0-44f8-b811-8bb1a29c091f` delivers eligible iOS events; the
+  (`cff7613f-0e31-4e55-837b-07c47635f612`); it checks each minute for the
+  24-hour and 3-hour game lead times. APNs/badge sender version
+  `5ef2710b-2c8c-48a4-92cc-c198d0f35e67` delivers eligible iOS events; the
   existing database fanout covers Web Push devices used by the site and Android
-  TWA as well. No website/Android notification behavior beyond these reminders
-  was changed; no Pages release, D1 migration, test game, or secret change.
+  TWA as well. Production Pages `388d237a-baf1-4b0b-9d1d-01d60d790141` includes
+  inbox API/web support. Production and Preview migrations 0042/0043 are applied.
+  No website/Android notification behavior beyond reminders was changed.
 - [ ] Real reminder receipt is not yet verified. Recipient must be a confirmed
   participant, the game must have been created more than the reminder lead-time
   before start, and the device needs push enabled, Games notifications enabled,
   OS permission and an active registration. Check a real 24-hour or 3-hour event
   on each platform when one naturally enters its reminder window.
-- [ ] Reminder inbox follow-up is implemented locally as separate 24-hour and
-  3-hour records for confirmed participants. It requires additive migration
-  `0042_game_reminder_inbox.sql`, Pages/API and scheduler Worker deployment, plus
-  an iOS build for the native message labels. It is not deployed to Production;
-  apply the migration before deploying the Worker that writes these rows.
+- [x] Reminder inbox uses separate 24-hour and 3-hour records for confirmed
+  participants. Migration `0042_game_reminder_inbox.sql`, Production Pages/API,
+  scheduler Worker, and APNs badge Worker are deployed. The iOS source contains
+  the native wording; the owner reports the build is in App Review.
+- [ ] Verify a naturally eligible reminder arrives in each platform's inbox
+  and notification channel. No synthetic Production game or reminder was made.
 - [x] Read-only Production API check for London, UK returned HTTP 200 with GB
   place suggestions, geocoding coordinates, and tennis-court results. iOS
   `OpenCourtsAPI` recognizes UK/England as `gb`, carries `countryCode` from a
