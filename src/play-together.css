@@ -264,6 +264,9 @@ dialog.pt-confirmation p{margin:0 0 18px;line-height:1.6;overflow-wrap:anywhere}
 .pt-chat-compose label{grid-column:1/-1}
 .pt-chat-compose textarea{min-height:76px;max-height:200px}
 .pt-chat-compose .pt-primary{min-height:44px;padding:10px 14px}
+.app.dark .pt-chat-dialog .pt-chat-compose .pt-primary{color:#17392d;background:#d5f36a;border-color:#d5f36a}
+.app.dark .pt-chat-dialog .pt-chat-compose .pt-primary:not(:disabled):hover{color:#17392d;background:#e0f88b;border-color:#e0f88b}
+.app.dark .pt-chat-dialog .pt-chat-compose .pt-primary:disabled{color:#c1d69b;background:#29372b;border-color:#627b46;opacity:1;cursor:not-allowed}
 .pt-chat-info{margin-top:12px}
 .pt-chat-info>summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;font-size:12px;color:var(--muted);padding:0}
 @media(max-width:480px){.pt-chat-toggle{padding:12px 14px;gap:10px}.pt-chat-body{padding:0 14px 14px}.pt-chat-subtitle{font-size:11px}.pt-chat-compose{gap:8px}.pt-chat-compose .pt-primary{font-size:12px}.pt-chat-count{font-size:11px}}
