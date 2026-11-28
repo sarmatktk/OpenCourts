@@ -113,21 +113,21 @@ export function distinguishCourtNames(courts: Court[]): Court[] {
 }
 export function groupCourtsByVenue(courts: Court[]): Court[] {
   const groups: Court[][] = [];
-  const venueFor = (court: Court) => {
+  const venueNameFor = (court: Court) => {
     const context = court.contextName?.match(/^At\s+(.+)$/i)?.[1].trim();
-    if (context) return context.toLocaleLowerCase();
-    const name = court.name.trim();
-    return /^(?:tennis courts?|court\s*#?\s*\d+)$/i.test(name) ? undefined : name.toLocaleLowerCase();
+    if (context) return context;
+    const name = court.name.trim().replace(/\s+(?:tennis\s+)?courts?(?:\s*(?:#|no\.?\s*)?\d+)?(?:\s*[-–]\s*\d+)?\s*$/i, '').trim();
+    return !name || /^(?:tennis courts?|court\s*#?\s*\d*)$/i.test(name) ? undefined : name;
   };
 
   for (const court of courts) {
-    const venue = venueFor(court);
+    const venue = venueNameFor(court);
     if (!venue) { groups.push([court]); continue; }
     const group = groups.find(members => {
       const first = members[0];
-      if (venueFor(first) !== venue) return false;
+      if (venueNameFor(first)?.toLocaleLowerCase() !== venue.toLocaleLowerCase()) return false;
       if ((first.surface || '').trim().toLowerCase() !== (court.surface || '').trim().toLowerCase()) return false;
-      if (first.lighting !== court.lighting || first.access !== court.access || first.sheltered !== court.sheltered) return false;
+      if (first.lighting !== court.lighting) return false;
       const center = members.reduce((point, member) => ({ lat: point.lat + member.lat / members.length, lon: point.lon + member.lon / members.length }), { lat: 0, lon: 0 });
       return milesBetween(center, court) <= 0.15;
     });
@@ -137,7 +137,7 @@ export function groupCourtsByVenue(courts: Court[]): Court[] {
   return groups.map(members => {
     if (members.length === 1) return members[0];
     const first = members[0];
-    const venue = first.contextName?.replace(/^At\s+/i, '').trim() || first.name;
+    const venue = venueNameFor(first) || first.name;
     const multiCourtCounts = members.map(member => member.courts ?? 0).filter(count => count > 1);
     const courtsCount = multiCourtCounts.length
       ? Math.max(members.length, ...multiCourtCounts)
@@ -156,6 +156,10 @@ export function groupCourtsByVenue(courts: Court[]): Court[] {
       contextName: undefined,
       lat: center.lat,
       lon: center.lon,
+      lighting: members.every(member => member.lighting === first.lighting) ? first.lighting : 'unknown',
+      access: members.some(member => member.access === 'public') ? 'public' : first.access,
+      surface: members.every(member => (member.surface || '').trim().toLowerCase() === (first.surface || '').trim().toLowerCase()) ? first.surface : undefined,
+      sheltered: members.every(member => member.sheltered === first.sheltered) && first.sheltered,
       courts: courtsCount,
       address: address?.[0],
       addressApprox: address?.[1].approximate,
@@ -187,12 +191,21 @@ export async function findPlace(query: string, signal?: AbortSignal): Promise<Pl
   const place = { ...(match.general_label?{generalLabel:match.general_label}:{}),label: match.display_name, lat, lon, ...(match.country_code ? { countryCode: match.country_code } : {}) };
   return place;
 }
-export async function getPlaceSuggestions(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+export async function getPlaceSuggestions(query: string, signal?: AbortSignal, preferredCountryCode?: string): Promise<PlaceSuggestion[]> {
   const normalized = normalizeLocationQuery(query);
   if (normalized.error) return [];
   query = normalized.query;
   const internationalCountry = internationalCountryCode(query);
-  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '8'); if (internationalCountry) url.searchParams.set('country', internationalCountry);
+  let savedCountry: string | undefined;
+  if (!internationalCountry && !preferredCountryCode) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('opencourts-place-v2') || 'null') as { countryCode?: string; label?: string } | null;
+      savedCountry = saved?.countryCode || (saved?.label ? internationalCountryCode(saved.label) : undefined);
+    } catch { /* Storage is optional. */ }
+  }
+  const localeCountry = typeof Intl.Locale === 'function' ? new Intl.Locale(navigator.language).region : undefined;
+  const preferred = internationalCountry ? undefined : (preferredCountryCode || savedCountry || localeCountry)?.toLowerCase();
+  const url = new URL('/api/suggest', window.location.origin); url.searchParams.set('q', query); url.searchParams.set('v', '9'); if (internationalCountry) url.searchParams.set('country', internationalCountry); else if (preferred) url.searchParams.set('preferred_country', preferred);
   const canGeocode = Boolean(internationalCountry) || (Boolean(normalized.zip) || /^\d{1,6}[A-Za-z]?\s+\S.*(?:,|\b[A-Za-z]{2}\b|\b\d{5}\b)/.test(query) || /^[^,]+,\s*[A-Za-z]{2}$/.test(query));
   try {
     const res = await fetch(url, { signal, cache: 'no-store' });

@@ -3,7 +3,7 @@ import {communityRoutes,communityHtml} from './community-metadata.mjs';
 
 // Build artifact only: does not deploy, access credentials or enable production APIs.
 const outputName=process.argv[2]??'dist-release';
-if(!['dist','dist-release'].includes(outputName))throw new Error('Unexpected production artifact directory.');
+if(!['dist','dist-release','dist-frontend'].includes(outputName))throw new Error('Unexpected production artifact directory.');
 const output=new URL('../'+outputName+'/',import.meta.url);
 const shell=await readFile(new URL('index.html',output),'utf8');
 const associations=JSON.parse(await readFile(new URL('.well-known/assetlinks.json',output),'utf8'));

@@ -25,6 +25,8 @@ const notificationMessages = {
  group_removed: 'Your membership in a group has ended.',
  group_archived: 'A group you belong to has been archived.',
  schedule_changed: 'The time of a game you are involved in has changed.',
+ game_reminder_24h: 'Reminder: Your game starts in about 24 hours.',
+ game_reminder_3h: 'Reminder: Your game starts in about 3 hours.',
  waitlist_offer: 'A waitlist spot is available. Open OpenCourts to review your offer.',
 };
 function notificationTarget(target) {
