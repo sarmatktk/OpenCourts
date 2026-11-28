@@ -6,8 +6,12 @@ This is the compact Production incident record for the next engineer. Keep it cu
 
 ## Current status — November 27, 2026
 
-- Production Pages/API/site is deployment `388d237a-baf1-4b0b-9d1d-01d60d790141`
-  on `main`, source label `5a7708c`. The latest one-minute reminder scheduler
+- Production website is static Pages deployment
+  `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2`, built from frontend release commit
+  `587ad40920bc40443b58b52b4e7608d359ec5777`. Production API is Worker version
+  `bf43e899-04ff-4ac0-b9ff-836003957db4` on `opencourts.us/api/*`. See the
+  [deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md) for the current
+  separation and release process. The latest one-minute reminder scheduler
   is `cff7613f-0e31-4e55-837b-07c47635f612`; latest APNs/badge sender is
   `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. The earlier reminder-only versions
   `ea748b88` and `ffde22d4` were superseded by inbox/badge updates.
@@ -28,6 +32,11 @@ This is the compact Production incident record for the next engineer. Keep it cu
   when opening a chat notification; a client fix is in source and needs
   post-release device confirmation. Adam Patel's display-name error is marked
   owner-reported resolved; no fresh Production join request was sent.
+- The Apple sign-in PEM formatting issue was corrected in the API Worker secret
+  on both Preview and Production. The server-side Apple start flow returned
+  HTTP 200 in each environment after the correction. The owner confirmed Apple
+  and Google sign-in work on the Production website and native iOS app. A full
+  Preview provider callback has not been separately confirmed.
 - Current app-source baseline on Git branch `feature/play-together` is
   `3f31ee7`; its Active Preview deployment is
   `e7257af2-c59a-45ab-8b1c-d237e8207686`.
@@ -128,6 +137,12 @@ Current cause remains a Production identity/session mismatch rather than a diffe
 | Error colors differed between Preview and Production | Bundled styles had diverged. | Live asset comparison confirmed matching light/dark error colors in Preview and Production. |
 | Address autocomplete intermittently failed in native app | Production Photon `/api/suggest` intermittently returned 503 while `/api/geocode` worked. | Added iOS-only geocoder fallback. This is source/build work; verify the user's installed TestFlight build includes it. Website/backend was not changed. |
 | APNs was disabled in Production | Readiness/sender gates were off. | Enabled Pages native-push gates and sender Worker gates; later owner-confirmed APNs receipt is recorded in P2. |
+
+### Latest Pages regression rolled back — November 27, 2026
+
+The owner reported iOS sign-in stopped working after the latest Production pushes. The three newest Pages Production deployments were `38015c51-2d29-4f09-88bb-a15d7878faca` (source label `99f03f6`), `f2b9eec8-6571-4ddf-a5cb-4c113ba85beb` (no source label), and `03e7d71e-d7a4-4f60-afb9-8407180cab4f` (no source label). Cloudflare's deployment listing does not identify the operator or artifact file contents for these deployments. Their source artifacts were not retained in the local workspace, so attribution beyond the recorded labels is unverified.
+
+Used Cloudflare Pages rollback to restore last documented good deployment `388d237a-baf1-4b0b-9d1d-01d60d790141` (`5a7708c`), which retained the native-auth overlay. Verified live Production `GET /api/auth/me` returns 200 with a signed-out player and Google/Apple available. Google and Apple `POST /api/auth/native/provider/challenge` both return 200 with challenge data. These checks created only normal short-lived provider challenge records. No new build, Git push, secret change, D1 migration, Worker deployment, or account/profile modification was made during the rollback. The three newer deployments remain available as rollback targets.
 | Production native push capability reported unavailable despite gates being enabled | Pages Production `vars` are environment-scoped and did not inherit root `APNS_ENVIRONMENT=sandbox`; Production override omitted APNs environment/topic. | Explicitly set `APNS_ENVIRONMENT=production` and `APNS_TOPIC=us.opencourts.ios`; later corrected the key placement on the dedicated sender. Owner confirms enablement and a real phone receipt. Website Web Push and Android remain unchanged. |
 
 ## Other follow-ups (not currently confirmed as separate open incidents)

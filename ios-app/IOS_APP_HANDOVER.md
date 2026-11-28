@@ -6,8 +6,11 @@
   `feature/play-together`; Preview deployment
   `e7257af2-c59a-45ab-8b1c-d237e8207686` is Active. Preview D1
   `opencourts-dev` has migrations 0042 and 0043 applied.
-- Production remains separate on `main`: Pages deployment
-  `388d237a-baf1-4b0b-9d1d-01d60d790141`, reminder scheduler Worker
+- Production web assets are static Pages deployment
+  `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2`; API requests use independent Worker
+  version `bf43e899-04ff-4ac0-b9ff-836003957db4` on `opencourts.us/api/*`.
+  See the [deployment architecture handoff](../docs/DEPLOYMENT_ARCHITECTURE.md)
+  for current web/API boundaries. Reminder scheduler Worker
   `cff7613f-0e31-4e55-837b-07c47635f612`, APNs/badge Worker
   `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. Production migrations 0042/0043
   are applied. Reminders fan out through existing eligible Web Push (website
@@ -24,6 +27,9 @@
   diagnosed in Build 8 and a SwiftUI environment-injection fix is in source;
   confirm it on the build in review after release. Do not change APNs/backend
   for any remaining tap crash without new evidence.
+- The owner confirms Apple and Google sign-in work on the Production website
+  and native iOS app after the Apple key formatting correction. This does not
+  change the native app's separate signing, build, or App Store release process.
 - Find Players activity labels are deployed on the website. The feature returns
   coarse status only; existing players have no historical timestamp and gain
   one after authenticated use. A missing status field is not evidence that an
@@ -1979,24 +1985,16 @@ A read-only Production moderation-usage aggregate after the failed send showed O
 
 Pre-binding-fix read-only aggregate of Production `content_moderation_usage` showed 15 OpenAI reservations / 1,965 units and no Workers AI reservations. This aggregate is not attributable to the owner and does not diagnose the latest failure. No rows were edited or deleted.
 
-### Git push and release steps for the next agent
+### Superseded Git/deployment note
 
-The Git remote is `https://github.com/sarmatktk/OpenCourts.git`. `main` is the Cloudflare Pages Production branch; `feature/play-together` is a Preview branch. A Git push does not directly run `wrangler pages deploy` from the local tree: it triggers the configured branch build, so Preview branches must be used for review and Production source should reach `main` only through the repository’s reviewed merge workflow. Backend migrations and scheduled push Workers are separate from a Pages push. Never commit credentials, `.wrangler/`, local databases, build output, or raw logs.
-
-Use this review-first sequence on the intended feature branch (replace the example file paths with the reviewed scope):
-
-```sh
-git status --short --branch
-git diff --check
-git add ios-app/IOS_APP_HANDOVER.md docs/IOS_FEATURE_PARITY_CHECKLIST.md functions/lib/content-moderation.ts
-git diff --cached --check
-git diff --cached --stat
-git diff --cached
-git commit -m "Describe the reviewed change"
-git push -u origin feature/play-together
-```
-
-Before pushing, verify the branch and staged file list, and ensure secrets or unrelated working-tree changes are not staged. Check the resulting Preview deployment and relevant routes. Do not push this current mixed working tree as-is: it contains unrelated in-progress files. Production publication is a separate approved merge/push to `main`; confirm deployment environment and affected routes afterward. For an emergency isolated Pages deployment without a Git push, build a detached candidate from the known Production baseline, overlay only reviewed fixes, use `npm run build:release`, then `npx wrangler pages deploy dist-release --project-name opencourts --branch main --commit-hash <baseline-sha> --commit-message "<short reason>" --commit-dirty=true`. Record the exact deployment ID and what was overlaid. This manual overlay procedure does not change Git and must not be represented as a source commit.
+This older release section is superseded. Production Pages Git deployment is
+disabled, and the website is now static-only. Do not follow the historical
+Git-push or emergency Pages-overlay instructions above. For website, API,
+Preview, Production, and rollback steps, use the single current
+[deployment workflow](../docs/DEPLOYMENT_WORKFLOW.md); for native iOS archive
+and App Store steps, use the current iOS-specific sections of this handover.
+Never stage unrelated work or include website/backend files in an iOS-only
+release.
 
 
 ### Production chat moderation failure traced — November 27, 2026

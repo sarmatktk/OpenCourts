@@ -11,9 +11,12 @@ feature Preview are separate environments. The Production website/API has the
 labels deployed; real reminder delivery still needs natural, platform-specific
 confirmation. The owner reports the current native iOS build is in App Review.
 
-Entries below are dated implementation snapshots. A statement that something is
-local-only, pending rollout, or not implemented describes that historical point
-unless the current handoff confirms it remains open.
+Entries below are dated implementation snapshots. Their old shell commands,
+deployment steps, and statements that something is local-only, pending rollout,
+or not implemented are historical evidence; **do not execute or rely on them as
+current procedures**. The current deployment and migration instructions are
+centralized in [DEPLOYMENT_WORKFLOW.md](DEPLOYMENT_WORKFLOW.md) and
+[DEPLOYMENT_ARCHITECTURE.md](DEPLOYMENT_ARCHITECTURE.md).
 
 ## November 24, 2026 - Capacity reduction Preview update
 
@@ -664,26 +667,32 @@ No billing schema migrations or purchase code are authorized by this documentati
 
 ## 6. Technical architecture
 
+The deployment boundary and current release commands changed after the
+architecture notes below were first written. For present-day environment
+bindings, deployment steps, rollback, and platform separation, use the
+[current deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md). The
+table below describes the current implementation; older planning details later
+in this section remain historical unless explicitly marked current.
+
 ### Existing and verified
 
 | Area | Current repository evidence |
 | --- | --- |
 | Frontend | React 18, TypeScript, Vite; `src/App.tsx`, `src/services.ts`, `src/styles.css`; MapLibre and Lucide |
-| Backend | Pages handlers in `functions/api/`, provider/catalog helpers in `functions/lib/` |
-| D1 | `COURTS_DB`; `tennis_courts` with OSM type/ID, coordinates, tags JSON and coordinate index |
-| Migration | `0001_create_tennis_courts.sql`; `0002_player_auth.sql` applied locally and, with approval, to remote `opencourts-dev` only |
-| Existing API | Courts, court context, geocoding, suggestions, rain, weather and weather alerts |
-| Authentication | Google/Apple OAuth and D1 sessions deployed to Preview; both provider starts and real user logins verified |
+| Backend | Production API Worker `opencourts-api-production` routes `opencourts.us/api/*`; Worker adapter imports shared handlers in `functions/api/` and `functions/lib/` |
+| D1 | Production Worker binds `COURTS_DB` to `opencourts-courts`; Preview Worker uses isolated `opencourts-dev` |
+| Migration | Production Pages is static-only; Preview has a Pages middleware bridge to its separate API Worker; neither frontend release deploys Worker code |
+| Existing API | Courts, court context, geocoding, suggestions, rain, weather, weather alerts, games, players, groups, discussions, media, auth and push routes |
+| Authentication | Owner confirmed Google and Apple sign-in work on Production web and native iOS after correcting the Apple private-key PEM; full Preview callback acceptance remains unconfirmed |
 | Tests | Vitest, real SQLite auth tests, Playwright account tests and light/dark visual baselines |
-| Android | `android-app/` TWA launches `https://opencourts.us/` |
-| iOS | Native project in `ios-app/`; Play Together integration not implemented |
+| Android | `android-app/` TWA launches `https://opencourts.us/`; website assets and signed wrapper releases are separate |
+| iOS | Native project in `ios-app/`; the native app uses the Production API origin and has a separate Xcode/store release |
 
-Production Pages project: `opencourts`, production branch `main`; production
-`COURTS_DB` points to `opencourts-courts` (`56c414b7-aca5-429b-acfa-b9e8e87b052b`).
-Preview branch `feature/play-together` binds `COURTS_DB` to `opencourts-dev`
-(`cae4849c-3e99-4945-9d70-bef7b48707ce`). Verified preview:
-https://6a6270c8.opencourts.pages.dev, alias
-https://feature-play-together.opencourts.pages.dev.
+Production Pages project `opencourts` serves only the static frontend. The
+Production API Worker owns `/api/*`. Preview uses
+`https://feature-play-together.opencourts.pages.dev` and a separate API Worker
+and database. See the deployment handoff for current deployment IDs and
+environment bindings.
 
 Local tooling in `scripts/dev-environment.mjs` forces local migration/seed targets
 and rejects additional CLI flags. SQLite persists under `.wrangler/play-together-local`.

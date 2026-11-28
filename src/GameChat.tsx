@@ -45,7 +45,7 @@ export default function GameChat({gameId,privateGroup=false,groupSeries=false}:{
    {!!state?.unread&&<span className="pt-chat-unread">{state.unread}<span className="sr-only"> unread messages</span></span>}<ArrowUpRight size={20} aria-hidden="true"/>
   </button>
   {open&&<ChatDialog id={dialogId} label={title} onClose={()=>setOpen(false)}>
-   <header className="pt-chat-dialog-header"><MessageCircle size={24} aria-hidden="true"/><div><h2 tabIndex={-1} data-chat-initial-focus>{title}</h2><p>{series?'Shared across this series':'Coordinate with your players'}</p></div>
+   <header className="pt-chat-dialog-header"><MessageCircle className="pt-chat-dialog-icon" size={24} aria-hidden="true"/><div><h2 tabIndex={-1} data-chat-initial-focus>{title}</h2><p>{series?'Shared across this series':'Coordinate with your players'}</p></div>
     {state?.available&&!state.expired&&<button className="pt-chat-push-button" disabled={busy} aria-label={state.muted?'Unmute chat push':'Mute chat push'} aria-pressed={state.muted} title={state.muted?title+' push is muted. Click to unmute.':title+' push is on. Click to mute.'} onClick={async()=>{setBusy(true);try{await post('/mute',{muted:!state.muted});await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{state.muted?<BellOff size={20} aria-hidden="true"/>:<Bell size={20} aria-hidden="true"/>}</button>}
     <button type="button" className="pt-chat-close" aria-label="Close chat" title="Close chat" onClick={()=>setOpen(false)}><X size={22} aria-hidden="true"/></button>
    </header>

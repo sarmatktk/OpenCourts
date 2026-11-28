@@ -1,5 +1,10 @@
 # Phase 3: participation, organizer controls and My Games
 
+> This is a dated feature implementation record. Deployment/migration commands
+> and rollout statuses below are historical. Follow
+> [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for the one current
+> website/API Preview and Production procedure.
+
 ## Current status — November 27, 2026
 
 This document began as the original Phase 3 implementation record. Participation,

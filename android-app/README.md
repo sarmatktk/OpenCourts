@@ -1,14 +1,18 @@
-## Current status - November 20, 2026
+## Current status — November 27, 2026
 
-The production website and push sender are live. The owner confirmed receipt and
-tap for a requested production notification; this does not establish a particular
-Android device/build or new Play-installed bundle acceptance. Version-code-3 Android
-source is prepared but no signed bundle has been uploaded. Use the existing app's
-upload key and Play App Signing identity. See the current testing checklist.
+The website/API are live with separate Cloudflare Pages and API Worker releases.
+This TWA loads the website at `https://opencourts.us`; website changes appear
+after refresh/reopen, while the Android wrapper remains a separately signed
+Google Play release. The owner confirmed receipt and tap for a requested
+production notification, but this does not establish a particular Android
+device/build or new Play-installed bundle acceptance. Version-code-3 Android
+source is prepared but no signed bundle has been uploaded. Use the existing
+app's upload key and Play App Signing identity. See the current testing
+checklist and [deployment architecture](../docs/DEPLOYMENT_ARCHITECTURE.md).
 
 # OpenCourts for Android
 
-This is a separate Android app project. It opens the hosted OpenCourts website as a Trusted Web Activity (TWA), so the existing Cloudflare Pages Functions and D1 catalog continue to work. Internet access and a TWA-capable browser are required. The website can reuse the last searched area's saved public court results for up to 24 hours while updating them. This does not provide full offline maps or weather.
+This is a separate Android app project. It opens the hosted OpenCourts website as a Trusted Web Activity (TWA). Website assets are deployed by Cloudflare Pages and API requests are handled by the separate API Worker; the existing D1 catalog remains behind the API. Internet access and a TWA-capable browser are required. The website can reuse the last searched area's saved public court results for up to 24 hours while updating them. This does not provide full offline maps or weather.
 
 ## Build and test
 

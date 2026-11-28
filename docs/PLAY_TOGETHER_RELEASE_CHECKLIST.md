@@ -2,13 +2,22 @@
 
 ## Current release status — November 27, 2026
 
-- Preview app-source baseline is `3f31ee7`; Active Pages deployment
-  `e7257af2-c59a-45ab-8b1c-d237e8207686`. Preview D1 `opencourts-dev`
-  has migrations 0042/0043 applied.
-- Production remains separate on `main`; current Pages deployment is
-  `388d237a-baf1-4b0b-9d1d-01d60d790141`. Reminder scheduler and APNs/badge
+- Preview tracked app-source baseline is `99f03f6`; stable Pages alias is
+  `https://feature-play-together.opencourts.pages.dev`. Preview D1
+  `opencourts-dev` has migrations 0042/0043 applied.
+- Production is split between static Pages deployment
+  `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2` and API Worker version
+  `bf43e899-04ff-4ac0-b9ff-836003957db4`. Reminder scheduler and APNs/badge
   Workers are `cff7613f-0e31-4e55-837b-07c47635f612` and
   `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`.
+- November 27 website copy/layout polish is live. The release artifact used the
+  current reviewed UI in a static-only artifact. No API Worker deployment or
+  D1 migration was part of the frontend release. Home, Play Together, Players,
+  My Games, Notifications, Privacy, Terms and Delete Account returned HTTP 200.
+- Owner confirmed Apple and Google sign-in work on the Production website and
+  native iOS app after the Apple private-key PEM correction. The server-side
+  Apple flow start also returned HTTP 200 in Preview; a complete Preview
+  provider callback has not been separately owner-confirmed.
 - Reminder inbox and player activity server/web behavior is deployed. The
   owner reports the latest native iOS build is in App Review; exact build number
   is not recorded. Do not mark native acceptance complete until the released
@@ -17,6 +26,10 @@
   linked [Production issue handover](PRODUCTION_ISSUE_HANDOVER.md) for current
   deployment status; historical “pending” notes are not current unless
   reaffirmed here.
+
+Do not execute deployment or migration commands found in older checklist
+entries. The single current Preview/Production procedure is
+[DEPLOYMENT_WORKFLOW.md](DEPLOYMENT_WORKFLOW.md).
 
 ---
 

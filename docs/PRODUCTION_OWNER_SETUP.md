@@ -1,3 +1,12 @@
+# Production owner setup archive
+
+This file retains setup and release evidence from November 2026. Its dated
+Cloudflare build settings describe the system at that time. For current frontend
+and API environments, deployment commands, and rollback, use the
+[deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md) and
+[deployment workflow](DEPLOYMENT_WORKFLOW.md). Do not use historical commands
+below as the current Production release procedure.
+
 ## Git deployment synchronized - November 20, 2026
 
 Current production **c1e970ce** and feature Preview **115472aa** were built by

@@ -18,3 +18,12 @@ export function StoreBadge({ store }: { store: Store }) {
     <span className="store-badge-copy"><small>{apple ? 'Download on the' : 'GET IT ON'}</small><strong>{apple ? 'App Store' : 'Google Play'}</strong></span>
   </a>;
 }
+
+export function PlatformStoreBadge() {
+  const ua = navigator.userAgent;
+  const apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  const runningAndroidApp = android && document.referrer.startsWith('android-app://');
+  if (runningAndroidApp || (!apple && !android)) return null;
+  return <StoreBadge store={apple ? 'apple' : 'google'} />;
+}

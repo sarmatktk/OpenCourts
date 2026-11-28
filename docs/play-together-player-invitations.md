@@ -1,5 +1,10 @@
 # Player discovery and direct public-game invitations
 
+> This is feature behavior documentation. Any old migration or deployment
+> commands below are historical and are not current procedures. Use
+> [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for the one current
+> website/API Preview and Production release process.
+
 Approved November 18, 2026: discovered players may receive an in-app invitation to a
 public game organized by the sender. Accepting submits a normal approval request;
 an invitation does not reserve a place. First release remains free.

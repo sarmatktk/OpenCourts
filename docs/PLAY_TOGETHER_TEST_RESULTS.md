@@ -1,3 +1,8 @@
+> **Historical test and release evidence.** Status statements and commands below
+> describe their dated checkpoint and are not current deployment instructions.
+> Follow [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for the one current
+> website/API Preview and Production procedure.
+
 ## Player location pin - November 21, 2026
 
 Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.

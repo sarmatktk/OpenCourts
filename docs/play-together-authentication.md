@@ -1,5 +1,13 @@
 # Phase 1: Google and Apple authentication
 
+> **Historical feature record.** The Preview-only status below is from the
+> original implementation period and is superseded: the owner confirmed Google
+> and Apple sign-in work on the Production website and native iOS app. Preview's
+> full provider callback was not separately confirmed. Follow
+> [`DEPLOYMENT_ARCHITECTURE.md`](DEPLOYMENT_ARCHITECTURE.md) and
+> [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for current deployment
+> instructions; keep the dated implementation and test evidence below as history.
+
 Approved scope: Google and Apple only; no passwords, email login or payments.
 Implementation is deployed to the isolated development preview. Provider configuration
 and start endpoints are verified; both actual Google and Apple logins are user-confirmed.

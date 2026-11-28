@@ -2,20 +2,27 @@
 
 ## Current handoff status — November 27, 2026
 
+For current web/API environment boundaries and release instructions, use the
+single [deployment workflow](DEPLOYMENT_WORKFLOW.md) and read the repository
+[`AGENTS.md`](../AGENTS.md). Deployment steps in historical entries below are
+superseded.
+
 The native iOS app is live in the App Store. The owner reports that a newer
 build is currently in App Review; its build number was not provided. The
 current iOS app-source baseline on `feature/play-together` is `3f31ee7`.
-Preview is Active at
-`https://feature-play-together.opencourts.pages.dev` (deployment
-`e7257af2-c59a-45ab-8b1c-d237e8207686`). Production remains on `main` and was
-not changed by the feature-branch push.
+The stable Preview site is
+`https://feature-play-together.opencourts.pages.dev`. Production website assets
+are static Pages deployment `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2`; API traffic
+uses Worker version `bf43e899-04ff-4ac0-b9ff-836003957db4`. Do not interpret
+historical feature-branch deployment notes below as describing current
+Production.
 
-Production website/API deployment `388d237a-baf1-4b0b-9d1d-01d60d790141`
-includes reminder inbox and player-activity behavior. Production reminder and
+Production includes reminder inbox and player-activity behavior. Production reminder and
 APNs/badge Workers are `cff7613f-0e31-4e55-837b-07c47635f612` and
 `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`; migrations 0042/0043 are applied in
-Production and Preview. The owner confirmed APNs receipt and reports the
-previous chat/app issues are working. A tap-to-chat crash was diagnosed in
+Production and Preview. The owner confirmed Google and Apple sign-in work on
+the Production website and native iOS app. The owner also confirmed APNs receipt
+and reports the previous chat/app issues are working. A tap-to-chat crash was diagnosed in
 App Store Build 8 and an environment-injection fix is in the current source;
 device confirmation on the new build remains pending. Real 24-hour/3-hour
 reminder receipt and native activity-label rendering also remain release/device

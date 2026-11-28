@@ -40,11 +40,15 @@ Project supplied by the user: `opencourts` at https://opencourts.pages.dev.
 The user reports `GEOAPIFY_API_KEY` and `WEATHERAPI_KEY` are already configured
 there. Their values have not been inspected. They remain server-side secrets.
 
-For durable shared outage fallback, create a Workers KV namespace and bind it to
-the Pages **Production** environment as **`INTERNATIONAL_COURTS_CACHE`**. Bind a
-separate preview namespace if preview deployments should be isolated. This is a
-KV namespace binding, not a text environment variable. Keep existing `COURTS_DB`
-and US settings intact. Redeploy the updated Pages Functions after adding it.
+For durable shared outage fallback, create a Workers KV namespace and bind it
+to `INTERNATIONAL_COURTS_CACHE` on the API Worker environment in
+`backend/wrangler.jsonc`. Configure a separate Preview namespace to keep cache
+data isolated. This is a KV namespace binding, not a text environment variable.
+Keep each environment's existing `COURTS_DB` and US settings intact. Deploy
+this binding with the API Worker, following the
+[backend release procedure](DEPLOYMENT_ARCHITECTURE.md#api-backend-change).
+Adding it to Pages alone will not affect Production API requests because the
+Production Pages artifact is static-only and `/api/*` is routed to the Worker.
 
 Official binding instructions:
 https://developers.cloudflare.com/pages/functions/bindings/#kv-namespaces

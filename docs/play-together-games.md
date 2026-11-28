@@ -1,5 +1,10 @@
 # Phase 2: public games (deployed to development Preview)
 
+> This is a dated feature implementation record. The rollout examples below
+> document completed historical work and are not current commands to repeat.
+> Follow [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for all current
+> website/API Preview and Production releases.
+
 The user authorized Phase 2 on November 17, 2026 ("continue with phase 22",
 interpreted in context as Phase 2). This phase covers public discovery, creation
 and details only. Joining/leaving, organizer editing/cancellation, My Games,

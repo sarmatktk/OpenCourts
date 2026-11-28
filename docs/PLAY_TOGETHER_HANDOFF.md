@@ -2,14 +2,15 @@
 
 ## Current handoff status — November 27, 2026
 
-The current app-source baseline on Git branch `feature/play-together` is
-`3f31ee7`. Its current Active Pages deployment is
-`e7257af2-c59a-45ab-8b1c-d237e8207686`
-at `https://feature-play-together.opencourts.pages.dev`. Preview D1 is the
-isolated `opencourts-dev`; migrations 0042 and 0043 are applied there. The push
-updated Preview only. Production remains on `main`, with Pages deployment
-`388d237a-baf1-4b0b-9d1d-01d60d790141` and separate Production databases and
-Workers.
+The current tracked source baseline on Git branch `feature/play-together` is
+`99f03f6`; the stable Pages Preview alias is
+`https://feature-play-together.opencourts.pages.dev`. Preview D1 is the isolated
+`opencourts-dev`; migrations 0042 and 0043 are applied there. Production is
+split between static Pages deployment
+`7c50b3e0-8925-4a09-8c19-13ce8cbf09b2` and API Worker version
+`bf43e899-04ff-4ac0-b9ff-836003957db4`. See the current
+[deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md) before deploying
+either environment.
 
 The Production website and shared Play Together API include the 24-hour/3-hour
 game reminder inbox records and coarse player activity labels. Reminder
@@ -30,6 +31,213 @@ Older entries below are chronological records, not live deployment status.
 Statements there that work is local-only, migrations are pending, Preview is
 unchanged, or the native app does not exist describe earlier checkpoints and
 are superseded by this section.
+
+## Website UI polish released to Production — November 27, 2026
+
+Static Pages deployment `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2` is live at
+`https://opencourts.us`; API traffic is served by the separately deployed
+Production Worker. This frontend release publishes the reviewed website copy
+and layout updates, including consistent slogans, compact phone search filters,
+player metadata and notification/game presentation. Its artifact contains
+static assets only. No API Worker deployment or database migration was part of
+the frontend publication. See the architecture handoff for the API version and
+the independently managed rollback process.
+
+## Copy and player discovery polish — November 27, 2026
+
+Standardized site marketing slogans on the exact line “Find courts, Find
+players. Play more.” across the regular-site and Play Together footers and
+information pages; the About page uses it as its headline. Replaced competing
+sign-in and Play Together hero slogans with direct task descriptions.
+
+Player discovery metadata now gives general locations a distinct color and
+uses separate color-coded activity chips for recency. The “Invite to game”
+control has reduced vertical padding across desktop and phone breakpoints.
+The Play Together footer now separates the store badge from its navigation and
+centers it on narrow screens. Moderator views use restrained color cues and
+clearer workspace grouping; moderator gating and action behavior are unchanged.
+
+`npm run build:dev` passed. The stable Preview URL returned HTTP 200 after
+deployment `454e839f`; Production was not changed.
+
+Notification dark-mode refinement: the game/group destination mark uses the
+bright accent in dark mode, unread items have a distinct high-contrast badge,
+and the “Mark as read” action uses less vertical space and no longer stretches
+across the full card. `npm run build:dev` passed; Preview deployment
+`60b43a7f` is active at the stable Preview URL. Production was not changed.
+
+My Games consistency pass: game-status labels use the Feed's color-coded
+status chips and court locations use the same map-pin row treatment. Removed
+the duplicate “Open notifications” header link because the global notification
+bell already opens the inbox. Build passed and Preview deployment `89a8492e`
+is active; Production was not changed.
+
+Notification card layout follow-up: moved the timestamp into the title area
+using a compact month/day/time format and right-aligned the “Mark as read”
+action. Build passed; Preview deployment `c23decee` was active before the
+inbox-link follow-up. Production was not changed.
+
+Inbox navigation cleanup: removed the redundant “My Games” link from the
+inbox heading; the floating navigation remains the My Games entry point.
+`npm run build:dev` passed. Preview deployment `92677861` is active at the
+stable Preview URL. Production was not changed.
+
+Phone-only Players search refinement: tightened the search panel's padding,
+field spacing and control height. This first pass was superseded after review.
+
+Phone search layout correction: Players now follows the iOS grouped name and
+location fields, with the skill selector opened from a sliders control. Find
+games uses a single compact location row and the same sliders control to show
+its existing date, distance, format and skill filters. The refinements apply
+only on phones; desktop layouts remain visible and unchanged. Build passed and
+Preview deployment `db7efcf7` is active. Production was not changed.
+
+Phone filter refinement: the Find games Distance select now keeps its chosen
+range on one line, ellipsizing only when a narrow viewport cannot fit it. Build
+passed; Preview deployment `b71de822` is active. Production was not changed.
+
+Players privacy label: shortened the undisclosed-location text in discovery
+results from “Location not shared” to “Location private.” Build passed;
+Preview deployment `29510ea0` is active. Production was not changed.
+
+Removed a duplicate location privacy hint from the shared autocomplete field.
+Build passed; Preview deployment `9bfe19fe` is active. Production was not
+changed.
+
+## Mobile store prompt, game cards, and chat visual updates — November 27, 2026
+
+Mobile page copy: hide redundant descriptive text beneath the headings on the
+Feed, My Games, Players, Groups and Find games screens. Keep page titles,
+section headings, controls, form labels and useful card or status text visible.
+Desktop descriptions remain unchanged. Verified a successful Preview build
+and HTTP 200 from the stable Preview URL; deployment
+`d2cbb73b-abbb-49aa-b4a8-b2ede68213ba` is active on `feature/play-together`.
+Production was not changed.
+
+Compact dry-court cards on phone screens by tightening card padding and
+vertical spacing, slightly reducing the best-option score ring, and making
+rain tiles, tags and radar notes more compact. All data and actions remain
+visible. Preview build passed and the stable Preview URL returned HTTP 200;
+Production was not changed.
+
+Regular-site courts intro: shortened the phone-visible description to “Check
+recent rain and the 7-day forecast before you play.” This removes repeated
+nearby/location phrasing while keeping the weather benefit clear. Preview
+build passed and deployment `d2cbb73b-abbb-49aa-b4a8-b2ede68213ba` is active;
+the stable Preview URL returned HTTP 200. Production was not changed.
+
+Court detail sheet: tightened the phone layout for the address, feature chips,
+radar summary and action area, while preserving the score, readings, caveat and
+source link. Preview build passed and deployment
+`d2cbb73b-abbb-49aa-b4a8-b2ede68213ba` is active; Production was not changed.
+
+Map legend search-center symbol: changed the website legend from the large
+teardrop marker to a compact orange pin-in-circle matching iOS's
+`mappin.circle.fill` legend symbol. The actual map search-center marker remains
+unchanged. Preview build passed and deployment
+`d2cbb73b-abbb-49aa-b4a8-b2ede68213ba` is active; Production was not changed.
+
+Phone layout refinement: reduced the vertical space in the green current-weather
+summary while retaining its temperature, conditions, and weather metrics. The
+sign-in screen now removes repeated mobile intro copy, uses a direct account
+entry heading, and tightens provider-button spacing; its age confirmation and
+terms/privacy text remain visible. The supporting marketing panel is hidden on
+phones and remains available at larger widths. Preview build passed, and the
+stable Preview URL returned HTTP 200. Deployment
+`ae98e8be-c41f-4cae-9a41-d9fecff9681d` is active; Production was not changed.
+
+Follow-up phone cleanup: further reduced the current-weather card's vertical
+space after reviewing the phone screenshot. The signed-in profile page removes
+its duplicate intro on phones, tightens card/form/photo spacing, and shortens
+overlapping photo-privacy instructions without removing sharing rules. The
+account deletion controls now use a compact red destructive style, with a
+dark-mode variant. Preview build passed; the stable Preview URL returned HTTP
+200. Deployment `f00bb35b-6464-43d2-8abf-5831e69ff73a` is active; Production
+was not changed.
+
+Desktop spacing refinement: reduced the shared top offset on Play Together
+pages, including the back-link area, so page content starts closer to the
+navigation. Mobile spacing and the regular Courts page are unchanged. Preview
+build passed and the stable Preview URL returned HTTP 200. Deployment
+`3ab175d1-cb91-45d8-864e-e96a47852cbf` is active; Production was not changed.
+
+Find games empty state: removed the redundant calendar icon and replaced the
+long instruction with “Try another date or location.” Tightened the panel's
+vertical padding and heading/copy spacing while keeping the create-game action
+prominent. Preview build passed and the stable Preview URL returned HTTP 200.
+Deployment `0ac0d1da-352e-403d-94b3-b8e28e6b9236` was active at that
+checkpoint; Production was not changed.
+
+Find games desktop results header: removed the separate “My Games” shortcut
+because the global navigation already provides it, and replaced the repeated
+“UPCOMING PUBLIC GAMES” kicker plus “Games near you” title with one heading,
+“Upcoming public games.” Kept the selected location context. Preview build
+passed and deployment `20c6fc1e` is active; Production was not changed.
+
+Mounted the existing website `InstallPrompt` on Play Together routes as well as
+the regular courts site. On supported mobile browsers it uses the existing
+device detection and store badge: iPhone/iPad links to the App Store, Android
+links to Google Play. Existing install detection, 45-second eligibility,
+session suppression and 14-day dismissal cooldown are shared. This is a website
+source change only; no store links, app binaries, backend, or secrets were
+changed.
+
+Also added the same persistent platform-specific store badge to the Play
+Together footer. Store-badge platform detection is now shared with the regular
+site footer; Android TWA and non-mobile browsers continue to omit that badge.
+
+Updated Play Together Feed game cards to render status and host labels as
+color-coded capsules matching the native iOS palette: active/organizing green,
+approval blue, cancellation red, and distinct player-host/group-host colors.
+Light and dark appearances are covered by CSS. No backend or data changes were
+made. The Preview build passed; hosted visual review remains pending.
+
+Follow-up card parity: host chips now include the authorized host avatar, using
+the existing game-scoped player-photo endpoint and the feed's authenticated
+organizer ID. The attendance row loads up to three participant names/photos
+only for organizers and visible group members, matching the existing server
+permissions and native fallback to a generic people icon. No participant API
+or privacy rules were changed. The Preview build passed; hosted visual review
+remains pending.
+
+Chat visual pass: the Series/Game chat launcher, unread indicator, dialog
+header, discussion heading and empty-state message icon now use a shared
+lime/forest accent. Light mode uses a soft lime-mint tile with a dark green
+symbol; dark mode uses a deeper green tile with a legible lime symbol. Unread
+chat receives a stronger green fill and lime count/dot. This is
+CSS/presentation-only; chat behavior and message data are unchanged. The Preview
+build completed with `npm run build:dev`, and deployment
+`166cf02e-f6ab-4e08-ac37-2484abba8f8d` was initially published to branch
+`feature/play-together`. Follow-up game-detail styling adds green-tinted
+secondary actions and a lime accent for Directions, with separate light/dark
+colors and hover states across standalone and group game views. That Preview
+build passed with `npm run build:dev` and deployment
+`169bcf04-0b53-4667-b53e-be18daaec6d1`; it was subsequently superseded by the
+inbox styling deployment recorded below. Production was not deployed or
+changed. Hosted visual review of these button treatments remains pending.
+
+Inbox button review: the Active/Unread/History filter now has a stronger filled
+selected state, inactive filters use a subtle green tint, and notification game
+or group destinations use an accented surface with theme-aware icon colors. The
+My Games shortcut has matching emphasis; read/status badges retain their quiet
+status treatment. Light and dark palettes are explicit. The Preview build
+passed and the updated site was deployed as
+`8285ed08-7c0c-4c7d-87db-cdc6b36fe96d` on `feature/play-together`; the stable URL
+returned HTTP 200. Production was not changed. Hosted visual review remains
+pending.
+
+Site-wide action styling: introduced shared primary/secondary button tokens for
+the regular courts site and Play Together. Primary actions use forest green with
+white text in light mode and lime with dark text in dark mode; secondary actions
+use a coordinated, lower-emphasis surface. Shared hover, focus, disabled and
+44-pixel minimum-height behavior covers core actions such as search, directions,
+support, install prompts and Play Together controls. Create game/group links
+now use the same primary class, including the no-results Create a game action,
+group navigation and feed group CTA. Utility/icon controls retain their own
+compact shapes. No backend, database, secret or production changes. Preview
+build passed; deployment `a7232ead-8c0e-4318-9726-23b9b95bd5ae` is active on
+`feature/play-together` and the stable URL returned HTTP 200. Light/dark hosted
+visual review remains pending.
 
 ## Player location pin - November 21, 2026
 

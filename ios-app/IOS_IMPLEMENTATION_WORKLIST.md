@@ -1,5 +1,12 @@
 # iOS implementation worklist
 
+> **Chronological native implementation worklist, not a deployment procedure.**
+> Deployment and Production statements below describe their dated work items.
+> For current website/API architecture and releases, follow the repository
+> [`AGENTS.md`](../AGENTS.md) and
+> [`DEPLOYMENT_WORKFLOW.md`](../docs/DEPLOYMENT_WORKFLOW.md). For current
+> native build/store state, use [`IOS_APP_HANDOVER.md`](IOS_APP_HANDOVER.md).
+
 ## Game capacity, waitlist and guest rules — November 23, 2026
 
 Owner clarified participation and guest rules. Standalone public/unlisted games: capacity increases leave pending join requests pending until the host individually approves players. If capacity is reduced below attendance, the latest confirmed player(s) are moved to pending host approval and notified; a later increase still requires individual host approval. Group games: capacity decreases move the latest confirmed player(s) to the back of the group waitlist. If that frees places, earlier existing waitlist requests fill them first in request-time order; eligible active members auto-confirm without a toggle, but pending game-join requests are excluded. Newly displaced members are notified and receive another notice if later confirmed. Reserved offers remain protected. In group games, only the group Owner, Co-owners, and Organizers can add their own guests without approval when space is available; any of those roles can approve or reject other members' guest requests. For standalone games, only the game host can directly add guests or approve/reject guest requests. A full-capacity failure adds no guests; approval requests remain pending. Guest-decision permission does not grant broader game edit/cancel/remove authority.

@@ -1,4 +1,13 @@
-# iOS handoff: international courts, weather, and dry-court estimates
+# Historical iOS handoff: international courts, weather, and dry-court estimates
+
+> **Historical feature handoff; deployment statements below are not current.**
+> It predates the separate API Workers and contains old rollout/auth status.
+> For current website/API/native release boundaries and agent instructions, see
+> [`../AGENTS.md`](../AGENTS.md) and
+> [`../docs/DEPLOYMENT_ARCHITECTURE.md`](../docs/DEPLOYMENT_ARCHITECTURE.md).
+> Use [`IOS_APP_HANDOVER.md`](IOS_APP_HANDOVER.md) for the current native app
+> status and release notes. The feature and provider notes below are retained
+> as historical implementation context; verify source and current status first.
 
 Current native upgrade status (November 21, 2026): see
 [IOS_UPGRADE_HANDOVER.md](../docs/IOS_UPGRADE_HANDOVER.md) for the repository assessment,
@@ -99,13 +108,13 @@ The requested iOS work is to bring the international experience into line with t
 
 This README is a handoff, not a claim that the Swift implementation is complete. No Swift files were changed during the web work. Inspect the current checkout before editing; a newer Mac checkout may contain additional changes.
 
-## Important deployment distinction
+## Historical deployment note — superseded
 
-The Swift API client currently uses `https://opencourts.us`. The web/backend changes described here were implemented and tested locally on Windows, **not deployed during this work**. Pulling Git changes onto Mac does not update that hosted API.
+The Swift API client uses `https://opencourts.us`. The statement that the web/backend changes described here were not deployed was accurate only at the time this note was written and is superseded by the current deployment handoff.
 
-Before testing iOS, verify which backend version the app is calling. Use the updated local backend through a development-only base URL, or coordinate deployment of the updated Pages Functions. Preserve the production base URL for release builds. Never bundle provider API keys into the iOS app.
+For new iOS/API work, follow the current environment and release instructions in `../docs/DEPLOYMENT_ARCHITECTURE.md`. Preserve the production API base URL for release builds. Never bundle provider API keys into the iOS app.
 
-The files must be committed and pushed from the Windows checkout before they can arrive through `git pull` on Mac. This handoff does not imply that commit, push, or deployment has happened.
+The commit/push status described in the original handoff is historical and does not describe the current repository state.
 
 ## What changed on the web/backend
 

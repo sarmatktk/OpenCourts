@@ -1,5 +1,11 @@
 # Phase 4: public/private groups
 
+> This is a feature history. Older rollout commands and “pending” statements
+> below describe past checkpoints and must not be run as current instructions.
+> Use [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for the one current
+> website/API Preview and Production procedure, and the current handoff below
+> for feature status.
+
 ## Current implementation and rollout — November 27, 2026
 
 Use the [current Play Together handoff](PLAY_TOGETHER_HANDOFF.md) for active

@@ -10,6 +10,10 @@ current deployment state and unresolved cross-platform acceptance, see the
 statements below describe their dated checkpoint unless reaffirmed by those
 current summaries.
 
+Deployment commands and release details in the dated evidence are historical,
+not instructions to execute. Use only the current
+[deployment workflow](DEPLOYMENT_WORKFLOW.md) for Preview/Production changes.
+
 ## Player location pin - November 21, 2026
 
 Added the existing MapPin icon before player location metadata, with compact spacing and theme-inherited color. Decorative icon is hidden from screen readers. Production build passed after rerunning outside the sandbox to allow esbuild; initial sandbox build could not start its process. No backend, database or secret changes.

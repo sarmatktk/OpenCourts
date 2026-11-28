@@ -1,3 +1,9 @@
+> **Current notification behavior and historical release record.** Any older
+> environment setup or deployment steps in this file are historical, not the
+> general website/API release procedure. Follow
+> [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) for current Preview and
+> Production releases, and validate sender-specific config separately.
+
 ## Production game reminders deployed — November 27, 2026
 
 The isolated production push Worker `opencourts-push-production` now runs

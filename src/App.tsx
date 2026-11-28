@@ -20,7 +20,7 @@ import CourtListItem from './CourtListItem';
 import WeatherOverview from './WeatherOverview';
 import DryCourtCard from './DryCourtCard';
 import CourtDetailSheet from './CourtDetailSheet';
-import { StoreBadge } from './StoreBadge';
+import { PlatformStoreBadge } from './StoreBadge';
 
 const INITIAL: Place = { label: 'Fairfax, Virginia', lat: 38.8462, lon: -77.3064 };
 const PARK_PRESETS: Record<string, Place> = {
@@ -41,13 +41,7 @@ const PARK_PRESETS: Record<string, Place> = {
   'morningside-miami': { label: 'Morningside Park, Miami, Florida', lat: 25.82429683, lon: -80.18000893 },
 };
 function GetAppLink() {
-  const ua = navigator.userAgent;
-  const apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const android = /Android/.test(ua);
-  // Android Trusted Web Activity launches expose an android-app:// referrer.
-  const runningAndroidApp = android && document.referrer.startsWith('android-app://');
-  if (runningAndroidApp || (!apple && !android)) return null;
-  return <StoreBadge store={apple ? 'apple' : 'google'} />;
+  return <PlatformStoreBadge/>;
 }
 function courtBallImage(highlight: string, shade: string, seam: string): ImageData {
   const canvas = document.createElement('canvas');
@@ -77,6 +71,7 @@ const BALL_COLORS = {
   unknown: ['#fff', '#e7ece5', '#9da8a1'],
 } as const;
 const SEARCH_CENTER_PIN = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 50"><path d="M20 2C10.1 2 2 10.1 2 20c0 13.4 18 28 18 28s18-14.6 18-28C38 10.1 29.9 2 20 2Z" fill="#ef8b2c" stroke="white" stroke-width="2.5"/><circle cx="20" cy="20" r="7.5" fill="white"/></svg>');
+const SEARCH_CENTER_LEGEND = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#ef8b2c"/><path d="M10 3.6c-2.15 0-3.9 1.75-3.9 3.9 0 2.75 3.9 8.9 3.9 8.9s3.9-6.15 3.9-8.9c0-2.15-1.75-3.9-3.9-3.9Zm0 5.35a1.45 1.45 0 1 1 0-2.9 1.45 1.45 0 0 1 0 2.9Z" fill="white"/></svg>');
 function ballImageUrl(colors: readonly [string, string, string]): string {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 48;
@@ -543,7 +538,7 @@ function App() {
 
     </nav>
     <main id="top" className={needsSearch?'court-start':undefined}>
-      <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Compare nearby courts, check recent rain, and plan your next match around the seven-day forecast.</p>
+      <section className="intro"><h1>Find public tennis courts near you.</h1><p className="intro-copy">Check recent rain and the 7-day forecast before you play.</p>
         <div className="search-wrap" id="search" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSuggestionsOpen(false); }}>
           <form className="searchbox" onSubmit={submitSearch}><MapPin size={20} className="search-pin"/><input role="combobox" aria-haspopup="listbox" aria-label="Search by address, city, or ZIP code" aria-autocomplete="list" aria-controls="place-suggestions" aria-expanded={suggestionsOpen && query.trim().length >= 3} aria-activedescendant={activeSuggestion >= 0 ? `place-suggestion-${activeSuggestion}` : undefined} type="search" enterKeyHint="search" placeholder="Address, city, or ZIP code" value={query} onFocus={() => { if (query.trim().length >= 3) setSuggestionsOpen(true); }} onKeyDown={handleSearchKeyDown} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); setActiveSuggestion(-1); }}/><button type="button" className="search-locate" aria-label="Use my location" onClick={locate}><Crosshair size={18}/></button><button type="submit" className="search-submit" disabled={placeLookupLoading}><span>{placeLookupLoading || loading ? 'Searching…' : 'Find courts'}</span>{(placeLookupLoading || loading) && <LoaderCircle size={16} className="search-spinner" aria-hidden="true"/>}</button></form>
           {suggestionsOpen && query.trim().length >= 3 && <div className="place-suggestions" id="place-suggestions" role="listbox" aria-label="Address suggestions">
@@ -577,7 +572,7 @@ function App() {
           {!loading && <div className="data-note"><span className="note-line"/><p>Court details come from OpenStreetMap and may change. Please confirm access and amenities locally.</p></div>}
         </div>
         <div className="map-panel">{!needsSearch&&!locating&&!locationNotice&&(loading||courts.length===0)&&<div className="map-search-state" role="status"><strong>{loading?'Finding nearby courts...':error?'Court results are unavailable':'No courts found in this area'}</strong><p>{loading?'You can search another city or ZIP code while we look.':error||'Try a nearby city or use your location.'}</p><button className="text-action" onClick={()=>focusSearch()}>Search another area</button></div>}<div className="map-canvas" ref={mapEl} aria-label="Interactive map showing public tennis courts" role="application"/>{mapError && <div className="map-error" role="status"><Compass size={22}/><strong>Map unavailable</strong><span>{mapError}</span><button onClick={() => window.location.reload()}>Reload map</button></div>}<div className="map-label">COURT MAP</div><div className="map-alert-stack">{(locating||locationNotice)&&<div className="map-location-notice" role={locationNotice?'alert':'status'}><span>{locating?'Finding courts near your location...':locationNotice}</span>{locationNotice&&<div><button type="button" onClick={locate}>Try location again</button><button type="button" onClick={()=>{setLocationNotice('');focusSearch();}}>Search instead</button><button type="button" aria-label="Dismiss location message" onClick={()=>setLocationNotice('')}>Dismiss</button></div>}</div>}{areaRainAlert && <div className="map-weather-alert" role="status"><CloudRain size={14} aria-hidden="true"/><span>Recent rain nearby. Check court conditions.</span></div>}{alertsForDisplay.slice(0, 2).map(alert => <div className={`map-heat-alert heat-alert-${weatherAlertTone(alert)}`} role="status" key={alert.id}><strong><WeatherAlertIcon alert={alert} size={13}/>{alert.event}</strong>{alert.headline}</div>)}{showWinterForecastAlert && <div className={`map-winter-alert winter-risk-${showWinterForecastAlert}`} role="status">{showWinterForecastAlert === 'ice' ? <ThermometerSnowflake size={14} aria-hidden="true"/> : <Snowflake size={14} aria-hidden="true"/>}{winterMapMessage}</div>}{courtHeatCaution && !activeHeatAlert && <div className={`map-heat-alert ${courtHeatCaution.high ? "heat-alert-warning" : "heat-alert-advisory"}`} role="status"><strong><ThermometerSun size={13} aria-hidden="true"/>{courtHeatCaution.label}</strong></div>}</div><button className="map-locate" onClick={locate} title="Use my location"><LocateFixed size={18}/><span>Near me</span></button>
-          <div className="map-legend" aria-label="Map legend"><span className="legend-item"><img className="legend-ball-image" src={legendBalls.lit} alt=""/>Lighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unlit} alt=""/>Unlighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unknown} alt=""/>Unknown</span><span className="legend-item"><img className="legend-search-pin" src={SEARCH_CENTER_PIN} alt=""/>Search center</span><span className="legend-label">{internationalPlace ? 'Area forecast estimate' : 'Radar quality'}</span><span className="legend-item"><span className="legend-quality high"/>High</span><span className="legend-item"><span className="legend-quality moderate"/>Moderate</span><span className="legend-item"><span className="legend-quality low"/>Low</span></div>
+          <div className="map-legend" aria-label="Map legend"><span className="legend-item"><img className="legend-ball-image" src={legendBalls.lit} alt=""/>Lighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unlit} alt=""/>Unlighted</span><span className="legend-item"><img className="legend-ball-image" src={legendBalls.unknown} alt=""/>Unknown</span><span className="legend-item"><img className="legend-search-pin" src={SEARCH_CENTER_LEGEND} alt=""/>Search center</span><span className="legend-label">{internationalPlace ? 'Area forecast estimate' : 'Radar quality'}</span><span className="legend-item"><span className="legend-quality high"/>High</span><span className="legend-item"><span className="legend-quality moderate"/>Moderate</span><span className="legend-item"><span className="legend-quality low"/>Low</span></div>
           <button className="mobile-list-toggle" onClick={() => setMobileList(!mobileList)}>{mobileList ? <><ArrowDown size={16}/> Show map</> : <><ArrowLeft size={16}/> View {filtered.length} courts</>}</button>
           {selected && <CourtDetailSheet international={internationalPlace} court={selected} distance={distanceMiles(selected, place)} rain={selectedRain} rainLoading={selectedRainLoading || rainLoading || (internationalPlace && weatherLoading)} rainError={selectedRainError || rainError} caution={courtWinterLabel || courtHeatCaution?.label} nearbyRain={areaRainAlert && rainCandidateIds.has(selected.id) && Boolean(selectedRain && selectedRain.score > 80)} onClose={() => setSelected(null)} onDirections={() => directions(selected)}/>}
         </div>
@@ -610,7 +605,7 @@ function App() {
     </main>
     <InstallPrompt courtOpen={Boolean(selected)} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
     <ReviewPrompt courtId={selected?.id} busy={Boolean(selected) || loading || placeLookupLoading || suggestionsOpen || filtersOpen || menuOpen}/>
-    <footer><SiteBrand footer href="#top"/><span>Find Your Court. Play Your Game.</span><GetAppLink/><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data & attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
+    <footer><SiteBrand footer href="#top"/><span>Find courts, Find players. Play more.</span><GetAppLink/><div><a href="/support">Support</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Data &amp; attribution</a><a href="/contact">Contact</a></div><span className="copyright">© 2026 OpenCourts</span></footer>
   </div>;
 }
 export default App;

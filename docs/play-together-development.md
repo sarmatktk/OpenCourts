@@ -1,6 +1,14 @@
-# Play Together development environment
+# Historical Play Together environment setup
 
-Current handover: see PLAY_TOGETHER_HANDOFF.md. Preview a9127653 and remote dev migrations0001-0010 are deployed. Older setup/provider/data counts below are historical. Approved Owner/Co-owner/Organizer/Member roles are design-only; current schema remains Owner/legacy Admin/Member. Do not infer role implementation or pending migrations from the new plan.
+> **Historical setup record; do not use as the current deployment SOP.** This
+> guide predates the separate Production/Preview API Workers and contains old
+> environment status, deployment settings, and auth acceptance. For current
+> architecture and agent instructions, read [`../AGENTS.md`](../AGENTS.md),
+> [`DEPLOYMENT_ARCHITECTURE.md`](DEPLOYMENT_ARCHITECTURE.md), and
+> [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md). Keep the dated setup and
+> migration evidence below for history; verify current values in the handoff.
+
+This file retains the original setup and development history.
 
 Product rules, roadmap and progress are maintained in
 [the central Play Together reference](PLAY_TOGETHER.md). Review it before feature work.

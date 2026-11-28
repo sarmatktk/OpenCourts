@@ -1,3 +1,12 @@
+# Production launch readiness archive
+
+This file preserves dated launch checks and historical deployment notes. Some
+statuses and deployment instructions below have since changed. For the current
+frontend/API boundary and release procedure, use the
+[deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md),
+[deployment workflow](DEPLOYMENT_WORKFLOW.md), and
+[Production issue handover](PRODUCTION_ISSUE_HANDOVER.md).
+
 ## Production notification receipt/tap confirmed and test removed - November 20, 2026
 
 Owner replied done after being asked to verify the requested notification arrived

@@ -1,5 +1,13 @@
 # iPhone sandbox push rollout
 
+> **Specialized, historical APNs sandbox runbook only.** This is not the general
+> website/API Production or Preview deployment procedure. Its dated state,
+> authorization notes, versions, tester allowlists, and example config must be
+> revalidated before any use. For all current Cloudflare website/API changes,
+> use [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md) and
+> [`DEPLOYMENT_ARCHITECTURE.md`](DEPLOYMENT_ARCHITECTURE.md); read
+> [`../AGENTS.md`](../AGENTS.md) before acting as a coding agent.
+
 November 22 owner update: game request notifications also work on the real iPhone. Group request delivery/tap were previously confirmed. Navigation stability is now the immediate priority; this does not close request-decision or other lifecycle acceptance.
 
 Status: isolated sandbox activation authorized November 22, 2026. Push-enabled development build signed/profile-verified, installed and launched on real iPhone17 Pro Max. Dedicated sender/key and minute cron are enabled. As of November 24, exact tester IDs include `sam test`, `How Tech` and `Big Data Analalytica` on Preview and the sender; Preview readiness remains true, browser push and Production remain unchanged. For `sam test`, hosted signing and sandbox reachability were checked, phone registration was verified, Apple accepted the corrected provider POST, and the owner confirmed alert receipt and targeted game/group taps. The two newly added accounts still need their own iPhone opt-in, APNs registration, receipt and tap acceptance. Physical UI automation is unsupported.
