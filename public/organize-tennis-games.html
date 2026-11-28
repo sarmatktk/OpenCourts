@@ -7,12 +7,12 @@
   <meta name="theme-color" content="#123d32" media="(prefers-color-scheme: dark)" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="application-name" content="OpenCourts" />
-  <meta name="description" content="Plan and schedule a tennis game with a clear time, court and format. Create a public game, invite players and manage join requests with OpenCourts." />
+  <meta name="description" content="Organize a tennis game and build a doubles rotation schedule. Plan courts and rounds, then create a game and manage players with OpenCourts." />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:site_name" content="OpenCourts" />
   <meta property="og:title" content="Organize and Schedule Tennis Games | OpenCourts" />
-  <meta property="og:description" content="A practical guide to planning a tennis game: choose a court and time, set the format and player spots, then invite players." />
+  <meta property="og:description" content="Plan a tennis game and create a fair doubles rotation for your group. Choose courts and rounds, then organize the game with OpenCourts." />
   <meta property="og:url" content="https://opencourts.us/organize-tennis-games" />
   <meta property="og:image" content="https://opencourts.us/social-preview-v2.png" />
   <meta property="og:image:secure_url" content="https://opencourts.us/social-preview-v2.png" />
@@ -22,7 +22,7 @@
   <meta property="og:image:alt" content="OpenCourts — Find courts, Find players. Play more." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Organize and Schedule Tennis Games | OpenCourts" />
-  <meta name="twitter:description" content="Plan a tennis game with a clear time, court and format, then invite players and manage join requests." />
+  <meta name="twitter:description" content="Create a doubles rotation schedule for your tennis group, then organize the game with OpenCourts." />
   <meta name="twitter:image" content="https://opencourts.us/social-preview-v2.png" />
   <meta name="twitter:image:alt" content="OpenCourts — Find courts, Find players. Play more." />
   <link rel="canonical" href="https://opencourts.us/organize-tennis-games" />
@@ -39,7 +39,7 @@
           "@type": "WebPage",
           "@id": "https://opencourts.us/organize-tennis-games#webpage",
           "name": "Organize and Schedule Tennis Games",
-          "description": "A practical guide to planning a tennis game, choosing its time, court and format, and inviting players.",
+          "description": "A practical guide to organizing a tennis game with a browser-based doubles rotation planner.",
           "url": "https://opencourts.us/organize-tennis-games",
           "isPartOf": { "@type": "WebSite", "@id": "https://opencourts.us/#website", "name": "OpenCourts", "url": "https://opencourts.us/" },
           "about": { "@type": "Thing", "name": "Organizing tennis games" }
@@ -58,6 +58,7 @@
             { "@type": "Question", "name": "Can I schedule a recurring tennis game?", "acceptedAnswer": { "@type": "Answer", "text": "OpenCourts game creation supports a weekly series with multiple dates. Review the dates and court details before sharing the series with players." } },
             { "@type": "Question", "name": "Does creating a game reserve a tennis court?", "acceptedAnswer": { "@type": "Answer", "text": "No. Creating or sharing a game does not reserve a public court. Check the facility's rules and make any reservation directly with the court operator." } },
             { "@type": "Question", "name": "Can I control who joins my tennis game?", "acceptedAnswer": { "@type": "Answer", "text": "For public games, organizers can review join requests and approve players. Game invitations and available player spots depend on the game settings." } },
+            { "@type": "Question", "name": "How do I make a doubles rotation schedule?", "acceptedAnswer": { "@type": "Answer", "text": "Enter the players, number of courts and rounds in the doubles rotation planner. It creates matchups, tries to rotate partners and spreads sit-outs as evenly as possible." } },
             { "@type": "Question", "name": "What should I include in a tennis game invitation?", "acceptedAnswer": { "@type": "Answer", "text": "Include the exact date and start time, court or meeting point, singles or doubles format, expected skill level, and any equipment or cost details players should know." } }
           ]
         }
@@ -83,26 +84,35 @@
     </section>
     <div class="landing-facts" aria-label="Game planning essentials"><div><strong>Pick a time</strong><span>Set the date and start time</span></div><div><strong>Choose a court</strong><span>Share where you plan to play</span></div><div><strong>Invite players</strong><span>Review requests and fill spots</span></div></div>
 
-    <section class="organizer-planner" aria-labelledby="planner-title">
-      <div class="organizer-planner-heading"><p class="landing-kicker">FREE ORGANIZER TOOL</p><h2 id="planner-title">Draft a tennis game invitation.</h2><p>Fill in the details and copy a ready-to-share message. The draft is not saved, posted, or sent.</p></div>
-      <div class="organizer-planner-grid">
-        <label>Date<input id="game-date" type="date" /></label>
-        <label>Start time<input id="game-time" type="time" /></label>
-        <label class="organizer-planner-wide">Court or meeting point<input id="game-court" type="text" maxlength="100" placeholder="e.g. Van Dyck Park, courts 1–2" /></label>
-        <label>Format<select id="game-format"><option>Singles</option><option selected>Doubles</option><option>Hitting session</option></select></label>
-        <label>Skill level<select id="game-level"><option>All levels</option><option>Beginner</option><option selected>Intermediate</option><option>Advanced</option></select></label>
-        <label>Open spots<input id="game-spots" type="number" min="1" max="20" value="3" /></label>
-        <label>Cost or court fee<input id="game-cost" type="text" maxlength="80" placeholder="e.g. Free, or split court fee" /></label>
-        <label class="organizer-planner-wide">Anything players should bring or know?<input id="game-notes" type="text" maxlength="160" placeholder="e.g. Bring a new can of balls; rain date is Sunday" /></label>
-      </div>
-      <div class="organizer-draft-wrap"><label for="game-draft">Your invitation</label><textarea id="game-draft" rows="7" readonly aria-describedby="game-draft-help"></textarea><div class="organizer-draft-actions"><p id="game-draft-help">Review the details before sharing. Don’t include private contact information.</p><button class="landing-primary" id="copy-game-draft" type="button">Copy invitation</button></div><p class="organizer-draft-status" id="game-draft-status" role="status" aria-live="polite"></p></div>
+    <section class="rotation-planner" aria-labelledby="planner-title">
+      <div class="rotation-planner-heading"><p class="landing-kicker">DOUBLES ROTATION PLANNER</p><h2 id="planner-title">Keep everyone playing and mix up the teams.</h2><p>Build a social doubles schedule for your group. Enter names, courts, and rounds to get matchups with balanced court time and fewer repeat partners.</p></div>
+      <form class="rotation-planner-form" id="rotation-form">
+        <label for="rotation-players">Player names <span>One name per line, 4–24 players</span></label>
+        <textarea id="rotation-players" rows="8" required aria-describedby="rotation-privacy" placeholder="Alex&#10;Blair&#10;Casey&#10;Devon">Alex
+Blair
+Casey
+Devon
+Emery
+Finley
+Gray
+Harper</textarea>
+        <p class="rotation-privacy" id="rotation-privacy">Names are used only to build the schedule in this page. They are not saved or sent.</p>
+        <div class="rotation-settings">
+          <label for="rotation-courts">Courts<select id="rotation-courts"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+          <label for="rotation-rounds">Rounds<select id="rotation-rounds"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></label>
+        </div>
+        <div class="rotation-actions"><button class="landing-primary" type="submit">Build rotation</button><button class="rotation-related-reset" id="copy-rotation" type="button" disabled>Copy schedule</button></div>
+        <p class="rotation-status" id="rotation-status" role="status" aria-live="polite"></p>
+      </form>
+      <div class="rotation-results" id="rotation-results" aria-label="Generated doubles rotation schedule"><p class="rotation-empty">Your match schedule will appear here.</p></div>
+      <p class="rotation-note">This planner balances playing time and tries to avoid repeating partners; it’s for social play, not tournament seeding. Review the schedule and adjust for your group as needed.</p>
     </section>
 
     <section class="landing-detail" aria-labelledby="plan-title"><div class="landing-detail-heading"><p class="landing-kicker">A PLAN PLAYERS CAN USE</p><h2 id="plan-title">Make the details clear before you invite.</h2><p>A little context helps everyone arrive ready and know whether the game fits their schedule.</p></div><div class="landing-detail-list"><article><h3>Set a specific time</h3><p>Choose the date, start time, and game duration. For a weekly hit, create a recurring series and review each date before you share it.</p></article><article><h3>Choose the court and format</h3><p>Select the court where you plan to play and say whether it is singles or doubles. Add a meeting point or facility detail if the location needs clarification.</p></article><article><h3>Set expectations</h3><p>Choose player capacity and a skill preference, then add notes about balls, fees, court reservations, or anything else players should know.</p></article></div></section>
 
     <section class="landing-practical" aria-labelledby="organize-title"><div class="landing-practical-heading"><p class="landing-kicker">FROM IDEA TO FIRST SERVE</p><h2 id="organize-title">A simple way to organize a tennis game.</h2></div><div class="landing-steps"><article><span>01</span><div><h3>Pick a court and a time</h3><p>Check the facility details and choose a time that works. If the court requires a reservation, arrange it with the facility separately.</p></div></article><article><span>02</span><div><h3>Create the game</h3><p>Add the date, duration, format, player spots, and skill preference. For repeat play, set up a weekly series.</p></div></article><article><span>03</span><div><h3>Share it with players</h3><p>Make the game public so players can find it and request to join, or invite players directly when you have someone in mind.</p></div></article><article><span>04</span><div><h3>Manage the player list</h3><p>Review join requests, approve players when needed, and keep game details current if plans change.</p></div></article></div></section>
 
-    <section class="landing-detail landing-faq" aria-labelledby="games-faq-title"><div class="landing-detail-heading"><p class="landing-kicker">QUICK ANSWERS</p><h2 id="games-faq-title">Planning and scheduling tennis games.</h2></div><div class="landing-faq-list"><details open><summary>How do I organize a tennis game?</summary><p>Choose a date and start time, pick a court, set the format and player capacity, then share the game or invite players. You can manage join requests from your account.</p></details><details><summary>Can I schedule a weekly tennis game?</summary><p>Yes. Game creation supports a weekly series with multiple dates. Check the dates, court, and details before sharing it with players.</p></details><details><summary>Does creating a game reserve a court?</summary><p>No. A game listing helps organize players and details; it does not book a public court. Check the facility's rules and make any reservation directly with the court operator.</p></details><details><summary>Can I approve players before they join?</summary><p>Public games can receive join requests for the organizer to review. You can approve players based on the game’s available spots and your plans.</p></details><details><summary>What should I put in the game details?</summary><p>Include the date and start time, court, singles or doubles format, expected level, player spots, and useful notes such as fees, equipment, or reservation details.</p></details></div></section>
+    <section class="landing-detail landing-faq" aria-labelledby="games-faq-title"><div class="landing-detail-heading"><p class="landing-kicker">QUICK ANSWERS</p><h2 id="games-faq-title">Planning and scheduling tennis games.</h2></div><div class="landing-faq-list"><details open><summary>How do I organize a tennis game?</summary><p>Choose a date and start time, pick a court, set the format and player capacity, then share the game or invite players. You can manage join requests from your account.</p></details><details><summary>Can I schedule a weekly tennis game?</summary><p>Yes. Game creation supports a weekly series with multiple dates. Check the dates, court, and details before sharing it with players.</p></details><details><summary>How do I make a doubles rotation schedule?</summary><p>Enter your player names, court count, and number of rounds in the planner above. It assigns matchups, tries to avoid repeating partners, and distributes sit-outs so court time stays balanced.</p></details><details><summary>Does creating a game reserve a court?</summary><p>No. A game listing helps organize players and details; it does not book a public court. Check the facility's rules and make any reservation directly with the court operator.</p></details><details><summary>Can I approve players before they join?</summary><p>Public games can receive join requests for the organizer to review. You can approve players based on the game’s available spots and your plans.</p></details><details><summary>What should I put in the game details?</summary><p>Include the date and start time, court, singles or doubles format, expected level, player spots, and useful notes such as fees, equipment, or reservation details.</p></details></div></section>
 
     <section class="organizer-checklist" aria-labelledby="checklist-title"><div><p class="landing-kicker">BEFORE YOU HIT SHARE</p><h2 id="checklist-title">Three details that prevent game-day confusion.</h2></div><ul><li><strong>Confirm court access.</strong> Check whether the facility needs a reservation, permit, or fee. Creating a game does not reserve a court.</li><li><strong>Agree on the plan.</strong> Set the format, level, open spots, equipment, and how players will split any court cost.</li><li><strong>Have a weather fallback.</strong> Decide when you’ll call off or reschedule, then update players if plans change.</li></ul></section>
     <p class="landing-caveat">OpenCourts helps players organize games and coordinate who is playing. Court access and reservations are handled directly with the facility.</p>
@@ -118,48 +128,127 @@
       document.querySelector('#landing-nav')?.classList.toggle('open', open);
     });
 
-    const plannerFields = ['game-date', 'game-time', 'game-court', 'game-format', 'game-level', 'game-spots', 'game-cost', 'game-notes'];
-    const draft = document.querySelector('#game-draft');
-    const draftStatus = document.querySelector('#game-draft-status');
-    const formatDate = value => {
-      if (!value) return '';
-      const [year, month, day] = value.split('-').map(Number);
-      return new Date(year, month - 1, day, 12).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    const rotationForm = document.querySelector('#rotation-form');
+    const rotationResults = document.querySelector('#rotation-results');
+    const rotationStatus = document.querySelector('#rotation-status');
+    const copyRotation = document.querySelector('#copy-rotation');
+    let plainSchedule = '';
+    const pairKey = (a, b) => [a, b].sort((x, y) => x.localeCompare(y)).join('\u0000');
+    const shuffle = list => {
+      const result = [...list];
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
     };
-    const formatTime = value => {
-      if (!value) return '';
-      const [hour, minute] = value.split(':').map(Number);
-      return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const makeMatch = (players, partners, opponents) => {
+      const [a, b, c, d] = players;
+      const options = [ [[a, b], [c, d]], [[a, c], [b, d]], [[a, d], [b, c]] ];
+      let best = null;
+      let bestScore = Infinity;
+      for (const [teamOne, teamTwo] of options) {
+        const teammateCount = partners.get(pairKey(...teamOne)) || 0;
+        const teammateCountTwo = partners.get(pairKey(...teamTwo)) || 0;
+        const opponentCount = teamOne.reduce((sum, first) => sum + teamTwo.reduce((inner, second) => inner + (opponents.get(pairKey(first, second)) || 0), 0), 0);
+        const score = teammateCount * 100 + teammateCountTwo * 100 + opponentCount * 10 + Math.random();
+        if (score < bestScore) { best = [teamOne, teamTwo]; bestScore = score; }
+      }
+      return best;
     };
-    const updateDraft = () => {
-      const values = Object.fromEntries(plannerFields.map(id => [id, document.getElementById(id).value.trim()]));
-      const when = [formatDate(values['game-date']), formatTime(values['game-time'])].filter(Boolean).join(' at ');
-      const spots = Math.max(1, Math.min(20, Number(values['game-spots']) || 1));
-      const lines = [
-        'Anyone up for tennis?',
-        when && `When: ${when}`,
-        values['game-court'] && `Where: ${values['game-court']}`,
-        `Format: ${values['game-format']}`,
-        `Level: ${values['game-level']}`,
-        `Open spots: ${spots}`,
-        values['game-cost'] && `Cost: ${values['game-cost']}`,
-        values['game-notes'] && `Details: ${values['game-notes']}`
-      ].filter(Boolean);
-      draft.value = lines.join('\n');
-      draftStatus.textContent = '';
+    const addText = (parent, tag, className, value) => {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      element.textContent = value;
+      parent.append(element);
+      return element;
     };
-    plannerFields.forEach(id => document.getElementById(id).addEventListener('input', updateDraft));
-    document.querySelector('#copy-game-draft').addEventListener('click', async () => {
+    rotationForm.addEventListener('submit', event => {
+      event.preventDefault();
+      rotationStatus.textContent = '';
+      const names = document.querySelector('#rotation-players').value.split('\n').map(name => name.trim()).filter(Boolean);
+      const uniqueNames = [...new Map(names.map(name => [name.toLocaleLowerCase(), name])).values()];
+      if (uniqueNames.length < 4 || uniqueNames.length > 24) {
+        rotationStatus.textContent = 'Enter 4 to 24 unique player names, one per line.';
+        return;
+      }
+      const requestedCourts = Number(document.querySelector('#rotation-courts').value);
+      const roundCount = Number(document.querySelector('#rotation-rounds').value);
+      const courtsPerRound = Math.min(requestedCourts, Math.floor(uniqueNames.length / 4));
+      const playersPerRound = courtsPerRound * 4;
+      const played = new Map(uniqueNames.map(name => [name, 0]));
+      const partners = new Map();
+      const opponents = new Map();
+      const rounds = [];
+      for (let round = 0; round < roundCount; round++) {
+        const tieOrder = new Map(shuffle(uniqueNames).map((name, index) => [name, index]));
+        const active = [...uniqueNames].sort((a, b) => played.get(a) - played.get(b) || tieOrder.get(a) - tieOrder.get(b)).slice(0, playersPerRound);
+        let bestGames = null;
+        let bestScore = Infinity;
+        for (let attempt = 0; attempt < 180; attempt++) {
+          const games = [];
+          let score = 0;
+          const shuffled = shuffle(active);
+          for (let court = 0; court < courtsPerRound; court++) {
+            const match = makeMatch(shuffled.slice(court * 4, court * 4 + 4), partners, opponents);
+            const [teamOne, teamTwo] = match;
+            score += (partners.get(pairKey(...teamOne)) || 0) * 100 + (partners.get(pairKey(...teamTwo)) || 0) * 100;
+            score += teamOne.reduce((sum, first) => sum + teamTwo.reduce((inner, second) => inner + (opponents.get(pairKey(first, second)) || 0), 0), 0) * 10;
+            games.push({ teamOne, teamTwo });
+          }
+          if (score < bestScore) { bestGames = games; bestScore = score; }
+        }
+        for (const { teamOne, teamTwo } of bestGames) {
+          teamOne.forEach(name => played.set(name, played.get(name) + 1));
+          teamTwo.forEach(name => played.set(name, played.get(name) + 1));
+          partners.set(pairKey(...teamOne), (partners.get(pairKey(...teamOne)) || 0) + 1);
+          partners.set(pairKey(...teamTwo), (partners.get(pairKey(...teamTwo)) || 0) + 1);
+          teamOne.forEach(first => teamTwo.forEach(second => opponents.set(pairKey(first, second), (opponents.get(pairKey(first, second)) || 0) + 1)));
+        }
+        rounds.push({ games: bestGames, sitting: uniqueNames.filter(name => !active.includes(name)) });
+      }
+      rotationResults.replaceChildren();
+      plainSchedule = rounds.map((round, index) => {
+        const lines = [`Round ${index + 1}`, ...round.games.map((game, court) => `Court ${court + 1}: ${game.teamOne.join(' & ')} vs ${game.teamTwo.join(' & ')}`)];
+        if (round.sitting.length) lines.push(`Sitting out: ${round.sitting.join(', ')}`);
+        return lines.join('\n');
+      }).join('\n\n');
+      rounds.forEach((round, index) => {
+        const card = document.createElement('article');
+        card.className = 'rotation-round';
+        addText(card, 'h3', '', `Round ${index + 1}`);
+        round.games.forEach((game, court) => {
+          const match = document.createElement('div');
+          match.className = 'rotation-match';
+          const teams = document.createElement('div');
+          teams.className = 'rotation-match-teams';
+          const teamOne = document.createElement('strong');
+          teamOne.textContent = game.teamOne.join(' & ');
+          addText(teams, 'span', 'rotation-versus', 'vs');
+          const teamTwo = document.createElement('strong');
+          teamTwo.textContent = game.teamTwo.join(' & ');
+          teams.prepend(teamOne);
+          teams.append(teamTwo);
+          match.append(teams);
+          addText(match, 'span', 'rotation-court', `Court ${court + 1}`);
+          card.append(match);
+        });
+        if (round.sitting.length) addText(card, 'p', 'rotation-byes', `Sitting out: ${round.sitting.join(', ')}`);
+        rotationResults.append(card);
+      });
+      const totalByes = uniqueNames.length - playersPerRound;
+      rotationStatus.textContent = `${roundCount} rounds for ${uniqueNames.length} players across ${courtsPerRound} ${courtsPerRound === 1 ? 'court' : 'courts'}.${totalByes ? ` ${totalByes} ${totalByes === 1 ? 'player sits out' : 'players sit out'} each round; breaks are rotated.` : ' Everyone plays every round.'}`;
+      copyRotation.disabled = false;
+    });
+    copyRotation.addEventListener('click', async () => {
+      if (!plainSchedule) return;
       try {
-        await navigator.clipboard.writeText(draft.value);
-        draftStatus.textContent = 'Invitation copied. Paste it wherever you coordinate your game.';
+        await navigator.clipboard.writeText(plainSchedule);
+        rotationStatus.textContent = 'Schedule copied. Paste it into your group chat.';
       } catch {
-        draft.focus();
-        draft.select();
-        draftStatus.textContent = 'Select the invitation above and copy it.';
+        rotationStatus.textContent = 'Copy is unavailable in this browser. You can select the schedule and copy it manually.';
       }
     });
-    updateDraft();
   </script>
 </body>
 </html>
