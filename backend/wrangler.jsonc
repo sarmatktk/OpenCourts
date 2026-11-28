@@ -1,0 +1,140 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "opencourts-api",
+  "main": "./api-worker.ts",
+  "compatibility_date": "2026-10-09",
+  "keep_vars": true,
+  "workers_dev": true,
+  "preview_urls": false,
+  "secrets": {
+    "required": [
+      "APPLE_PRIVATE_KEY",
+      "APPLE_TOKEN_ENCRYPTION_KEY",
+      "AUTH_RATE_LIMIT_SECRET",
+      "GOOGLE_CLIENT_SECRET",
+      "GEOAPIFY_API_KEY",
+      "OPENAI_API_KEY",
+      "WEATHERAPI_KEY"
+    ]
+  },
+  "env": {
+    "preview": {
+      "name": "opencourts-api-preview",
+      "workers_dev": false,
+      "vars": {
+        "AUTH_ORIGIN": "https://feature-play-together.opencourts.pages.dev",
+        "APPLE_CLIENT_ID": "us.opencourts.playtogether.dev",
+        "APPLE_KEY_ID": "PL878X442V",
+        "APPLE_TEAM_ID": "D8Z42UUJXX",
+        "CF_PAGES_BRANCH": "feature/play-together",
+        "GOOGLE_CLIENT_ID": "702555901816-is29vjhu38vtnuuq6u482p5athmhnr4o.apps.googleusercontent.com",
+        "MEDIA_UPLOADS_ENABLED": "true",
+        "NATIVE_AUTH_DEVELOPMENT_ENABLED": "true",
+        "NATIVE_PUSH_DEVELOPMENT_ENABLED": "true",
+        "NATIVE_PUSH_SANDBOX_READY": "true",
+        "PLAY_TOGETHER_ENABLED": "true",
+        "PLAY_TOGETHER_ENVIRONMENT": "development",
+        "PUSH_ENABLED": "true",
+        "PUSH_ENVIRONMENT": "development"
+      },
+      "d1_databases": [
+        {
+          "binding": "COURTS_DB",
+          "database_name": "opencourts-dev",
+          "database_id": "cae4849c-3e99-4945-9d70-bef7b48707ce"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "PLAY_TOGETHER_MEDIA",
+          "bucket_name": "opencourts-media-dev"
+        }
+      ],
+      "services": [
+        {
+          "binding": "PLAY_TOGETHER_IMAGE_PROCESSOR",
+          "service": "opencourts-media-processor-dev",
+          "environment": "production"
+        }
+      ],
+      "ai": { "binding": "AI" },
+      "secrets": {
+        "required": [
+          "APPLE_PRIVATE_KEY",
+          "APPLE_TOKEN_ENCRYPTION_KEY",
+          "AUTH_RATE_LIMIT_SECRET",
+          "GOOGLE_CLIENT_SECRET",
+          "GEOAPIFY_API_KEY",
+          "OPENAI_API_KEY",
+          "WEATHERAPI_KEY"
+        ]
+      }
+    },
+    "production": {
+      "name": "opencourts-api-production",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "opencourts.us/api/*",
+          "zone_name": "opencourts.us"
+        }
+      ],
+      "vars": {
+        "APNS_ENVIRONMENT": "production",
+        "APNS_KEY_ID": "PL878X442V",
+        "APNS_TEAM_ID": "D8Z42UUJXX",
+        "APNS_TOPIC": "us.opencourts.ios",
+        "APPLE_CLIENT_ID": "us.opencourts.playtogether.dev",
+        "APPLE_KEY_ID": "PL878X442V",
+        "APPLE_TEAM_ID": "D8Z42UUJXX",
+        "AUTH_ORIGIN": "https://opencourts.us",
+        "CF_PAGES_BRANCH": "main",
+        "GOOGLE_CLIENT_ID": "702555901816-is29vjhu38vtnuuq6u482p5athmhnr4o.apps.googleusercontent.com",
+        "MEDIA_UPLOADS_ENABLED": "true",
+        "MODERATOR_PLAYER_IDS": "a4746f68-1be9-49dd-87ae-170494349ee6,e376e237-5db2-4f22-ad7d-4a36c0350b36",
+        "NATIVE_AUTH_PRODUCTION_ENABLED": "true",
+        "NATIVE_PUSH_PRODUCTION_ENABLED": "true",
+        "NATIVE_PUSH_PRODUCTION_READY": "true",
+        "PLAY_TOGETHER_ENABLED": "true",
+        "PLAY_TOGETHER_ENVIRONMENT": "production",
+        "PLAY_TOGETHER_PRODUCTION_ENABLED": "true",
+        "PUSH_ENABLED": "true",
+        "PUSH_ENVIRONMENT": "production",
+        "PUSH_VAPID_PUBLIC_KEY": "BPJ1UqVAVhHI8Pw7uiCXyrQNaG8eeoFpZ65fm62muI--CRtcXWKH_ef5mhEKEqOFcZAGLCEkrwsdOLURPZFODzs",
+        "PUSH_VAPID_SUBJECT": "https://opencourts.us/contact"
+      },
+      "d1_databases": [
+        {
+          "binding": "COURTS_DB",
+          "database_name": "opencourts-courts",
+          "database_id": "56c414b7-aca5-429b-acfa-b9e8e87b052b"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "PLAY_TOGETHER_MEDIA",
+          "bucket_name": "opencourts-media"
+        }
+      ],
+      "services": [
+        {
+          "binding": "PLAY_TOGETHER_IMAGE_PROCESSOR",
+          "service": "opencourts-media-processor",
+          "environment": "production"
+        }
+      ],
+      "ai": { "binding": "AI" },
+      "secrets": {
+        "required": [
+          "APPLE_PRIVATE_KEY",
+          "APPLE_TOKEN_ENCRYPTION_KEY",
+          "AUTH_RATE_LIMIT_SECRET",
+          "GEOAPIFY_API_KEY",
+          "GOOGLE_CLIENT_SECRET",
+          "OPENAI_API_KEY",
+          "WEATHERAPI_KEY"
+        ]
+      }
+    }
+  }
+}

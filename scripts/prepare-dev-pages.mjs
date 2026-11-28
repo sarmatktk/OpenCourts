@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 // Pages has a custom 404.html, so it does not use Vite's SPA fallback. Export only
 // the approved development route without altering production redirects/settings.
-const output = new URL('../dist/', import.meta.url);
+const outputName = process.argv[2] ?? 'dist';
+if (!['dist', 'dist-preview'].includes(outputName)) throw new Error('Unexpected development artifact directory.');
+const output = new URL(`../${outputName}/`, import.meta.url);
 await mkdir(output, { recursive: true });
 await copyFile(new URL('index.html', output), new URL('play-together.html', output));
 await copyFile(new URL('index.html', output), new URL('account.html', output));

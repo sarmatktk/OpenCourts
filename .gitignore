@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-release/
+dist-frontend/
+dist-preview/
 playwright-report/
 test-results/
 .wrangler/

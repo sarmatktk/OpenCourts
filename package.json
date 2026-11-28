@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "build:pages": "node scripts/build-pages.mjs",
+    "build:frontend": "tsc -b && vite build --outDir dist-frontend",
+    "build:frontend:preview": "cross-env VITE_PLAY_TOGETHER=true tsc -b && cross-env VITE_PLAY_TOGETHER=true vite build --outDir dist-preview && node scripts/prepare-preview-pages.mjs",
+    "build:frontend:release": "cross-env VITE_PLAY_TOGETHER=true npm run build:frontend && node scripts/prepare-production-pages.mjs dist-frontend",
+    "deploy:pages:assets": "node scripts/deploy-pages-assets.mjs",
+    "typecheck:api": "tsc -p backend/tsconfig.json",
     "build:release": "cross-env VITE_PLAY_TOGETHER=true npm run build -- --outDir dist-release && node scripts/prepare-production-pages.mjs",
     "dev": "cross-env NODE_USE_ENV_PROXY=1 vite",
     "build": "tsc -b && tsc -p functions/tsconfig.json && vite build",
