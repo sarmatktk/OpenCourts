@@ -19,7 +19,7 @@ routing unless a build-time compatibility layer is added first.
   `landing-analytics.js`
 - Utility pages: `about.html`, `contact.html`, `privacy.html`, `support.html`
 - Editorial guides: `best-time-to-play-tennis.html`,
-  `tennis-courts-after-rain.html`
+  `tennis-courts-after-rain.html`, `organize-tennis-games.html`
 - City guides: files beginning with `public-tennis-courts-`
 - Landing photography: files beginning with `landing-` and ending in `.webp`
 - Social previews: files beginning with `social-` and ending in `.png`

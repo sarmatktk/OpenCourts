@@ -20,7 +20,7 @@ const pages = [
   ['public/support.html', 'https://opencourts.us/support'],
   ['public/terms.html', 'https://opencourts.us/terms'],
   ['public/delete-account.html', 'https://opencourts.us/delete-account'],
-  ['public/find-tennis-players.html', 'https://opencourts.us/find-tennis-players'],
+  ['public/organize-tennis-games.html', 'https://opencourts.us/organize-tennis-games'],
 ] as const;
 
 describe('social share metadata', () => {
