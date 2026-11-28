@@ -7,12 +7,12 @@
   <meta name="theme-color" content="#123d32" media="(prefers-color-scheme: dark)" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="application-name" content="OpenCourts" />
-  <meta name="description" content="Plan a tennis doubles session by group size, courts, start time, and session length. Build a court rotation, then organize the game with OpenCourts." />
+  <meta name="description" content="Organize tennis games with one shareable plan. Choose a time and court, set player spots, invite players, and manage join requests with OpenCourts." />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:site_name" content="OpenCourts" />
   <meta property="og:title" content="Organize and Schedule Tennis Games | OpenCourts" />
-  <meta property="og:description" content="Create a timed doubles rotation for your group. Choose the player count, courts, start time, and session length, then organize the game with OpenCourts." />
+  <meta property="og:description" content="Choose a time and court, set player spots, invite players, and manage join requests with one shareable OpenCourts game page." />
   <meta property="og:url" content="https://opencourts.us/organize-tennis-games" />
   <meta property="og:image" content="https://opencourts.us/social-preview-v2.png" />
   <meta property="og:image:secure_url" content="https://opencourts.us/social-preview-v2.png" />
@@ -22,7 +22,7 @@
   <meta property="og:image:alt" content="OpenCourts — Find courts, Find players. Play more." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Organize and Schedule Tennis Games | OpenCourts" />
-  <meta name="twitter:description" content="Build a timed tennis court rotation from your group size and court setup, then organize the game with OpenCourts." />
+  <meta name="twitter:description" content="Choose a time and court, set player spots, invite players, and manage join requests with one shareable OpenCourts game page." />
   <meta name="twitter:image" content="https://opencourts.us/social-preview-v2.png" />
   <meta name="twitter:image:alt" content="OpenCourts — Find courts, Find players. Play more." />
   <link rel="canonical" href="https://opencourts.us/organize-tennis-games" />
@@ -39,7 +39,7 @@
           "@type": "WebPage",
           "@id": "https://opencourts.us/organize-tennis-games#webpage",
           "name": "Organize and Schedule Tennis Games",
-          "description": "A practical guide to organizing a tennis game with a browser-based doubles rotation planner.",
+          "description": "Create and share a tennis game plan, invite players, and manage join requests. Includes an optional doubles court rotation planner.",
           "url": "https://opencourts.us/organize-tennis-games",
           "isPartOf": { "@type": "WebSite", "@id": "https://opencourts.us/#website", "name": "OpenCourts", "url": "https://opencourts.us/" },
           "about": { "@type": "Thing", "name": "Organizing tennis games" }
@@ -79,12 +79,14 @@
     <div class="landing-actions"><a class="landing-near" href="/play-together/create" data-analytics-event="landing_cta_click" data-analytics-label="header_create_game"><span>Create a game</span></a><button type="button" data-menu-toggle class="landing-menu" aria-label="Toggle menu" aria-expanded="false" aria-controls="landing-nav"><svg class="landing-menu-open" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><svg class="landing-menu-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   </div></header>
   <main class="landing-main">
-    <section class="landing-hero"><div class="landing-copy"><p class="landing-kicker">PLAY TOGETHER</p><h1>Organize your next tennis game.</h1><p class="landing-intro">Plan court rotations for your group, then create a game so everyone knows when and where to play.</p><a class="landing-primary" href="#rotation-form" data-analytics-event="landing_cta_click" data-analytics-label="hero_plan_rotation">Plan your court rotation</a><p class="landing-sign-in-note">Use the planner free. Sign in only when you’re ready to create and manage a game.</p></div>
-      <aside class="session-preview" aria-label="Example two-court doubles session"><p class="landing-kicker">A MORE ORGANIZED HIT</p><h2>Eight players. Two courts. Everyone gets on.</h2><div class="session-preview-stats"><div><strong>4</strong><span>rounds</span></div><div><strong>30</strong><span>minutes each</span></div><div><strong>0</strong><span>sit-outs</span></div></div><div class="session-preview-match"><span>ROUND 1 · COURT 1</span><strong>Players 1 + 2 <i>vs</i> 3 + 4</strong></div><div class="session-preview-match"><span>ROUND 1 · COURT 2</span><strong>Players 5 + 6 <i>vs</i> 7 + 8</strong></div><p>Example rotation. Build one for your group below.</p></aside>
+    <section class="landing-hero"><div class="landing-copy"><p class="landing-kicker">PLAY TOGETHER</p><h1>Organize your next tennis game.</h1><p class="landing-intro">Set a time, choose a court, and open spots for players. Share one game page where people can request to join and see the latest details.</p><a class="landing-primary" href="/play-together/create" data-analytics-event="landing_cta_click" data-analytics-label="hero_create_game">Create a game</a><p class="landing-sign-in-note">A free OpenCourts account is required to create and manage games.</p></div>
+      <aside class="game-preview" aria-label="Example OpenCourts game"><div class="game-preview-top"><span class="game-preview-mark" aria-hidden="true">OC</span><div><p class="landing-kicker">SAMPLE GAME</p><h2>Saturday doubles</h2></div><span class="game-preview-open">2 spots open</span></div><div class="game-preview-details"><div><span>WHEN</span><strong>Saturday · 9:00 AM</strong></div><div><span>WHERE</span><strong>Your chosen court</strong></div><div><span>FORMAT</span><strong>Doubles · all levels</strong></div></div><div class="game-preview-footer"><span>Players can request to join</span><span class="game-preview-link">One page to share</span></div></aside>
     </section>
 
+    <section class="landing-practical" aria-labelledby="organize-title"><div class="landing-practical-heading"><p class="landing-kicker">FROM PLAN TO FIRST SERVE</p><h2 id="organize-title">Keep the game details and player list in one place.</h2></div><div class="landing-steps"><article><span>01</span><div><h3>Create the game</h3><p>Set the date, start time, court, format, and open spots.</p></div></article><article><span>02</span><div><h3>Share the plan</h3><p>Publish the game or invite players so everyone has the same details.</p></div></article><article><span>03</span><div><h3>Manage responses</h3><p>Review join requests and update the group if plans change.</p></div></article></div></section>
+
     <section class="rotation-planner" aria-labelledby="planner-title">
-      <div class="rotation-planner-heading"><p class="landing-kicker">FREE COURT ROTATION PLANNER</p><h2 id="planner-title">Plan a fair doubles session in seconds.</h2><p>Set the group size, available courts, and session length. Get timed rounds with balanced playing time and rotating partners.</p><div class="rotation-benefits"><span>✓ No names collected</span><span>✓ Copy or print the plan</span></div></div>
+      <div class="rotation-planner-heading"><p class="landing-kicker">OPTIONAL TOOL FOR YOUR GROUP</p><h2 id="planner-title">Already have your players? Plan court rotations.</h2><p>For social doubles, set your group size, available courts, and session length. Get timed rounds with balanced playing time and rotating partners.</p><div class="rotation-benefits"><span>✓ No names collected</span><span>✓ Copy or print the plan</span></div></div>
       <form class="rotation-planner-form" id="rotation-form">
         <div class="rotation-settings">
           <label for="rotation-players">Group size<select id="rotation-players"><option>4</option><option>5</option><option>6</option><option>7</option><option selected>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option><option>21</option><option>22</option><option>23</option><option>24</option></select></label>
@@ -101,7 +103,6 @@
       <p class="rotation-note">The planner balances court time and tries to rotate partners. It’s designed for friendly group play, not tournament seeding. Use the numbered spots to assign players on court. Set a timer and rotate when each round ends.</p>
     </section>
 
-    <section class="landing-practical" aria-labelledby="organize-title"><div class="landing-practical-heading"><p class="landing-kicker">FROM PLAN TO FIRST SERVE</p><h2 id="organize-title">Keep the game details and player list in one place.</h2></div><div class="landing-steps"><article><span>01</span><div><h3>Create the game</h3><p>Set the date, start time, court, format, and open spots.</p></div></article><article><span>02</span><div><h3>Share the plan</h3><p>Publish the game or invite players so everyone has the same details.</p></div></article><article><span>03</span><div><h3>Manage responses</h3><p>Review join requests and update the group if plans change.</p></div></article></div></section>
 
     <section class="landing-detail landing-faq" aria-labelledby="games-faq-title"><div class="landing-detail-heading"><p class="landing-kicker">QUICK ANSWERS</p><h2 id="games-faq-title">Planning and scheduling tennis games.</h2></div><div class="landing-faq-list"><details open><summary>How do I organize a tennis game?</summary><p>Choose a date and start time, pick a court, set the format and player capacity, then share the game or invite players. You can manage join requests from your account.</p></details><details><summary>Can I schedule a weekly tennis game?</summary><p>Yes. Game creation supports a weekly series with multiple dates. Check the dates, court, and details before sharing it with players.</p></details><details><summary>How do I plan a doubles court rotation?</summary><p>Choose the group size, number of courts, session length, and round length. The planner creates timed doubles matchups, balances sit-outs, and tries to rotate partners.</p></details><details><summary>Does creating a game reserve a court?</summary><p>No. A game listing helps organize players and details; it does not book a public court. Check the facility's rules and make any reservation directly with the court operator.</p></details><details><summary>Can I approve players before they join?</summary><p>Public games can receive join requests for the organizer to review. You can approve players based on the game’s available spots and your plans.</p></details><details><summary>What should I put in the game details?</summary><p>Include the date and start time, court, singles or doubles format, expected level, player spots, and useful notes such as fees, equipment, or reservation details.</p></details></div></section>
 
