@@ -1,14 +1,15 @@
 # Production rollout history
 
-## Current deployment snapshot — November 27, 2026
+## Current deployment snapshot — November 28, 2026
 
 This file is a chronological rollout record. For the current independent
 website/API deployment IDs, release procedures and rollback steps, see the
 [deployment architecture handoff](DEPLOYMENT_ARCHITECTURE.md). Use the compact
 [Production issue handover](PRODUCTION_ISSUE_HANDOVER.md) for current incidents
 and the [Play Together handoff](PLAY_TOGETHER_HANDOFF.md) for Preview status.
-The November 27 current snapshot is Pages static deployment
-`7c50b3e0-8925-4a09-8c19-13ce8cbf09b2`, API Worker version
+The November 28 current snapshot is Pages static deployment
+`7690e4c6-cf49-425a-8247-a0c08b20c5f0`, built from frontend release commit
+`990b91bf`, API Worker version
 `bf43e899-04ff-4ac0-b9ff-836003957db4`, reminder scheduler Worker
 `cff7613f-0e31-4e55-837b-07c47635f612`, and APNs/badge Worker
 `5ef2710b-2c8c-48a4-92cc-c198d0f35e67`. Production migrations 0042 and 0043

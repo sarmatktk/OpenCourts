@@ -140,6 +140,13 @@ A submodule separates source history, but Cloudflare Pages would still package t
 - Read the project back after the update: `production_deployments_enabled=false`, `preview_deployment_setting=all`, Production branch `main`.
 - No Pages deployment, Worker route, DNS, secret, database or source repository setting was changed. Future Production website releases now use the guarded manual asset-only command; Preview remains Git-triggered.
 
+### 2026-11-28 — verify Cloudflare Pages deployment behavior and release
+
+- Read the current `opencourts` Pages project configuration from Cloudflare. `production_deployments_enabled=false`, `preview_deployment_setting=all`, and the Production branch is `main`.
+- The GitHub push event for frontend release commit `990b91bf` was recorded by Cloudflare as skipped with reason `production_deployments_disabled`. It did not run a Production Pages build. This corrects the earlier conversational description that the Git push triggered a Production Pages build.
+- Published the reviewed static-only `dist-release/` artifact to Pages deployment `7690e4c6-cf49-425a-8247-a0c08b20c5f0`. Verified the landing page, sitemap entry, and chat CSS are live; Production `/api/auth/me` returned HTTP 200 afterward. No API Worker, route, backend source, database, secret, DNS, or Cloudflare deployment setting changed in this release.
+- Current website procedure remains [`DEPLOYMENT_WORKFLOW.md`](DEPLOYMENT_WORKFLOW.md). Production Git deployments are disabled; Preview Git deployments remain enabled. Do not infer that a push to `main` publishes Production.
+
 ### 2026-11-27 — isolated Preview artifact build
 
 - Added `build:frontend:preview` to produce `dist-preview/` independently from the Production-only `dist-frontend/` artifact. The Preview artifact receives the development route aliases, noindex headers, and development Android app association.

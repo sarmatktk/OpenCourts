@@ -1,6 +1,6 @@
 # OpenCourts deployment architecture
 
-**Current as of November 27, 2026.** This is the short operational handoff for
+**Current as of November 28, 2026.** This is the short operational handoff for
 agents and maintainers. For the full migration decisions and dated evidence, see
 the [frontend/backend separation log](FRONTEND_BACKEND_SEPARATION_LOG.md). The
 [deployment workflow](DEPLOYMENT_WORKFLOW.md) contains the guarded website
@@ -12,8 +12,9 @@ OpenCourts is a monorepo, not a submodule. The source is kept together, while
 Cloudflare deploys the website and API as separate products:
 
 - **Website:** Cloudflare Pages project `opencourts`, served at
-  `https://opencourts.us`. Production Pages receives only static files from
-  `dist-frontend/`; it does not package or deploy root `functions/`.
+  `https://opencourts.us`. Production Pages receives only a static frontend
+  artifact; it does not package or deploy root `functions/`. The current
+  release procedure builds that artifact into `dist-frontend/`.
 - **API:** Cloudflare Worker `opencourts-api-production` handles
   `https://opencourts.us/api/*`. The Worker has its own Wrangler config,
   deployment command, bindings, secrets, and rollback point. Web and native iOS
@@ -39,14 +40,16 @@ shared handler code.
 
 ## Current Production snapshot
 
-- Static Pages deployment: `7c50b3e0-8925-4a09-8c19-13ce8cbf09b2`, built from
-  frontend release commit `587ad40920bc40443b58b52b4e7608d359ec5777`.
+- Static Pages deployment: `7690e4c6-cf49-425a-8247-a0c08b20c5f0`, built from
+  frontend release commit `990b91bf` (organizer landing page and chat button styling).
 - API Worker active version after the Apple sign-in key correction:
   `bf43e899-04ff-4ac0-b9ff-836003957db4`.
 - API Worker route: `opencourts.us/api/*`; `workers_dev` is disabled.
-- Production frontend Git builds are disabled in Cloudflare. Preview branch
-  builds remain enabled. Production website releases use the guarded manual
-  static asset command.
+- Cloudflare's current `opencourts` Pages configuration has automatic
+  Production deployments disabled and Preview branch deployments enabled for
+  all branches. A Git push to `main` may be recorded as a skipped deployment;
+  it does not build or publish Production. The latest website release was the
+  guarded manual static asset deployment above.
 - Production and Preview API Worker environments use distinct D1, R2, media
   processor, and feature configuration. Secrets are stored in Cloudflare only;
   never commit or print their values.
